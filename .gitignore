@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+.DS_Store
+# large, re-downloadable inputs
+data/input/narclim/*.nc
+data/input/hydrobasins/

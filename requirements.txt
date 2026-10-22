@@ -1,0 +1,7 @@
+xarray
+netcdf4
+dask
+rioxarray
+geopandas
+exactextract
+pandas

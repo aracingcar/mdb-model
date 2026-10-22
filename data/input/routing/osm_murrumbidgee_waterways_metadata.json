@@ -1,0 +1,12 @@
+{
+  "source": "OpenStreetMap contributors via Overpass API",
+  "endpoint": "https://overpass-api.de/api/interpreter",
+  "query": "way[waterway~\"^(river|stream|canal|drain|ditch)$\"] within catchment bounding box, clipped to CEWO Murrumbidgee valley polygon",
+  "downloaded_at_utc": "2026-10-22T08:19:11.199617+00:00",
+  "elements_in_response": 28390,
+  "features_after_clip": 12239,
+  "output": "data/input/routing/osm_murrumbidgee_waterways.geojson",
+  "attribution": "\u00a9 OpenStreetMap contributors",
+  "license": "Open Database License (ODbL) 1.0",
+  "license_url": "https://www.openstreetmap.org/copyright"
+}

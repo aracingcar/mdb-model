@@ -1,0 +1,10 @@
+station_id,station_name,latitude,longitude,role,source
+410001,Murrumbidgee River at Wagga Wagga,-35.1006,147.3674,mainstem reference gauge,https://cdn.csu.edu.au/__data/assets/pdf_file/0010/3390571/mer-plan-murrumbidgee-2019.pdf
+410005,Murrumbidgee River at Narrandera,-34.7554,146.5489,mainstem reference gauge,https://cdn.csu.edu.au/__data/assets/pdf_file/0010/3390571/mer-plan-murrumbidgee-2019.pdf
+410021,Murrumbidgee River at Darlington Point,-34.5664,146.0027,mainstem reference gauge,https://cdn.csu.edu.au/__data/assets/pdf_file/0010/3390571/mer-plan-murrumbidgee-2019.pdf
+410078,Murrumbidgee River at Carrathool,-34.4493,145.4174,mainstem reference gauge,https://cdn.csu.edu.au/__data/assets/pdf_file/0010/3390571/mer-plan-murrumbidgee-2019.pdf
+410002,Murrumbidgee River at Hay,-34.5169,144.8418,mainstem reference gauge,https://cdn.csu.edu.au/__data/assets/pdf_file/0010/3390571/mer-plan-murrumbidgee-2019.pdf
+410130,Murrumbidgee River downstream Balranald Weir,-34.6665,143.4904,mainstem reference gauge,https://cdn.csu.edu.au/__data/assets/pdf_file/0010/3390571/mer-plan-murrumbidgee-2019.pdf
+410008,Murrumbidgee River downstream Burrinjuck Dam,,,upper system gauge,https://mdbwip.bom.gov.au/murrumbidgee
+410068,Murrumbidgee River at Glendale,,,gauge,https://mdbwip.bom.gov.au/murrumbidgee
+410195,Murrumbidgee River upstream Gobarralong Bridge,,,gauge,https://mdbwip.bom.gov.au/murrumbidgee
