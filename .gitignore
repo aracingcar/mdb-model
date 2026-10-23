@@ -7,3 +7,4 @@ data/input/hydrobasins/
 data/input/observed_flow/observed_flow_daily.csv
 data/input/dem/
 data/output/murrumbidgee_river_flow.csv
+data/output/murrumbidgee_river_pulse.html

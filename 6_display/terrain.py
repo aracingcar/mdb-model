@@ -6,8 +6,10 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image
+from scipy.ndimage import gaussian_filter
 
 ZOOM = 9  # ~300 m pixels at this latitude
+SMOOTH_PX = 3  # gaussian sigma in DEM pixels (~0.9 km)
 URL = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
 CACHE = Path(__file__).resolve().parent.parent / "data" / "input" / "dem"
 
@@ -35,7 +37,8 @@ class Dem:
         x0, y1 = map(int, _tile_xy(minx, miny))
         x1, y0 = map(int, _tile_xy(maxx, maxy))
         self.x0, self.y0 = x0, y0
-        self.z = np.vstack([np.hstack([_fetch(x, y) for x in range(x0, x1 + 1)]) for y in range(y0, y1 + 1)])
+        z = np.vstack([np.hstack([_fetch(x, y) for x in range(x0, x1 + 1)]) for y in range(y0, y1 + 1)])
+        self.z = gaussian_filter(z, sigma=SMOOTH_PX)  # soften pixel noise so the surface reads as continuous
 
     def at(self, lon, lat):
         lon, lat = np.asarray(lon, float), np.asarray(lat, float)

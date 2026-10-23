@@ -6,11 +6,12 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import shapely
+from scipy.ndimage import binary_dilation
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "1_masking"))
 
 from config import INPUT
-from terrain import Dem, hillshade
+from terrain import Dem
 
 HERE = Path(__file__).resolve().parent
 TEMPLATE = HERE / "template.html"
@@ -63,21 +64,20 @@ def _terrain(units, dem):
     lats = np.arange(maxy, miny - GRID_STEP, -GRID_STEP)  # north to south
     gx, gy = np.meshgrid(lons, lats)
     elev = dem.at(gx, gy)
-    shade = hillshade(elev, GRID_STEP, (miny + maxy) / 2)
     owner = np.full(gx.shape, -1)
     for i, geom in enumerate(units.geometry):
         owner[shapely.contains_xy(geom, gx, gy)] = i
-    rows, cols = np.nonzero(owner >= 0)
+    rows, cols = np.nonzero(binary_dilation(owner >= 0, iterations=3))  # a margin of ground beyond the valley, trimmed smoothly by the page
     stats = []
     for i in range(len(units)):
         e = elev[owner == i]
         stats.append({"mean": int(e.mean()), "min": int(e.min()), "max": int(e.max())} if e.size else {"mean": 0, "min": 0, "max": 0})
     return {"x0": round(float(lons[0]), 4), "y0": round(float(lats[0]), 4), "step": GRID_STEP,
             "col": cols.tolist(), "row": rows.tolist(), "elev": np.round(elev[rows, cols]).astype(int).tolist(),
-            "unit": owner[rows, cols].tolist(), "shade": np.round(shade[rows, cols] * 100).astype(int).tolist()}, stats
+            "unit": owner[rows, cols].tolist()}, stats
 
 
-def run_display(forcing, subcatchments, subcatchment_forcing, flow, reach_flow, rivers, river_flow, fish, waterbirds, river_red_gum):
+def run_display(forcing, subcatchments, subcatchment_forcing, evap_grid, flow, reach_flow, rivers, river_flow, fish, waterbirds, river_red_gum):
     """Write one self-contained interactive 'river pulse' page for the modelled Murrumbidgee."""
     units = subcatchments.sort_values("route_order").reset_index(drop=True)
     ids = list(units["subcatchment"])
@@ -91,6 +91,12 @@ def run_display(forcing, subcatchments, subcatchment_forcing, flow, reach_flow, 
         "units": [{"id": r.subcatchment, "name": r.region_name, "area": round(r.area_km2), "mid": [round(mids[r.subcatchment].x, 4), round(mids[r.subcatchment].y, 4), int(dem.at(mids[r.subcatchment].x, mids[r.subcatchment].y))],
                    "rings": _rings(r.geometry.simplify(0.004), dem), "elev": stats[i]} for i, r in enumerate(units.itertuples())],
         "terrain": terrain,
+        "outline": _rings(units.geometry.union_all().simplify(0.003), dem),
+        "evap": {"bbox": [round(v, 4) for v in evap_grid["bbox"]], "nx": evap_grid["nx"], "ny": evap_grid["ny"], "dates": evap_grid["dates"],
+                 "scale": evap_grid["scale"], "cells": int(evap_grid["values"].shape[1]),
+                 "values": base64.b64encode(evap_grid["values"].tobytes()).decode(),
+                 "idx": base64.b64encode(np.where(evap_grid["idx"] < 0, 65535, evap_grid["idx"]).astype("<u2").tobytes()).decode(),
+                 "weights": base64.b64encode(np.round(evap_grid["weights"] * 255).astype("uint8").tobytes()).decode()},
         "reaches": reaches,
         "context": context,
         "P": {n: subcatchment_forcing[f"{n}_P"].round(1).tolist() for n in ids},
