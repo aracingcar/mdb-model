@@ -2,7 +2,7 @@ water_year,triggered,trigger_date,sustained
 2015,False,,False
 2016,False,,False
 2017,False,,False
-2018,False,,False
+2018,True,2017-10-14,False
 2019,False,,False
 2020,False,,False
 2021,False,,False

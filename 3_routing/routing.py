@@ -102,6 +102,46 @@ def route_lateral_units(lateral_inflows, reaches):
     return pd.DataFrame(outputs, index=index)
 
 
+def route_network(lateral_inflows, downstream, reaches):
+    """Route lateral inflows down a branching river network of Muskingum reaches.
+
+    ``lateral_inflows`` maps node IDs to daily discharge Series (m3/s) on a shared index. ``downstream`` maps each
+    node to the node it drains into ('' for the outlet). ``reaches`` maps each node to ``{"k_days", "x"}`` and an
+    optional ``loss`` fraction removed at that reach's outlet. A node's inflow is its own lateral flow plus the
+    routed outflow of every node draining into it. Returns a DataFrame of each node's routed outflow.
+    """
+    from scipy.signal import lfilter, lfilter_zi
+
+    index = next(iter(lateral_inflows.values())).index
+    children = {n: [] for n in lateral_inflows}
+    for node, down in downstream.items():
+        if down:
+            children[down].append(node)
+    out = {}
+
+    def outflow(node):
+        if node in out:
+            return out[node]
+        inflow = np.asarray(lateral_inflows[node], dtype=float).copy()
+        for child in children[node]:
+            inflow += outflow(child)
+        _validate_flow(inflow)
+        k, x, dt = reaches[node]["k_days"], reaches[node]["x"], 1.0
+        if not 2 * k * x <= dt <= 2 * k * (1 - x):
+            raise ValueError("Muskingum stability requires 2*K*X <= dt <= 2*K*(1-X)")
+        d = 2 * k * (1 - x) + dt
+        b, a = [(dt - 2 * k * x) / d, (dt + 2 * k * x) / d], [1.0, -(2 * k * (1 - x) - dt) / d]
+        routed = lfilter(b, a, inflow, zi=lfilter_zi(b, a) * inflow[0])[0]
+        out[node] = routed * (1 - reaches[node].get("loss", 0.0))
+        return out[node]
+
+    import sys
+    sys.setrecursionlimit(max(sys.getrecursionlimit(), 4 * len(lateral_inflows) + 100))
+    for node in lateral_inflows:
+        outflow(node)
+    return pd.DataFrame(out, index=index)
+
+
 def unit_hydrograph(inflow, ordinates):
     """Route with a discrete unit hydrograph whose ordinates sum to one."""
     _validate_flow(inflow)

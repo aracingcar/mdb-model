@@ -6,3 +6,4 @@ data/input/narclim/*.nc
 data/input/hydrobasins/
 data/input/observed_flow/observed_flow_daily.csv
 data/input/dem/
+data/output/murrumbidgee_river_flow.csv

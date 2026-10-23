@@ -6,3 +6,4 @@ geopandas
 exactextract
 pandas
 pillow
+scipy

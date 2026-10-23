@@ -14,9 +14,9 @@ from run_routing import run_routing
 
 if __name__ == "__main__":
     narclim, catchment = read_data()
-    forcing, subcatchments, subcatchment_forcing = run_masking(narclim, catchment)
-    runoff = run_rainfall_runoff(subcatchment_forcing, subcatchments)
-    flow, reach_flow = run_routing(runoff)
+    forcing, subcatchments, subcatchment_forcing, basins, basin_forcing = run_masking(narclim, catchment)
+    runoff = run_rainfall_runoff(basin_forcing, basins)
+    flow, reach_flow, basin_flow, rivers, river_flow = run_routing(runoff, basins, subcatchments)
     fish, waterbirds, river_red_gum = run_ecology(flow)
-    write_data(forcing, subcatchments, subcatchment_forcing, flow, reach_flow, fish, waterbirds, river_red_gum)
-    run_display(forcing, subcatchments, subcatchment_forcing, flow, reach_flow, fish, waterbirds, river_red_gum)
+    write_data(forcing, subcatchments, subcatchment_forcing, basins, flow, reach_flow, rivers, river_flow, fish, waterbirds, river_red_gum)
+    run_display(forcing, subcatchments, subcatchment_forcing, flow, reach_flow, rivers, river_flow, fish, waterbirds, river_red_gum)

@@ -8,7 +8,8 @@ MIN_OVERLAP = 0.5  # keep basins at least half inside the valley
 
 def terrain_regions(catchment, hybas_file, n=12):
     """Aggregate HydroBASINS watersheds inside the valley into n regions along the main stem, plus a lowland unit
-    for the western plains, which HydroBASINS has no drainage for.
+    for the western plains, which HydroBASINS has no drainage for. Returns (regions, basins): the regions, and
+    the individual watersheds with their downstream link (next_id) and region.
 
     The main stem is followed upstream from the valley outlet through the largest in-valley inflow at each
     junction. Region outlets are the main-stem basins where cumulative upstream area crosses k/n of the
@@ -78,4 +79,18 @@ def terrain_regions(catchment, hybas_file, n=12):
         "area_km2": lowland.area / 1e6, "geometry": lowland,
     })
     rows[len(outlets) - 1]["downstream_boundary"] = f"SC{len(outlets):02d} outlet"
-    return gpd.GeoDataFrame(rows, crs=AREA_CRS).to_crs(catchment.crs)
+    for i, row in enumerate(rows[:len(outlets)]):
+        row["outlet_basin"] = f"B{outlets[i]}"
+    rows[-1]["outlet_basin"] = ""
+    regions = gpd.GeoDataFrame(rows, crs=AREA_CRS).to_crs(catchment.crs)
+
+    code = {out: f"SC{k:02d}" for k, out in enumerate(outlets, start=1)}
+    kept = basins.dropna(subset=["region"]).copy()
+    kept["subcatchment"] = [f"B{i}" for i in kept.index]
+    kept["next_id"] = [f"B{nxt[i]}" if i in nxt else "" for i in kept.index]
+    kept["region"] = kept["region"].map(code)
+    kept["area_km2"] = kept.geometry.area / 1e6
+    kept.index.name = "hybas_id"
+    network = gpd.GeoDataFrame(kept.reset_index()[["subcatchment", "hybas_id", "next_id", "region", "area_km2", "geometry"]],
+                               crs=AREA_CRS).to_crs(catchment.crs)
+    return regions, network

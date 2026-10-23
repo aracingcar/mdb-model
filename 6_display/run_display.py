@@ -1,3 +1,4 @@
+import base64
 import json
 import sys
 from pathlib import Path
@@ -31,27 +32,25 @@ def _rings(geom, dem=None, ndigits=4):
     return out
 
 
-def _rivers(subcatchments, reach_mean, dem):
-    """Per-reach main-stem ribbons (width grows with mean flow) and thin context lines for other rivers."""
-    ways = gpd.read_file(WATERWAYS_FILE)
-    ways = ways[ways.waterway == "river"]
-    stem = ways[ways.name == MAINSTEM]
-    others = ways[(ways.name != MAINSTEM) & (ways.name != "")]
-    top = others.assign(len=others.length).sort_values("len", ascending=False).head(CONTEXT_RIVERS)
+def _ribbon(line, mean_flow, peak, dem):
+    width = 0.0018 + 0.0115 * np.sqrt(mean_flow / peak)
+    ribbon = line.buffer(width, cap_style=2, join_style=2).simplify(0.001)
+    return None if ribbon.is_empty else _rings(ribbon, dem)
 
-    peak = max(reach_mean.values())
-    reaches, mids = [], {}
-    for unit in subcatchments.itertuples():
-        line = stem.geometry.intersection(unit.geometry).union_all()
-        centre = unit.geometry.centroid
-        mids[unit.subcatchment] = centre if unit.geometry.contains(centre) else unit.geometry.representative_point()
-        if line.is_empty:
-            continue
-        width = 0.004 + 0.010 * np.sqrt(reach_mean[unit.subcatchment] / peak)
-        ribbon = line.buffer(width, cap_style=2, join_style=2).simplify(0.001)
-        reaches.append({"unit": unit.subcatchment, "rings": _rings(ribbon, dem)})
+
+def _rivers(rivers, mean_flow, dem):
+    """Ribbons (width grows with mean flow) for every river segment, plus thin context lines for unrouted rivers."""
+    peak = mean_flow.max()
+    reaches = []
+    for r in rivers.itertuples():
+        rings = _ribbon(r.geometry, mean_flow[r.river_id], peak, dem)
+        if rings:
+            reaches.append({"unit": r.river_id, "name": r.name, "kind": r.kind, "rings": rings})
+    ways = gpd.read_file(WATERWAYS_FILE)
+    ways = ways[(ways.waterway == "river") & (ways.name != "") & (~ways.name.isin(set(rivers["name"])))]
+    top = ways.assign(len=ways.length).sort_values("len", ascending=False).head(CONTEXT_RIVERS)
     context = [_rings(g.buffer(0.0025, cap_style=2).simplify(0.001), dem) for g in top.geometry if not g.is_empty]
-    return reaches, [r for rings in context for r in rings], mids
+    return reaches, [r for rings in context for r in rings]
 
 
 GRID_STEP = 0.01  # degrees (~1 km) for the terrain cells
@@ -78,12 +77,13 @@ def _terrain(units, dem):
             "unit": owner[rows, cols].tolist(), "shade": np.round(shade[rows, cols] * 100).astype(int).tolist()}, stats
 
 
-def run_display(forcing, subcatchments, subcatchment_forcing, flow, reach_flow, fish, waterbirds, river_red_gum):
+def run_display(forcing, subcatchments, subcatchment_forcing, flow, reach_flow, rivers, river_flow, fish, waterbirds, river_red_gum):
     """Write one self-contained interactive 'river pulse' page for the modelled Murrumbidgee."""
     units = subcatchments.sort_values("route_order").reset_index(drop=True)
     ids = list(units["subcatchment"])
     dem = Dem(units.total_bounds)
-    reaches, context, mids = _rivers(units, reach_flow.mean().to_dict(), dem)
+    reaches, context = _rivers(rivers, river_flow.mean(), dem)
+    mids = {r.subcatchment: (r.geometry.centroid if r.geometry.contains(r.geometry.centroid) else r.geometry.representative_point()) for r in units.itertuples()}
     terrain, stats = _terrain(units, dem)
     days = subcatchment_forcing.index.strftime("%Y-%m-%d").tolist()
     data = {
@@ -96,6 +96,7 @@ def run_display(forcing, subcatchments, subcatchment_forcing, flow, reach_flow, 
         "P": {n: subcatchment_forcing[f"{n}_P"].round(1).tolist() for n in ids},
         "PET": {n: subcatchment_forcing[f"{n}_PET"].round(1).tolist() for n in ids},
         "reachFlow": {n: reach_flow[n].round(0).astype(int).tolist() for n in ids},
+        "riverFlow": {n: base64.b64encode(np.clip(river_flow[n].round(0).to_numpy(), 0, 65535).astype("<u2").tobytes()).decode() for n in river_flow.columns},
         "flow": flow.round(0).astype(int).tolist(),
         "fish": fish.reset_index().round(3).to_dict("list"),
         "birds": waterbirds.reset_index().assign(trigger_date=lambda d: d.trigger_date.astype(str)).to_dict("list"),

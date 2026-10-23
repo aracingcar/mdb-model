@@ -1,4 +1,6 @@
+import geopandas as gpd
 import numpy as np
+import pandas as pd
 import xarray as xr
 from exactextract import exact_extract
 
@@ -21,3 +23,18 @@ def areal_average(ds, gdf):
     weights = cell_weights(ds, gdf)
     out = ds.weighted(weights).mean(dim=["rlat", "rlon"])
     return out.to_dataframe()[list(ds.data_vars)]
+
+
+def unit_averages(ds, units):
+    """Daily area-weighted means for every unit, with columns ``<unit>_P``, ``<unit>_PET`` (one matrix product per variable)."""
+    names = list(units["subcatchment"])
+    weights = np.stack([cell_weights(ds, gpd.GeoDataFrame([u], geometry="geometry", crs=units.crs)).values.ravel()
+                        for _, u in units.iterrows()])
+    weights = (weights / weights.sum(axis=1, keepdims=True)).astype("float32")
+    cols = {}
+    for var in ds.data_vars:
+        x = ds[var].transpose("time", "rlat", "rlon").values.astype("float32").reshape(ds.sizes["time"], -1)
+        avg = x @ weights.T
+        for i, name in enumerate(names):
+            cols[f"{name}_{var}"] = avg[:, i]
+    return pd.DataFrame(cols, index=ds["time"].values).rename_axis("time")

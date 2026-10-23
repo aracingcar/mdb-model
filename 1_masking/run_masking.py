@@ -1,8 +1,10 @@
-from average import areal_average
+import geopandas as gpd
+import pandas as pd
+
+from average import areal_average, unit_averages
 from catchment import load_catchment
 from config import HYBAS_FILE, N_SUBCATCHMENTS
 from load import load_narclim
-from subcatchments import subcatchment_averages
 from terrain_regions import terrain_regions
 
 
@@ -12,8 +14,19 @@ def read_data():
 
 
 def run_masking(narclim, catchment):
-    """Return (forcing, subcatchments, subcatchment_forcing): daily area-weighted P and PET."""
-    subcatchments = terrain_regions(catchment, HYBAS_FILE, n=N_SUBCATCHMENTS)
+    """Return (forcing, subcatchments, subcatchment_forcing, basins, basin_forcing): daily area-weighted P and PET.
+
+    basins are the individual terrain watersheds (plus a LOWLAND unit for the western plains) that the
+    rainfall-runoff and routing steps work on; subcatchments group them into 12 reaches for display.
+    """
+    subcatchments, basins = terrain_regions(catchment, HYBAS_FILE, n=N_SUBCATCHMENTS)
+    lowland = subcatchments.iloc[[-1]]
+    outlet = subcatchments.iloc[-2]["outlet_basin"]
+    lowland_unit = gpd.GeoDataFrame({"subcatchment": ["LOWLAND"], "hybas_id": [0], "next_id": [outlet], "region": [lowland.iloc[0]["subcatchment"]],
+                                     "area_km2": [lowland.iloc[0]["area_km2"]]}, geometry=lowland.geometry.values, crs=basins.crs)
+    basins = pd.concat([basins, lowland_unit], ignore_index=True)
+
     forcing = areal_average(narclim, catchment)
-    subcatchment_forcing = subcatchment_averages(narclim, subcatchments)
-    return forcing, subcatchments, subcatchment_forcing
+    subcatchment_forcing = unit_averages(narclim, subcatchments)
+    basin_forcing = unit_averages(narclim, basins)
+    return forcing, subcatchments, subcatchment_forcing, basins, basin_forcing
