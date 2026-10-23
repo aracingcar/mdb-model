@@ -1,0 +1,71 @@
+{
+  "source": "Bureau of Meteorology Australian Water Outlook (AWO), AWRA-L historical daily gridded service",
+  "service_archive": "https://image-stg.wsapi-stg.cloud.bom.gov.au/arcgis/rest/services/awra_historical/physical_day_crf_multivariable_archive_2005_2019_data",
+  "service_latest": "https://image-stg.wsapi-stg.cloud.bom.gov.au/arcgis/rest/services/awra_historical/physical_day_crf_multivariable_latest_data",
+  "variables": {
+    "P": {
+      "source_variable": "rain_day",
+      "units": "mm/day",
+      "description": "AWO gridded precipitation"
+    },
+    "PET": {
+      "source_variable": "fao_pet",
+      "units": "mm/day",
+      "description": "FAO56 short-crop reference potential evapotranspiration"
+    }
+  },
+  "start_date": "2012-01-01",
+  "end_date": "2026-10-19",
+  "grid_resolution_degrees": 0.05,
+  "area_weighting": "Within each model region, 10 spatially distributed 0.05-degree cell centres represent clusters of all in-region grid cells; each representative is weighted by the cluster's summed cos(latitude) cell-area factors.",
+  "region_file": "data/output/murrumbidgee_subcatchments.gpkg",
+  "regions": [
+    "SC01",
+    "SC02",
+    "SC03",
+    "SC04",
+    "SC05",
+    "SC06",
+    "SC07",
+    "SC08",
+    "SC09",
+    "SC10",
+    "SC11",
+    "SC12"
+  ],
+  "sampled_grid_cell_count": 120,
+  "full_grid_cell_count_represented": 3136,
+  "valid_day_counts_by_region_variable": {
+    "SC01_P_valid_days": 5406,
+    "SC02_P_valid_days": 5406,
+    "SC03_P_valid_days": 5406,
+    "SC04_P_valid_days": 5406,
+    "SC05_P_valid_days": 5406,
+    "SC06_P_valid_days": 5406,
+    "SC07_P_valid_days": 5406,
+    "SC08_P_valid_days": 5406,
+    "SC09_P_valid_days": 5406,
+    "SC10_P_valid_days": 5406,
+    "SC11_P_valid_days": 5406,
+    "SC12_P_valid_days": 5406,
+    "SC01_PET_valid_days": 5406,
+    "SC02_PET_valid_days": 5406,
+    "SC03_PET_valid_days": 5406,
+    "SC04_PET_valid_days": 5406,
+    "SC05_PET_valid_days": 5406,
+    "SC06_PET_valid_days": 5406,
+    "SC07_PET_valid_days": 5406,
+    "SC08_PET_valid_days": 5406,
+    "SC09_PET_valid_days": 5406,
+    "SC10_PET_valid_days": 5406,
+    "SC11_PET_valid_days": 5406,
+    "SC12_PET_valid_days": 5406
+  },
+  "limitations": [
+    "AWO precipitation and PET are gridded model products, not raw gauge observations.",
+    "Ten representative cells per region approximate the full grid-cell area-weighted mean; this is not a pixel-exact polygon zonal statistic.",
+    "Model regions are the current terrain-derived regions in the project and should be checked before interpreting them as natural drainage catchments."
+  ],
+  "downloaded_at_utc": "2026-10-23T10:56:05.027537+00:00",
+  "attribution": "\u00a9 Commonwealth of Australia (Bureau of Meteorology) 2022; Australian Water Outlook / AWRA-L."
+}

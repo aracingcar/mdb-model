@@ -1,0 +1,28 @@
+{
+  "source": "NSW Department of Climate Change, Energy, the Environment and Water, via SEED/Data.NSW",
+  "dataset": "Water Modelling-Modelled Data-Without Development-Murrumbidgee",
+  "gauge_resource": "410008_Murrumbidgee@Burrinjuck",
+  "source_url": "https://datasets.seed.nsw.gov.au/dataset/2bb923b4-78f0-462a-ae1e-f007ebbf3355/resource/40fdec54-f271-4217-b68f-790ed4a935b0/download/410008_murrumbidgeeburrinjuck.zip",
+  "resource_page": "https://www.data.nsw.gov.au/data/dataset/water-modelling-modelled-data-without-development-murrumbidgee-valley/resource/fc884215-55d6-4f3e-8363-8f8b5e997539",
+  "last_updated": "2026-10-04",
+  "temporal_coverage_dataset": "1895-01-01 through 2025-07-31",
+  "units": "daily flow rate, ML/day (as described by the dataset record)",
+  "license": "Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International",
+  "archive_sha256": "06e4048f19cfe5fb39230ebd6f11c8c6eb572e41bae9b70d0b0a78cfa8746367",
+  "archive_bytes": 341378,
+  "archive_members": [
+    {
+      "path": "410008_Murrumbidgee@Burrinjuck_1895-2025.csv",
+      "bytes": 1191764
+    },
+    {
+      "path": "410008_Version Description.xlsx",
+      "bytes": 9044
+    }
+  ],
+  "notes": [
+    "This is an agency modelled without-development scenario, not observed river discharge.",
+    "The scenario removes as much water development and infrastructure as possible; it is not a pristine pre-human flow reconstruction.",
+    "The archive is saved unchanged. Keep it distinct from measured calibration data and check the CC BY-NC-ND licence before adapting or redistributing it."
+  ]
+}

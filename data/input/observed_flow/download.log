@@ -1,0 +1,17 @@
+258 stations found, 244 inside the valley
+145 have daily mean discharge
+              gauges      first       last
+subcatchment                              
+SC01              15 1916-02-01 2026-10-21
+SC02              33 1910-02-26 2026-10-21
+SC03              11 1914-09-19 2026-10-21
+SC04              25 1914-02-01 2026-10-21
+SC05               4 1886-08-02 2026-10-21
+SC06              14 1868-10-01 2026-10-21
+SC07               5 1913-01-01 2026-10-21
+SC08               4 1891-06-01 2026-10-20
+SC09              11 1955-12-31 2026-10-21
+SC10               1 1976-01-01 2026-10-20
+SC11               2 1907-01-01 2026-10-21
+SC12              20 1912-08-01 2026-10-21
+Wrote 1,997,963 daily values for 139 gauges to /Users/roryhackett/Desktop/mdb-model/data/input/observed_flow

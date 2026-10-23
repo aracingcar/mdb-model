@@ -5,3 +5,4 @@ rioxarray
 geopandas
 exactextract
 pandas
+pillow

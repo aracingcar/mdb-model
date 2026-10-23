@@ -1,0 +1,117 @@
+{
+  "source": "User-provided quality-filtered Bureau of Meteorology daily mean observations from mdb-river-pulse/data/river.db.",
+  "source_project_readme": "/Users/roryhackett/Desktop/mdb-river-pulse/README.md",
+  "record_table": "daily_obs",
+  "parameter": "flow",
+  "units": "m3/s (cumec)",
+  "period": {
+    "start": "2012-06-30",
+    "end": "2026-10-18",
+    "daily_rows": 5224
+  },
+  "stations": {
+    "410001": {
+      "name": "M/BIDGEE R @ WAGGA",
+      "units": "m3/s",
+      "valid_daily_values": 5191,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410039": {
+      "name": "TUMUT @ BRUNGLE BDGE",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410073": {
+      "name": "TUMUT @ ODDYS BDGE",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410026": {
+      "name": "YASS RIVER @ YASS",
+      "units": "m3/s",
+      "valid_daily_values": 5219,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410176": {
+      "name": "YASS @ U/S B/JUCK",
+      "units": "m3/s",
+      "valid_daily_values": 5208,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410090": {
+      "name": "YASS RV @ GUNDAROO",
+      "units": "m3/s",
+      "valid_daily_values": 5212,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410081": {
+      "name": "COOMA CK @ COOMA NO2",
+      "units": "m3/s",
+      "valid_daily_values": 5217,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410731": {
+      "name": "Gudgenby at Tennent",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410774": {
+      "name": "Burra Ck at Burra Rd",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410082": {
+      "name": "M/BIDGEE D/S GOGEL W",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410136": {
+      "name": "M/BIDGEE DS HAY WEIR",
+      "units": "m3/s",
+      "valid_daily_values": 5219,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410041": {
+      "name": "M/BIDGEE D/S REDBANK",
+      "units": "m3/s",
+      "valid_daily_values": 5216,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410091": {
+      "name": "B'BONG @ WALBUNDRIE",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410134": {
+      "name": "BILLABONG @ DARLOT",
+      "units": "m3/s",
+      "valid_daily_values": 5220,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    }
+  },
+  "notes": [
+    "Blank cells preserve days with no recorded value; they are not interpolated.",
+    "The user confirmed these source records have been filtered for good quality.",
+    "Mainstem sites provide downstream calibration/check points; tributary sites provide additional inflow checks."
+  ]
+}

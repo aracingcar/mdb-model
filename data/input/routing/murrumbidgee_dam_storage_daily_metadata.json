@@ -1,0 +1,43 @@
+{
+  "source": "Bureau of Meteorology, Water Data Online, Storage Volume daily mean; exact content republished without change by publicdata.au.",
+  "source_url": "https://publicdata.au/d/au-water-storage-levels/v/2026-10-01/",
+  "source_version": "2026-10-01",
+  "original_download": "https://publicdata.au/d/au-water-storage-levels/v/2026-10-01/data.csv.gz",
+  "license": "CC BY 3.0 AU (BoM); attribution is included below.",
+  "attribution": "Bureau of Meteorology, \u00a9 Commonwealth of Australia, Water Data Online, Storage Volume daily mean, sourced 30 September 2026, https://www.bom.gov.au/waterdata/, licensed under CC BY 3.0 AU. Republished by publicdata.au, https://publicdata.au/d/au-water-storage-levels/v/2026-10-01/.",
+  "units": "volume_ml: ML (megalitres)",
+  "stations": {
+    "410102": {
+      "name": "Blowering Dam",
+      "rows": 18607,
+      "valid_volume_rows": 18602,
+      "valid_start_date": "1975-10-22",
+      "valid_end_date": "2026-09-28",
+      "quality_code_counts": {
+        "-1": 5,
+        "10": 3614,
+        "90": 14339,
+        "110": 195,
+        "140": 454
+      }
+    },
+    "410131": {
+      "name": "Burrinjuck Dam",
+      "rows": 41534,
+      "valid_volume_rows": 41529,
+      "valid_start_date": "1913-01-13",
+      "valid_end_date": "2026-09-28",
+      "quality_code_counts": {
+        "-1": 5,
+        "90": 40768,
+        "10": 639,
+        "110": 19,
+        "140": 103
+      }
+    }
+  },
+  "notes": [
+    "Blank volumes and the original BoM quality codes are preserved.",
+    "This is storage volume, not dam release/discharge."
+  ]
+}

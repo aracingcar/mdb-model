@@ -40,8 +40,9 @@ ARCHIVE_END = dt.date(2025, 12, 31)
 LATEST_END = dt.date(2026, 10, 19)  # Last date available in the observed-flow store.
 VARIABLES = {"rain_day": "P", "fao_pet": "PET"}
 GRID_SIZE = 0.05
-BATCH_SIZE = 50
-WORKERS = 6
+SAMPLES_PER_REGION = 10
+BATCH_SIZE = SAMPLES_PER_REGION
+WORKERS = 2
 
 
 def epoch_ms(day: dt.date) -> int:
@@ -49,8 +50,8 @@ def epoch_ms(day: dt.date) -> int:
 
 
 def make_grid_points(regions: gpd.GeoDataFrame):
-    """Return grid-cell centres inside each region and their cell-area weights."""
-    point_rows: dict[tuple[float, float], dict] = {}
+    """Return spatially distributed grid centres with represented-area weights."""
+    point_rows: list[dict] = []
     for _, region in regions.iterrows():
         geom = region.geometry
         minx, miny, maxx, maxy = geom.bounds
@@ -58,24 +59,43 @@ def make_grid_points(regions: gpd.GeoDataFrame):
         ihi = min(840, math.ceil((maxx - 112.0) / GRID_SIZE) + 1)
         jlo = max(0, math.floor((miny + 44.0) / GRID_SIZE) - 1)
         jhi = min(680, math.ceil((maxy + 44.0) / GRID_SIZE) + 1)
+        cells = []
         for i in range(ilo, ihi + 1):
             lon = round(112.0 + GRID_SIZE * i, 3)
             for j in range(jlo, jhi + 1):
                 lat = round(-44.0 + GRID_SIZE * j, 3)
                 if geom.covers(Point(lon, lat)):
-                    key = (lon, lat)
-                    if key in point_rows:
-                        raise ValueError(f"Grid point {key} falls in multiple regions")
-                    point_rows[key] = {
-                        "lon": lon,
-                        "lat": lat,
-                        "region": region["subcatchment"],
-                        # Cell area on a regular lon/lat grid is proportional to cos(latitude).
-                        "weight": math.cos(math.radians(lat)),
-                    }
+                    cells.append((lon, lat, math.cos(math.radians(lat))))
+        if not cells:
+            continue
+
+        # Farthest-point selection spreads representative cells over the region.
+        # Each selected cell represents the area-weighted cluster of all cells
+        # nearest to it, giving a compact approximation of the zonal mean.
+        cell_array = np.asarray(cells, dtype=np.float64)
+        lat_ref = float(np.average(cell_array[:, 1], weights=cell_array[:, 2]))
+        xy = np.column_stack((cell_array[:, 0] * math.cos(math.radians(lat_ref)), cell_array[:, 1]))
+        centroid = np.average(xy, axis=0, weights=cell_array[:, 2])
+        selected = [int(np.argmin(((xy - centroid) ** 2).sum(axis=1)))]
+        while len(selected) < min(SAMPLES_PER_REGION, len(cells)):
+            distances = np.sqrt(((xy[:, None, :] - xy[selected][None, :, :]) ** 2).sum(axis=2)).min(axis=1)
+            distances[selected] = -1
+            selected.append(int(np.argmax(distances)))
+        assignments = np.sqrt(((xy[:, None, :] - xy[selected][None, :, :]) ** 2).sum(axis=2)).argmin(axis=1)
+        for sample_i, cell_i in enumerate(selected):
+            mask = assignments == sample_i
+            total_weight = float(cell_array[mask, 2].sum())
+            lon, lat = float(cell_array[cell_i, 0]), float(cell_array[cell_i, 1])
+            point_rows.append({
+                "lon": lon,
+                "lat": lat,
+                "region": region["subcatchment"],
+                "weight": total_weight,
+                "represented_cells": int(mask.sum()),
+            })
     if not point_rows:
         raise RuntimeError("No BoM grid cells intersect the configured model regions")
-    return list(point_rows.values())
+    return point_rows
 
 
 def request_batch(service: str, variable: str, points: list[dict], start: dt.date, end: dt.date):
@@ -118,8 +138,9 @@ def request_batch(service: str, variable: str, points: list[dict], start: dt.dat
 
 
 def accumulate(samples, points, variable, start, end, regions, sums, weights):
-    date0 = start.toordinal()
-    date1 = end.toordinal()
+    # Accumulators are indexed from the overall output start, even when samples
+    # come from the 2026 service window.
+    date0 = START.toordinal()
     region_index = {name: i for i, name in enumerate(regions)}
     for sample in samples:
         loc = int(sample["locationId"])
@@ -180,7 +201,7 @@ def main():
         means, valid_weights = download_variable(variable, label, points, dates, regions)
         for j, region in enumerate(regions):
             values[f"{region}_{label}"] = means[:, j]
-            coverage[f"{region}_{label}_valid_grid_cells"] = (valid_weights[:, j] > 0).sum()
+            coverage[f"{region}_{label}_valid_days"] = int((valid_weights[:, j] > 0).sum())
 
     result = pd.DataFrame(values, index=dates)
     result.index.name = "date"
@@ -196,15 +217,15 @@ def main():
         "start_date": START.isoformat(),
         "end_date": LATEST_END.isoformat(),
         "grid_resolution_degrees": GRID_SIZE,
-        "area_weighting": "BoM 0.05-degree grid-cell centres inside each model region; cell-area weights proportional to cos(latitude)",
+        "area_weighting": "Within each model region, 10 spatially distributed 0.05-degree cell centres represent clusters of all in-region grid cells; each representative is weighted by the cluster's summed cos(latitude) cell-area factors.",
         "region_file": str(REGIONS_FILE.relative_to(ROOT)),
         "regions": regions,
-        "grid_cell_count": len(points),
+        "sampled_grid_cell_count": len(points),
+        "full_grid_cell_count_represented": int(sum(p["represented_cells"] for p in points)),
         "valid_day_counts_by_region_variable": coverage,
         "limitations": [
             "AWO precipitation and PET are gridded model products, not raw gauge observations.",
-            "Cell-centre inclusion approximates polygon intersections at region boundaries.",
-            "Grid-cell area weighting uses the latitude cosine factor for the regular geographic grid.",
+            "Ten representative cells per region approximate the full grid-cell area-weighted mean; this is not a pixel-exact polygon zonal statistic.",
             "Model regions are the current terrain-derived regions in the project and should be checked before interpreting them as natural drainage catchments.",
         ],
         "downloaded_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),

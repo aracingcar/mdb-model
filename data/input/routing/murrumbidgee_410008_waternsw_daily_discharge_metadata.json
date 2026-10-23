@@ -1,0 +1,55 @@
+{
+  "source": "WaterNSW public legacy Hydstra web service",
+  "source_url": "https://realtimedata.waternsw.com.au/cgi/webservice.exe",
+  "station": "410008",
+  "station_name": "MURRUMBIDGEE RIVER AT D/S BURRINJUCK DAM",
+  "variable": "151.00",
+  "variable_name": "Discharge Volume",
+  "source_units": "ML per daily record (daily discharge volume)",
+  "derived_units": "mean_flow_m3s is daily volume in ML divided by 86.4",
+  "period_returned": {
+    "start": "2012-01-01",
+    "end": "2023-01-01"
+  },
+  "period_with_reported_values": {
+    "start": "2012-01-01",
+    "end": "2022-11-16"
+  },
+  "rows": 4019,
+  "rows_with_reported_values": 3737,
+  "rows_with_reported_values": 3737,
+  "quality_code_counts": {
+    "100": 51,
+    "130": 685,
+    "140": 1358,
+    "201": 281,
+    "255": 1,
+    "3": 1021,
+    "5": 140,
+    "51": 30,
+    "7": 313,
+    "8": 4,
+    "9": 135
+  },
+  "quality_code_definitions": {
+    "255": "Data Unavailable",
+    "201": "Data unavailable",
+    "140": "RATINGS - Current rating - may be subject to change.",
+    "130": "Not quality coded - subject to change",
+    "100": "Quality unknown or with inaccuracies",
+    "9": "RATINGS/TS - Large uncertainty - data in period not adjusted from sensing system measurement in any way - \nsee code definitions",
+    "8": "TS - Data adjusted during processing - see comments",
+    "7": "RATINGS/TS - Large uncertainty - data in period not adjusted from sensing system measurement in any way - see code definitions; Good Gauging",
+    "5": "RATINGS/TS - No data in the period have been adjusted from sensing system measurement in any way - see code definitions",
+    "3": "RATINGS/TS - No data in the period have been adjusted from sensing system measurement in any way - see code definitions",
+    "51": "TS/GAUGINGS/RT - Data Estimated or Indirect measurement - see comments, RT Theoretical methods and/or without direct measurements "
+  },
+  "notes": [
+    "Original daily discharge volume and WaterNSW quality code are both preserved.",
+    "This is a comparison series and was not quality-filtered or gap-filled here.",
+    "Some source quality codes describe large rating uncertainty; consult quality_code before calibration use.",
+    "Codes 201 and 255 mean data unavailable; their returned zero placeholders are masked as blank derived values.",
+    "Codes 201 and 255 mean data unavailable; their returned zero placeholders are masked as blank derived values.",
+    "Burrinjuck DS is a regulated release-dominated site, not a natural rainfall-runoff gauge."
+  ]
+}

@@ -7,6 +7,17 @@ calibration and validation.
 
 ## Public sources
 
+- **Quality-screened daily observations copied from the user's
+  `mdb-river-pulse/data/river.db`:** 14 Murrumbidgee gauges in
+  `murrumbidgee_observed_flow_daily.csv`, 2012-06-30 to 2026-10-18, in m³/s.
+  The wide CSV preserves missing days as blank cells. Metadata lists station
+  names, spans and valid-day counts. This is the preferred observed-flow set
+  for calibration because the user confirmed its quality filter.
+- The broader BoM station sweep is in
+  `../observed_flow/observed_flow_daily.csv`. It includes station 410008 from
+  1961 to 2026, but that download did not retain observation quality codes;
+  treat it as a secondary series unless independently screened.
+
 - **Bureau of Meteorology Hydrologic Reference Stations (HRS):** daily
   streamflow series, station facts and station details, with coverage through
   February 2026 for most records. The source offers station-level downloads:
@@ -16,17 +27,32 @@ calibration and validation.
   observations and SOS2 service documentation:
   <https://www.bom.gov.au/waterdata/> and
   <https://www.bom.gov.au/waterdata/wiski-web-public/faq.htm>.
+- **WaterNSW legacy Hydstra web service:** daily discharge volume at gauge
+  410008 (Murrumbidgee River downstream of Burrinjuck Dam), downloaded with
+  its source quality codes and retained separately at
+  `murrumbidgee_410008_waternsw_daily_discharge.csv`. The API series currently
+  returns rows through 2023-01-01, with reported values through 2022-11-16
+  (unavailable trailing days are blank). Its volume is converted to daily mean
+  m³/s for comparison. This series is release-dominated and several daily
+  quality codes flag rating uncertainty; use the flags and do not treat it as
+  an unregulated runoff-calibration target. Endpoint:
+  <https://realtimedata.waternsw.com.au/cgi/webservice.exe>.
 - **Australian Hydrological Geospatial Fabric (Geofabric):** connected river
   network and gauging nodes; version 3 services are available through AWDS.
   Geofabric has CC BY 4.0 licensing. Start at
   <https://www.bom.gov.au/water/geofabric/>.
 - **WaterNSW WaterInsights / Water Data API:** NSW gauge metadata and
-  observations. API subscription is required for programmatic API access:
-  <https://api-portal.waternsw.com.au/>. Daily river reports are also public:
-  <https://realtimedata.waternsw.com.au/>.
+  observations through its current developer API (registration and a product
+  subscription are required): <https://api-portal.waternsw.com.au/>. The
+  legacy Hydstra endpoint above also exposes historical daily records without
+  the current subscription workflow.
 - **NSW DCCEEW modelled without-development flows:** daily modelled ML/day
   series by gauge for historic conditions; useful as a comparison dataset,
-  not as observed flow. Dataset landing page:
+  not as observed flow. The unchanged 410008 Burrinjuck archive is stored at
+  `410008_murrumbidgee_burrinjuck_without_development.zip`; the adjacent JSON
+  records its source, member list, date range, checksum and license. The
+  dataset is CC BY-NC-ND 4.0, so keep the archive intact and check the terms
+  before adapting or redistributing it. Dataset landing page:
   <https://www.data.nsw.gov.au/data/dataset/water-modelling-modelled-data-without-development-murrumbidgee-valley>.
 
 The station names and coordinates in `gauges.csv` were taken from the
