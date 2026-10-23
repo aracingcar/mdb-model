@@ -1,3 +1,5 @@
+Warning: fsx was declared with const; use let for reassignable variables.
+Warning: pagex was declared with const; use let for reassignable variables.
 <!doctype html>
 <html lang="en">
 <head>
@@ -52,10 +54,29 @@
   #tip { position:absolute; pointer-events:none; padding:9px 12px; display:none; z-index:5; font-size:13px; line-height:1.45; background:#fff; border:1px solid var(--rule); box-shadow:0 2px 10px rgba(0,0,0,.08); color:var(--ink); font-weight:400; }
   #tip b { font-weight:700; display:block; color:var(--head); }
   #err { position:absolute; inset:0; display:none; place-items:center; font:300 20px var(--sans); text-align:center; padding:40px; z-index:20; background:var(--bg); }
+  #site-menu { position:fixed; z-index:30; top:16px; right:210px; font-size:11px; font-weight:400; color:#888d92; }
+  #site-menu summary { list-style:none; cursor:pointer; padding:5px 7px; color:inherit; background:transparent; border:1px solid transparent; border-radius:5px; }
+  #site-menu summary:hover, #site-menu[open] summary { color:var(--head); background:rgba(255,255,255,.72); border-color:var(--rule); }
+  #site-menu summary::-webkit-details-marker { display:none; }
+  #site-menu summary::before { content:'⚙'; margin-right:6px; }
+  #site-menu summary::after { content:'⌄'; margin-left:6px; }
+  #site-menu[open] summary::after { content:'⌃'; }
+  #site-menu nav { position:absolute; top:calc(100% + 4px); right:0; min-width:190px; padding:8px; background:#fff; border:1px solid var(--rule); border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,.1); }
+  #site-menu nav::before { content:'PROJECT PAGES'; display:block; padding:5px 10px 7px; color:var(--dim); font-size:10px; letter-spacing:.08em; }
+  #site-menu a { display:block; padding:9px 10px; color:var(--head); text-decoration:none; border-radius:4px; }
+  #site-menu a:hover, #site-menu a:focus-visible { background:#f2f4f5; }
   @media (max-width:900px) { #map { left:0; top:300px; } #side { width:100%; bottom:auto; height:300px; padding:18px 20px; background:#fff; z-index:2; } h1 { font-size:24px; margin-top:8px; } #desc,#legend,#eco,#credit,#note2,#chartT,#bars { display:none; } #date { font-size:36px; } #wd { margin-top:8px; } }
 </style>
 </head>
 <body>
+<details id="site-menu">
+  <summary>Settings</summary>
+  <nav aria-label="Project pages">
+    <a href="https://aracingcar.github.io/">Main page</a>
+    <a href="https://aracingcar.github.io/mdb-model/" aria-current="page">MDB Model</a>
+    <a href="https://aracingcar.github.io/mdb-river-pulse/">MDB River Pulse</a>
+  </nav>
+</details>
 <div id="map"></div>
 <div id="side">
   <div id="kicker">Murrumbidgee / 2015&ndash;2034</div>
