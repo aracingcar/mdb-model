@@ -21,3 +21,23 @@
 @media (max-width:760px) {
   #driveHint.car-drive-hint { top:52px; right:12px; max-width:min(300px,calc(100% - 24px)); font-size:9px; }
 }
+#map-tools {
+  position:absolute; right:22px; bottom:90px; z-index:7;
+  display:flex; align-items:center; gap:8px;
+}
+#map-tools #towns-toggle { position:static; }
+#car-dock {
+  display:grid; place-items:center; width:42px; height:38px; padding:0;
+  border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94);
+  font-size:25px; cursor:grab; touch-action:none; user-select:none;
+}
+#car-dock:active { cursor:grabbing; }
+#car-dock.placed { background:#eef4f8; }
+#car-dock.choosing, #car-dock:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
+.car-drag-ghost {
+  position:fixed; z-index:40; pointer-events:none; transform:translate(-50%,-50%);
+  font-size:34px; padding:6px; border-radius:50%; background:rgba(255,255,255,.85);
+  border:2px solid #ae5656; opacity:.8;
+}
+.car-drag-ghost.valid { border-color:#2a8a48; opacity:1; }
+.car-drag-ghost[hidden], #driveHint[hidden] { display:none; }

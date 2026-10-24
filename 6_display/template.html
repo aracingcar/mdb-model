@@ -6,6 +6,7 @@
 <title>Murrumbidgee, day by day</title>
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../6_display/car/car.css">
 <style>
   :root { --bg:#ffffff; --ink:#3a3d42; --head:#4a4d52; --dim:#8a8e94; --rule:#e4e4e2; --sans:'Source Sans 3','Segoe UI','Helvetica Neue',Arial,sans-serif; --fish:#2d6aa8; --fish2:#8cc2e6; --bird:#4a78cf; --bird2:#c4d8ff; --gum:#2a8a48; --gum2:#a4e67e; }
   * { box-sizing:border-box; }
@@ -49,6 +50,12 @@
   #speed { font-size:13px; font-weight:600; padding:4px 6px; }
   #relief { position:absolute; right:22px; top:18px; font-size:12px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; display:flex; align-items:center; gap:8px; }
   #relief input { width:110px; accent-color:#8a8e94; }
+  #towns-toggle { position:absolute; right:22px; bottom:90px; z-index:6; display:flex; align-items:center; gap:9px; padding:9px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); color:var(--head); font-size:12px; font-weight:600; cursor:pointer; }
+  #townsIn { appearance:none; width:30px; height:18px; margin:0; border-radius:10px; background:#b8bdc2; position:relative; cursor:pointer; transition:background .15s; }
+  #townsIn::before { content:''; position:absolute; top:3px; left:3px; width:12px; height:12px; border-radius:50%; background:#fff; transition:transform .15s; }
+  #townsIn:checked { background:#4a78a0; }
+  #townsIn:checked::before { transform:translateX(12px); }
+  #townsIn:focus-visible { outline:2px solid #2d6aa8; outline-offset:3px; }
   #tip { position:absolute; pointer-events:none; padding:9px 12px; display:none; z-index:5; font-size:13px; line-height:1.45; background:#fff; border:1px solid var(--rule); box-shadow:0 2px 10px rgba(0,0,0,.08); color:var(--ink); font-weight:400; }
   #tip b { font-weight:700; display:block; color:var(--head); }
   #err { position:absolute; inset:0; display:none; place-items:center; font:300 20px var(--sans); text-align:center; padding:40px; z-index:20; background:var(--bg); }
@@ -78,10 +85,12 @@
 </div>
 <div id="relief"><span>Relief</span><input id="reliefIn" type="range" min="0" max="2" step="0.05" value="1"></div>
 <div id="bar"><button id="play">&#9654;</button><div id="timeline"><canvas id="tl"></canvas></div><div id="clock"></div><button id="speed">30 d/s</button></div>
+<label id="towns-toggle" for="townsIn"><span>Towns</span><input id="townsIn" type="checkbox" role="switch" checked></label>
 <div id="tip"></div>
 <div id="err">The map libraries could not load. Open this page with an internet connection.</div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/deck.gl@9.0.38/dist.min.js"></script>
+<script src="../../6_display/car/car.js"></script>
 <script>
 const D = __DATA__;
 if (typeof maplibregl === 'undefined' || typeof deck === 'undefined') document.getElementById('err').style.display = 'grid';
@@ -156,6 +165,34 @@ const T = D.terrain;
 const NC = Math.max(...T.col) + 1, NR = Math.max(...T.row) + 1;
 const GZ = new Float32Array(NR * NC).fill(NaN), GO = new Int16Array(NR * NC).fill(-1);
 T.col.forEach((c, i) => { GZ[T.row[i] * NC + c] = Math.max(0, T.elev[i]); GO[T.row[i] * NC + c] = T.unit[i]; });
+// Selected settlement centres (approximate WGS84 lon/lat), for geographic orientation.
+// Smaller towns appear on closer views; elevations follow the existing terrain grid.
+const PLACES = [
+  ['Canberra',149.1300,-35.2809,'city',0],
+  ['Wagga Wagga',147.3678,-35.1082,'city',0],
+  ['Griffith',146.0550,-34.2890,'city',0],
+  ['Queanbeyan',149.2342,-35.3533,'city',7.5],
+  ['Hay',144.8430,-34.5094,'town',0],
+  ['Balranald',143.5630,-34.6386,'town',0],
+  ['Narrandera',146.5540,-34.7470,'town',0],
+  ['Tumut',148.2230,-35.3010,'town',0],
+  ['Cooma',149.1250,-36.2350,'town',0],
+  ['Yass',148.9130,-34.8420,'town',7],
+  ['Gundagai',148.1060,-35.0650,'town',7],
+  ['Leeton',146.4070,-34.5520,'town',7],
+  ['Gundaroo',149.2680,-35.0290,'town',8],
+  ['Bredbo',149.1450,-35.9550,'town',8],
+  ['Adaminaby',148.7750,-35.9970,'town',7.5],
+  ['Batlow',148.1470,-35.5200,'town',8],
+  ['Goolgowi',145.7080,-33.9770,'town',7.5],
+  ['Darlington Point',145.9990,-34.5690,'town',7.5],
+  ['Coleambally',145.8800,-34.8070,'town',7.5],
+  ['Jerilderie',145.7300,-35.3570,'town',7.5],
+].map(([name,lon,lat,kind,minZoom]) => {
+  const c = Math.round((lon - T.x0) / T.step), r = Math.round((T.y0 - lat) / T.step);
+  const z = r >= 0 && r < NR && c >= 0 && c < NC ? GZ[r * NC + c] : NaN;
+  return {name,lon,lat,kind,minZoom,z:Number.isFinite(z) ? z : 0};
+});
 const LAT0 = T.y0 - NR * T.step / 2, LON0 = T.x0 + NC * T.step / 2, MX = 111320 * Math.cos(LAT0 * Math.PI / 180), MY = 110574;
 const quadOk = (r, c) => r >= 0 && c >= 0 && r < NR - 1 && c < NC - 1 && [0, 1, NC, NC + 1].every(k => !isNaN(GZ[r * NC + c + k]));
 let terrainMesh = null, wallMesh = null;
@@ -370,7 +407,8 @@ buildZ();
 let cache = { day: -1 }, meshGen = 0;
 buildMeshes();
 const tint = {}; let tintDay = -1;
-let map, overlay;
+let map, overlay, carMechanics;
+let showTowns = true;
 function layers() {
   const blend = { depthWriteEnabled:false, depthCompare:'always' };
   if (cache.day !== day) {
@@ -378,6 +416,8 @@ function layers() {
     cache = { day, wet, discs: wet.flatMap(u => cloudDiscs(u, Math.sqrt(Math.min(1, RP[u.id][day] / RAIN_MAX)))) };
   }
   const discs = cache.discs;
+  const places = PLACES.filter(p => p.minZoom <= (map ? map.getZoom() : 6.5));
+  const placePosition = p => [p.lon,p.lat,p.z * TERR + 300];
   if (tintDay !== day) { tintDay = day; D.units.forEach(u => tint[u.id] = evapShade(ANOM[u.id][day])); }
   const mist = [
     new deck.SolidPolygonLayer({ id:'cloud', data:discs, getPolygon:d => d.ring.map(p => [p[0], p[1], d.z]), extruded:false, filled:true,
@@ -385,7 +425,7 @@ function layers() {
   ];
   return [
     new deck.SimpleMeshLayer({ id:'terrain-' + meshGen, data:[{ pos:[LON0, LAT0, 0] }], mesh:terrainMesh, texture:paintEvap(day), getPosition:d => d.pos, getColor:[255,255,255,255], sizeScale:1,
-      material:{ ambient:.6, diffuse:.7, shininess:4, specularColor:[30,30,30] }, pickable:false, updateTriggers:{ getColor:day } }),
+      material:{ ambient:.6, diffuse:.7, shininess:4, specularColor:[30,30,30] }, pickable:carMechanics.isPlacing(), updateTriggers:{ getColor:day } }),
     new deck.SimpleMeshLayer({ id:'wall-' + meshGen, data:[{ pos:[LON0, LAT0, 0] }], mesh:wallMesh, texture:evCanvas, getPosition:d => d.pos, getColor:[238,238,238,255], sizeScale:1,
       material:{ ambient:.55, diffuse:.6, shininess:2, specularColor:[0,0,0] }, pickable:false, updateTriggers:{ getColor:day } }),
     new deck.PolygonLayer({ id:'units', data:polys, getPolygon:d => d.r.map(p => [p[0], p[1], 0]), getFillColor:[0,0,0,2], stroked:false, pickable:true }),
@@ -393,18 +433,35 @@ function layers() {
     new deck.SolidPolygonLayer({ id:'context', data:ctxZ, getPolygon:d => d.r, getFillColor:[150,192,220,120], extruded:false, pickable:false }),
     new deck.SolidPolygonLayer({ id:'rivers', data:riverZ, getPolygon:d => d.r, extruded:true, getElevation:d => elev(flowOf(d)), getFillColor:d => flowCol(flowOf(d)), material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:true, autoHighlight:true, highlightColor:[255,247,224,100], updateTriggers:{getElevation:[day,relief], getFillColor:day} }),
     ...mist,
+    new deck.ScatterplotLayer({ id:'places', visible:showTowns, data:places, getPosition:placePosition,
+      getRadius:d => d.kind === 'city' ? 4 : 3, radiusUnits:'pixels',
+      getFillColor:[58,61,66,230], stroked:true, getLineColor:[255,255,255,240], getLineWidth:1.5, lineWidthUnits:'pixels',
+      pickable:false, parameters:blend, updateTriggers:{getPosition:relief} }),
+    new deck.TextLayer({ id:'place-labels', visible:showTowns, data:places, getPosition:placePosition, getText:d => d.name,
+      getSize:d => d.kind === 'city' ? 14 : 12, sizeUnits:'pixels', fontFamily:'Arial, sans-serif', fontWeight:600,
+      getColor:[58,61,66,255], getTextAnchor:'start', getAlignmentBaseline:'center', getPixelOffset:[8,0],
+      background:true, getBackgroundColor:[255,255,255,215], backgroundPadding:[3,2],
+      billboard:true, pickable:false, parameters:blend, updateTriggers:{getPosition:relief} }),
+    carMechanics.layer(),
   ];
 }
 function initMap() {
   map = new maplibregl.Map({ container:'map', center:[146.35,-35.2], zoom:6.5, pitch:52, bearing:-8, attributionControl:false,
     style:{ version:8, sources:{}, layers:[{ id:'bg', type:'background', paint:{'background-color':'#ffffff'} }] } });
+  carMechanics=window.createCarMechanics({deck,map,terrain:{x0:T.x0,y0:T.y0,step:T.step,GZ,NR,NC,outline:D.outline,getExaggeration:()=>TERR},getRelief:()=>relief,
+    setRelief:delta=>{const input=$('reliefIn');input.value=Math.max(+input.min,Math.min(+input.max,relief+delta));input.dispatchEvent(new Event('input',{bubbles:true}));},
+    pausePlayback:()=>{playing=false;$('play').innerHTML='&#9654;';},refresh:update,
+    pickTerrain:(x,y)=>overlay?.pickObject({x,y,layerIds:['terrain-'+meshGen],unproject3D:true})?.coordinate});
   const lighting = new deck.LightingEffect({ ambientLight:new deck.AmbientLight({ color:[255,255,255], intensity:0.75 }), dirLight:new deck.DirectionalLight({ color:[255,248,238], intensity:0.9, direction:[1.0,-1.1,-0.85] }) });
-  overlay = new deck.MapboxOverlay({ interleaved:false, layers:layers(), effects:[lighting], getTooltip:null, onHover:hover });
+  overlay = new deck.MapboxOverlay({ interleaved:false, layers:layers(), effects:[lighting], getTooltip:null, onHover:hover, onClick:info=>carMechanics.click(info) });
   map.addControl(overlay);
+  map.on('zoomend', () => overlay.setProps({layers:layers()}));
+  carMechanics.start(()=>overlay.setProps({layers:layers()}));
 }
 function hover(info) {
   const tip = $('tip');
-  if (!info.object) { tip.style.display = 'none'; return; }
+  if (!info.object || info.layer?.id.startsWith('terrain-')) { tip.style.display = 'none'; return; }
+  if (carMechanics.hover(info)) return;
   if (info.object.name !== undefined) {
     const o = info.object;
     tip.innerHTML = `<b>${o.name}</b>${o.kind === 'channel' ? 'Routed flow' : 'Share of local runoff · indicative'}<br>Flow ${fmt(flowOf(o))} ML/d`;
@@ -481,6 +538,7 @@ function seek(e) { const r = cv.getBoundingClientRect(); day = Math.max(0, Math.
 let drag = false; cv.onpointerdown = e => { drag = true; cv.setPointerCapture(e.pointerId); seek(e); }; cv.onpointermove = e => drag && seek(e); cv.onpointerup = () => drag = false;
 $('play').onclick = () => { playing = !playing; $('play').innerHTML = playing ? '&#10073;&#10073;' : '&#9654;'; last = performance.now(); if (playing) requestAnimationFrame(tick); };
 $('speed').onclick = () => { si = (si + 1) % speeds.length; $('speed').textContent = speeds[si] + ' d/s'; };
+$('townsIn').onchange = e => { showTowns = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 $('reliefIn').oninput = e => { relief = +e.target.value; TERR = TERR0 * relief; buildZ(); buildMeshes(); meshGen++; cache = { day: -1 }; update(); };
 function tick(now) {
   if (!playing) return;
