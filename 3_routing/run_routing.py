@@ -7,11 +7,6 @@ AVAILABLE_MODELS = ["muskingum", "muskingum_2"]
 ROUTING_MODEL = "muskingum"
 
 
-def model_options():
-    """(module name, label) for every selectable method."""
-    return [(name, import_module(name).LABEL) for name in AVAILABLE_MODELS]
-
-
 def model_specs():
     """{module name: {label, algorithm, params}} for every selectable method, so the browser can re-run them."""
     out = {}

@@ -122,12 +122,6 @@ def _quantised(basin_forcing, names, var):
     return base64.b64encode(np.clip(np.round(a * 100), 0, 65535).astype("<u2").tobytes()).decode()
 
 
-def _quantised(basin_forcing, names, var):
-    """Basin series as base64 little-endian uint16 in hundredths of a mm/day, basin-major."""
-    a = np.stack([basin_forcing[f"{n}_{var}"].to_numpy() for n in names])
-    return base64.b64encode(np.clip(np.round(a * 100), 0, 65535).astype("<u2").tobytes()).decode()
-
-
 def _engine(system, basins, basin_forcing, regions, rivers):
     """Everything the browser needs to re-run one river system's rainfall-runoff, routing, river flows and ecology on another method pair."""
     names = list(basins["subcatchment"])

@@ -406,7 +406,6 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 const nice = s => { const [y,m,d] = s.split('-'); return `${+d} ${MONTHS[+m-1]} ${y}`; };
 const wyOf = s => +s.slice(0,4) + (+s.slice(5,7) >= 7 ? 1 : 0);
 const totalArea = D.units.reduce((a,u) => a + u.area, 0);
-const valleyMean = (series, i) => D.units.reduce((a,u) => a + series[u.id][i] * u.area, 0) / totalArea;
 const lerp = (a,b,t) => a.map((v,i) => Math.round(v + (b[i]-v)*t));
 let day = 0, playing = false, speeds = [7,10,30,90,365], si = 2, relief = 1, riverRelief = 1, last = performance.now(), acc = 0;
 let MAXQ = maxQ();
@@ -425,7 +424,6 @@ function rolling(series, ROLL) {
 }
 const RP = rolling(D.P, ROLL_RAIN), RE = rolling(D.PET, ROLL_EVAP);
 const rollValley = (R, i) => D.units.reduce((a, u) => a + R[u.id][i] * u.area, 0) / totalArea;
-const centroid = rings => { const r = rings.reduce((a, b) => b.length > a.length ? b : a); return [r.reduce((a, p) => a + p[0], 0) / r.length, r.reduce((a, p) => a + p[1], 0) / r.length]; };
 const TERR_SCALE = 0.65, TERR0 = 22 * TERR_SCALE; let TERR = TERR0 * relief; const BASE_Z = 17000, WET_MIN = 40, SLICES = 8, SEG = 24;
 // cumulus: overlapping flat-bottomed puffs, [dx, dy, size, lift] in units of the main puff radius
 const PUFFS = [[0,0,1,.45],[-1.05,0,.72,.05],[1.1,0.05,.78,.05],[-0.55,0.05,.62,.95],[0.15,0.1,.7,1.1],[0.7,0.05,.52,.85],[-1.7,0.05,.46,0],[1.75,0,.5,0],[0.45,-0.35,.5,0],[-0.5,-0.35,.46,0],[-0.2,0.35,.5,.6]];
