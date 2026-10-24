@@ -247,7 +247,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     const v=V(), boat=playerCar.vehicle==='boat', scale=Math.max(1,v.drawPx*chaseMpp()/v.meshLength, saved?0:9*viewMpp/v.meshLength);
     const car=new deck.SimpleMeshLayer({
       id:'player-car', data:playerCar.placed?[playerCar]:[], mesh:boat?boatMesh:carMesh, sizeScale:scale,
-      getPosition:d=>boat ? [d.pos[0],d.pos[1],waterZ()+scale*.25] // sits in the water to just below the boot stripe
+      getPosition:d=>boat ? [d.pos[0],d.pos[1],waterZ()-scale*.1] // floats on the drawn river surface, keel just under it
         : [d.pos[0],d.pos[1],(d.falling?d.fallZ:d.offEdge?d.airZ:terrainHeightAt(d.pos[0],d.pos[1])+d.jump)+scale*1.2],
       getOrientation:d=>[-d.roll*180/Math.PI,-d.heading*180/Math.PI,d.pitch*180/Math.PI], // deck: [about forward axis, yaw, about side axis]
       getColor:[255,255,255,255], _useMeshColors:true, pickable:true,
@@ -298,7 +298,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   const handlers=['dragPan','dragRotate','touchZoomRotate','touchPitch','keyboard','doubleClickZoom','scrollZoom'];
   const mppAt=(zoom,lat)=>78271.5*Math.cos(lat*Math.PI/180)/Math.pow(2,zoom);
   const chaseMpp=()=>mppAt(V().zoom,playerCar.pos[1]);
-  const waterZ=()=>terrainHeightAt(playerCar.pos[0],playerCar.pos[1])+playerCar.waterTop; // river surface under the boat
+  const waterZ=()=>waterAt?.(playerCar.pos[0],playerCar.pos[1])?.top??playerCar.waterTop; // river surface under the boat, as drawn, at the current relief
   // The boat's view: terrain relief turned right up and the rivers brought right down, so it runs between high banks.
   const BOAT_RELIEF=[2,.1]; let reliefBefore=null;
 

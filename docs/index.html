@@ -665,12 +665,18 @@ const EI = new Uint16Array(b64(E.idx).buffer), EWT = b64(E.weights);
 const evT = E.dates.map(d => D.days.indexOf(d)), cellsN = E.cells;
 const MW = E.nx * 4, MH = E.ny * 4;
 let evCanvas = null, evDay = -1;
+// Painted every simulated day, so it reuses its canvases and pixel buffer and looks colours up in a table. The two
+// full-size canvases take turns: the layer re-uploads its texture only when it is handed a different object.
+const evSmall = document.createElement('canvas'); evSmall.width = E.nx; evSmall.height = E.ny;
+const evCtx = evSmall.getContext('2d'), evImg = evCtx.createImageData(E.nx, E.ny);
+const evBig = [0, 1].map(() => { const c = document.createElement('canvas'); c.width = MW; c.height = MH; return c; });
+const EV_LUT_N = 512, evLut = new Uint8Array(EV_LUT_N * 3);  // divCol over -ANOM_MAX..ANOM_MAX
+for (let i = 0; i < EV_LUT_N; i++) evLut.set(divCol((i / (EV_LUT_N - 1) * 2 - 1) * ANOM_MAX), i * 3);
 function paintEvap(d) {
   if (evDay === d) return evCanvas; evDay = d;
   let t0 = 0; while (t0 < evT.length - 2 && evT[t0 + 1] <= d) t0++;
-  const f = Math.max(0, Math.min(1, (d - evT[t0]) / (evT[t0 + 1] - evT[t0]))), a = t0 * cellsN, b = (t0 + 1) * cellsN, inv = 1 / E.scale;
-  const cv = document.createElement('canvas'); cv.width = E.nx; cv.height = E.ny;
-  const ctx = cv.getContext('2d'), img = ctx.createImageData(E.nx, E.ny), px = E.nx * E.ny;
+  const f = Math.max(0, Math.min(1, (d - evT[t0]) / (evT[t0 + 1] - evT[t0]))), a = t0 * cellsN, b = (t0 + 1) * cellsN;
+  const px = E.nx * E.ny, data = evImg.data, lutK = (EV_LUT_N - 1) / (2 * ANOM_MAX * E.scale), lutMid = (EV_LUT_N - 1) / 2;
   const val = k => EV[a + k] * (1 - f) + EV[b + k] * f;
   for (let p = 0; p < px; p++) {
     const k0 = EI[p * 4]; let v = 0;
@@ -678,13 +684,13 @@ function paintEvap(d) {
       const fx = EWT[p * 2] / 255, fy = EWT[p * 2 + 1] / 255;
       v = (val(k0) * (1 - fx) + val(EI[p * 4 + 1]) * fx) * (1 - fy) + (val(EI[p * 4 + 2]) * (1 - fx) + val(EI[p * 4 + 3]) * fx) * fy;
     }
-    const c = divCol(v * inv);
-    img.data[p * 4] = c[0]; img.data[p * 4 + 1] = c[1]; img.data[p * 4 + 2] = c[2]; img.data[p * 4 + 3] = 255;
+    const li = Math.max(0, Math.min(EV_LUT_N - 1, Math.round(v * lutK + lutMid))) * 3;
+    data[p * 4] = evLut[li]; data[p * 4 + 1] = evLut[li + 1]; data[p * 4 + 2] = evLut[li + 2]; data[p * 4 + 3] = 255;
   }
-  ctx.putImageData(img, 0, 0);
-  const big = document.createElement('canvas'); big.width = MW; big.height = MH;
-  const bg = big.getContext('2d'); bg.imageSmoothingEnabled = true; bg.imageSmoothingQuality = 'high';
-  bg.drawImage(cv, 0, 0, MW, MH);
+  evCtx.putImageData(evImg, 0, 0);
+  const big = evBig[evCanvas === evBig[0] ? 1 : 0], bg = big.getContext('2d');
+  bg.imageSmoothingEnabled = true; bg.imageSmoothingQuality = 'high';
+  bg.drawImage(evSmall, 0, 0, MW, MH);
   evCanvas = big; return big;  // opaque: the terrain mesh is clipped to the outline, so the wall shares this texture
 }
 // interior borders only: cut at the simplified outline of the modelled land, and pieces that run along it (the exterior border) are dropped
@@ -869,7 +875,7 @@ function initMap() {
   carMechanics=window.createCarMechanics({deck,map,terrain:carTerrain,getRelief:()=>relief,
     setRelief:delta=>{const input=$('reliefIn');input.value=Math.max(+input.min,Math.min(+input.max,relief+delta));input.dispatchEvent(new Event('input',{bubbles:true}));},
     refresh:update, getRivers:()=>rivers.map(d=>d.r), conditionsAt:carConditions,
-    waterAt:(lon, lat) => { const d = riverAt(lon, lat); return d && { top: elev(flowOf(d)), name: d.name }; },
+    waterAt:(lon, lat) => { const d = riverAt(lon, lat); return d && { top: riverBedAt(d, lon, lat) * TERR + elev(flowOf(d)), name: d.name }; },
     pickRiver:(x, y) => overlay?.pickObject({ x, y, radius: 8, layerIds: ['rivers'], unproject3D: true })?.coordinate,
     setReliefs:(terrain, river) => {  // set both relief sliders (as if moved by hand) and return the previous values
       const before = [relief, riverRelief];
@@ -881,7 +887,7 @@ function initMap() {
   const lighting = new deck.LightingEffect({ ambientLight:new deck.AmbientLight({ color:[255,255,255], intensity:0.75 }), dirLight:new deck.DirectionalLight({ color:[255,248,238], intensity:0.9, direction:[1.0,-1.1,-0.85] }) });
   // The near clipping plane scales with camera altitude, and the exaggerated terrain is kilometres high: close up (the boat)
   // the default would cut away the ground right in front of the camera.
-  overlay = new deck.MapboxOverlay({ interleaved:false, views:new deck.MapView({ id:'mapbox', nearZMultiplier:.005 }), layers:layers(), effects:[lighting], getTooltip:null, onHover:hover, onClick:info=>carMechanics.click(info) });
+  overlay = new deck.MapboxOverlay({ interleaved:false, useDevicePixels:Math.min(devicePixelRatio || 1, 1.5), views:new deck.MapView({ id:'mapbox', nearZMultiplier:.005 }), layers:layers(), effects:[lighting], getTooltip:null, onHover:hover, onClick:info=>carMechanics.click(info) });
   map.addControl(overlay);
   map.on('zoomend', () => overlay.setProps({layers:layers()}));
   map.on('moveend', () => {  // zoomed in on a system: fetch its detail (demo bundle only)
@@ -903,6 +909,18 @@ function riverAt(lon, lat) {
   if (lastRiver >= 0 && lastRiver < rivers.length && hit(lastRiver)) return rivers[lastRiver];
   for (const i of nearRivers) if (hit(i)) { lastRiver = i; return rivers[i]; }
   return null;
+}
+// The river polygon's own ground height at a point (unexaggerated), blended from its three nearest vertices: the drawn
+// water surface is this plus the extrusion, which can sit well apart from the terrain grid under the boat.
+function riverBedAt(d, lon, lat) {
+  const k = Math.cos(lat * Math.PI / 180), near = [[Infinity, 0], [Infinity, 0], [Infinity, 0]];
+  for (const p of d.r) {
+    const e = ((p[0] - lon) * k) ** 2 + (p[1] - lat) ** 2;
+    if (e < near[2][0]) { near[2] = [e, p[2]]; near.sort((a, b) => a[0] - b[0]); }
+  }
+  let w = 0, z = 0;
+  for (const [e, h] of near) if (e < Infinity) { const wi = 1 / (e + 1e-12); w += wi; z += wi * h; }
+  return w ? z / w : 0;
 }
 // What the driving HUD shows for the ground under the car: its subcatchment, and that day's climate and flow there.
 function carConditions(lon, lat) {
