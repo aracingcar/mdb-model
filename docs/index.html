@@ -11,6 +11,9 @@
   * { box-sizing:border-box; }
   html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); overflow:hidden; font-family:var(--sans); font-weight:300; }
   #map { position:absolute; left:400px; right:0; top:0; bottom:74px; }
+  #driveHint { position:absolute; z-index:6; right:22px; top:54px; max-width:350px; padding:7px 9px; border:1px solid rgba(72,78,86,.2); border-radius:5px; background:rgba(255,255,255,.88); color:#656b72; font:10px/1.5 var(--sans); box-shadow:0 2px 8px rgba(0,0,0,.08); pointer-events:none; }
+  #driveHint.active { border-color:#8a8e94; color:#3e4248; background:rgba(255,255,255,.96); }
+  @media (max-width:760px) { #driveHint { top:52px; right:12px; max-width:min(300px,calc(100% - 24px)); font-size:9px; } }
   .maplibregl-ctrl-bottom-right,.maplibregl-ctrl-bottom-left { display:none; }
   #side { position:absolute; left:0; top:0; bottom:74px; width:400px; padding:30px 34px 14px 54px; overflow:hidden; display:flex; flex-direction:column; }
   #kicker { font-weight:700; font-size:17px; letter-spacing:.01em; text-transform:uppercase; color:var(--head); }
@@ -76,6 +79,7 @@
   </nav>
 </details>
 <div id="map"></div>
+<div id="driveHint" role="status" aria-live="polite">Click the car in Canberra · W drive · A/D steer · S brake · Space jump · Q/E relief</div>
 <div id="side">
   <div id="kicker">Murrumbidgee / 2015&ndash;2034</div>
   <h1>Water on the land,<br>day by day</h1>
@@ -390,6 +394,31 @@ let cache = { day: -1 }, meshGen = 0;
 buildMeshes();
 const tint = {}; let tintDay = -1;
 let map, overlay;
+const playerCar={kind:'playerCar',pos:[149.13,-35.28],heading:0,speed:0,selected:false,jump:0,jumpV:0};
+const driveKeys=new Set(),driveCodes=new Set(['KeyW','KeyA','KeyS','KeyD','Space']);
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+function terrainHeightAt(lon,lat){
+  const x=(lon-T.x0)/T.step,y=(T.y0-lat)/T.step,c=Math.floor(x),r=Math.floor(y),fx=x-c,fy=y-r;let z=0,w=0;
+  for(let dr=0;dr<=1;dr++)for(let dc=0;dc<=1;dc++){const rr=r+dr,cc=c+dc;if(rr<0||cc<0||rr>=NR||cc>=NC)continue;const v=GZ[rr*NC+cc];if(!Number.isFinite(v))continue;const q=(dc?fx:1-fx)*(dr?fy:1-fy);z+=v*q;w+=q;}
+  if(w>0)return z/w*TERR;
+  let best=Infinity,bv=0;for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++){const rr=Math.round(y)+dr,cc=Math.round(x)+dc;if(rr<0||cc<0||rr>=NR||cc>=NC)continue;const v=GZ[rr*NC+cc];if(!Number.isFinite(v))continue;const d=dr*dr+dc*dc;if(d<best){best=d;bv=v;}}
+  return bv*TERR;
+}
+const carAtlas='data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path fill="#17252e" d="M15 17 20 7h24l5 10 6 5v28l-6 2-3 8H18l-3-8-6-2V22z"/><path fill="#e55735" d="M19 19 23 10h18l4 9 5 4v24l-5 2-2 7H21l-2-7-5-2V23z"/><path fill="#bfe9ef" d="m23 20 3-7h12l3 7-3 7H26z"/><path fill="#bfe9ef" d="M25 31h14v11H25z"/><path fill="#fff" d="M18 28h4v8h-4zM42 28h4v8h-4z"/></svg>');
+const carIconMap={car:{x:0,y:0,width:64,height:64,mask:false,anchorY:32}};
+function driveTick(dt){
+  if(!playerCar.selected)return false;dt=Math.min(.05,dt);const oldX=playerCar.pos[0],oldY=playerCar.pos[1],oldHeading=playerCar.heading,oldSpeed=playerCar.speed,oldJump=playerCar.jump;
+  const throttle=driveKeys.has('KeyW'),brake=driveKeys.has('KeyS'),steer=(driveKeys.has('KeyD')?1:0)-(driveKeys.has('KeyA')?1:0),ground=terrainHeightAt(oldX,oldY),steerRate=.18+.62*Math.min(1,playerCar.speed/15);
+  playerCar.heading=(playerCar.heading+steer*steerRate*dt+Math.PI*4)%(Math.PI*2);
+  if(throttle){const trial=playerCar.speed+12*dt,distance=trial*dt,cos=Math.max(.2,Math.cos(playerCar.pos[1]*Math.PI/180)),nx=oldX+Math.sin(playerCar.heading)*distance/(111320*cos),ny=oldY+Math.cos(playerCar.heading)*distance/111320,grade=(terrainHeightAt(nx,ny)-ground)/Math.max(1,distance),drag=Math.min(10,Math.max(0,grade)*relief*1.5);playerCar.speed=Math.min(48,playerCar.speed+Math.max(2,12-drag)*dt);}
+  else playerCar.speed=Math.max(0,playerCar.speed-(brake?30:3.5)*dt);
+  const distance=playerCar.speed*dt,cos=Math.max(.2,Math.cos(playerCar.pos[1]*Math.PI/180));playerCar.pos[0]+=Math.sin(playerCar.heading)*distance/(111320*cos);playerCar.pos[1]+=Math.cos(playerCar.heading)*distance/111320;
+  if(playerCar.jumpV||playerCar.jump){playerCar.jumpV-=900*dt;playerCar.jump=Math.max(0,playerCar.jump+playerCar.jumpV*dt);if(playerCar.jump===0)playerCar.jumpV=0;}
+  if(distance>.05){const point=map.project(playerCar.pos),w=map.getContainer().clientWidth,h=map.getContainer().clientHeight;if(point.x<w*.22||point.x>w*.78||point.y<h*.22||point.y>h*.78)map.setCenter(playerCar.pos);}
+  return distance>.01||Math.abs(playerCar.heading-oldHeading)>.0001||Math.abs(playerCar.speed-oldSpeed)>.001||playerCar.jump!==oldJump||oldX!==playerCar.pos[0]||oldY!==playerCar.pos[1];
+}
+function changeCarRelief(delta){const input=$('reliefIn');input.value=clamp(relief+delta,0,2);input.dispatchEvent(new Event('input',{bubbles:true}));}
+function clickCar(info){if(info.object?.kind!=='playerCar')return;playerCar.selected=!playerCar.selected;playerCar.speed=0;driveKeys.clear();if(playerCar.selected){playing=false;$('play').innerHTML='&#9654;';}const hint=$('driveHint');hint.classList.toggle('active',playerCar.selected);hint.textContent=playerCar.selected?'Car selected · W drive · A/D steer · S brake · Space jump · Q/E relief':'Click the car in Canberra · W drive · A/D steer · S brake · Space jump · Q/E relief';update();}
 function layers() {
   const blend = { depthWriteEnabled:false, depthCompare:'always' };
   if (cache.day !== day) {
@@ -412,18 +441,20 @@ function layers() {
     new deck.SolidPolygonLayer({ id:'context', data:ctxZ, getPolygon:d => d.r, getFillColor:[150,192,220,120], extruded:false, pickable:false }),
     new deck.SolidPolygonLayer({ id:'rivers', data:riverZ, getPolygon:d => d.r, extruded:true, getElevation:d => elev(flowOf(d)), getFillColor:d => flowCol(flowOf(d)), material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:true, autoHighlight:true, highlightColor:[255,247,224,100], updateTriggers:{getElevation:[day,relief], getFillColor:day} }),
     ...mist,
+    new deck.IconLayer({id:'player-car',data:[playerCar],iconAtlas:carAtlas,iconMapping:carIconMap,getIcon:()=> 'car',getPosition:d=>[d.pos[0],d.pos[1],terrainHeightAt(d.pos[0],d.pos[1])+180+d.jump],getSize:d=>d.selected?34:29,sizeUnits:'pixels',sizeMinPixels:25,sizeMaxPixels:38,billboard:true,getAngle:d=>d.heading*180/Math.PI,pickable:true,updateTriggers:{getPosition:[playerCar.pos[0],playerCar.pos[1],relief,playerCar.jump],getAngle:playerCar.heading,getSize:playerCar.selected}}),
   ];
 }
 function initMap() {
-  map = new maplibregl.Map({ container:'map', center:[146.35,-35.2], zoom:6.5, pitch:52, bearing:-8, attributionControl:false,
+  map = new maplibregl.Map({ container:'map', center:[149.13,-35.28], zoom:6.5, pitch:52, bearing:-8, attributionControl:false,
     style:{ version:8, sources:{}, layers:[{ id:'bg', type:'background', paint:{'background-color':'#ffffff'} }] } });
   const lighting = new deck.LightingEffect({ ambientLight:new deck.AmbientLight({ color:[255,255,255], intensity:0.75 }), dirLight:new deck.DirectionalLight({ color:[255,248,238], intensity:0.9, direction:[1.0,-1.1,-0.85] }) });
-  overlay = new deck.MapboxOverlay({ interleaved:false, layers:layers(), effects:[lighting], getTooltip:null, onHover:hover });
+  overlay = new deck.MapboxOverlay({ interleaved:false, layers:layers(), effects:[lighting], getTooltip:null, onHover:hover, onClick:clickCar });
   map.addControl(overlay);
 }
 function hover(info) {
   const tip = $('tip');
   if (!info.object) { tip.style.display = 'none'; return; }
+  if (info.object.kind === 'playerCar') { tip.innerHTML = '<b>Canberra car</b>Click to select, then drive with WASD'; tip.style.display='block'; tip.style.left=Math.min(info.x+14,innerWidth-230)+'px'; tip.style.top=(info.y+14)+'px'; return; }
   if (info.object.name !== undefined) {
     const o = info.object;
     tip.innerHTML = `<b>${o.name}</b>${o.kind === 'channel' ? 'Routed flow' : 'Share of local runoff · indicative'}<br>Flow ${fmt(flowOf(o))} ML/d`;
@@ -501,6 +532,9 @@ let drag = false; cv.onpointerdown = e => { drag = true; cv.setPointerCapture(e.
 $('play').onclick = () => { playing = !playing; $('play').innerHTML = playing ? '&#10073;&#10073;' : '&#9654;'; last = performance.now(); if (playing) requestAnimationFrame(tick); };
 $('speed').onclick = () => { si = (si + 1) % speeds.length; $('speed').textContent = speeds[si] + ' d/s'; };
 $('reliefIn').oninput = e => { relief = +e.target.value; TERR = TERR0 * relief; buildZ(); buildMeshes(); meshGen++; cache = { day: -1 }; update(); };
+addEventListener('keydown',e=>{if(!playerCar.selected||!driveCodes.has(e.code)||e.target.matches('input,button,a'))return;e.preventDefault();if(e.code==='KeyQ'||e.code==='KeyE'){if(!e.repeat)changeCarRelief(e.code==='KeyE'?.1:-.1);}else if(e.code==='Space'){if(!e.repeat&&playerCar.jump===0)playerCar.jumpV=520;}else driveKeys.add(e.code);});
+addEventListener('keyup',e=>driveKeys.delete(e.code));addEventListener('blur',()=>driveKeys.clear());
+let driveLast=performance.now();function driveLoop(now){const dt=Math.min(.05,(now-driveLast)/1000);driveLast=now;if(playerCar.selected&&driveTick(dt)&&overlay)overlay.setProps({layers:layers()});requestAnimationFrame(driveLoop);}
 function tick(now) {
   if (!playing) return;
   acc += (now - last) / 1000 * speeds[si]; last = now;
@@ -509,7 +543,7 @@ function tick(now) {
 }
 addEventListener('resize', () => update());
 { const q = new URLSearchParams(location.search).get('day'), i = q ? D.days.indexOf(q) : -1; if (i >= 0) day = i; }
-if (typeof maplibregl !== 'undefined' && typeof deck !== 'undefined') { initMap(); legend(); update(); }
+if (typeof maplibregl !== 'undefined' && typeof deck !== 'undefined') { initMap(); legend(); update(); requestAnimationFrame(driveLoop); }
 </script>
 </body>
 </html>
