@@ -8,7 +8,8 @@ function element() {
     listeners, style:{}, hidden:false, clientWidth:800, clientHeight:600,
     classList:{add:(...xs)=>xs.forEach(x=>classes.add(x)),remove:(...xs)=>xs.forEach(x=>classes.delete(x)),toggle:(x,on)=>on?classes.add(x):classes.delete(x)},
     addEventListener:(name,fn)=>listeners[name]=fn, append(){}, setAttribute(){}, setPointerCapture(){}, blur(){},
-    getBoundingClientRect:()=>({left:100,top:50,width:800,height:600})
+    getBoundingClientRect:()=>({left:100,top:50,width:800,height:600}),
+    getContext:()=>new Proxy({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)})},{get:(t,k)=>k in t?t[k]:()=>{},set:()=>true})
   };
 }
 const elements=[], container=element(), events={};
@@ -19,7 +20,7 @@ for(const h of ['dragPan','dragRotate','touchZoomRotate','touchPitch','keyboard'
 }
 let picked=[1.5,1.5,20], redraws=0;
 const context=vm.createContext({window:{}, document:{createElement:()=>{const e=element();elements.push(e);return e;},body:element(),getElementById:()=>element()},
-  addEventListener:(name,fn)=>events[name]=fn,performance:{now:()=>0},requestAnimationFrame(){},setTimeout(){},innerWidth:1000});
+  addEventListener:(name,fn)=>events[name]=fn,performance:{now:()=>0},requestAnimationFrame(){},setTimeout(){},innerWidth:1000,devicePixelRatio:1});
 vm.runInContext(fs.readFileSync(__dirname+'/car.js','utf8'),context);
 const car=context.window.createCarMechanics({deck:{SimpleMeshLayer:class{constructor(props){Object.assign(this,props);}}},map,
   terrain:{x0:0,y0:3,step:1,NR:4,NC:4,GZ:new Float32Array(16).fill(10),outline:[[[.1,.1],[2.9,.1],[2.9,2.9],[.1,2.9],[.1,.1]]],getExaggeration:()=>1},
@@ -69,4 +70,21 @@ car.state.pos=[1.5,2.89999]; car.state.speed=100000; car.tick(.05);
 assert.equal(car.state.falling,true);
 events.keydown({code:'Escape'}); assert.equal(car.state.placed,false,'Escape can skip the fall');
 assert(redraws>0);
-console.log('Car placement, drag cancellation, invalid drops, animated fall, delayed reset, camera restoration and reuse passed.');
+
+// Donuts: boost + steer on wet tyres spins the car round on the spot; on dry tyres the same input just drives off in an arc.
+function spinTest(wet) {
+  const flat={x0:0,y0:3,step:1,NR:4,NC:4,GZ:new Float32Array(16).fill(10),outline:[[[.1,.1],[2.9,.1],[2.9,2.9],[.1,2.9],[.1,.1]]],getExaggeration:()=>1};
+  const c=context.window.createCarMechanics({deck:{SimpleMeshLayer:class{constructor(props){Object.assign(this,props);}}},map,terrain:flat,
+    getRelief:()=>1,setRelief(){},refresh(){},pickTerrain:()=>picked,isWet:()=>wet});
+  c.place([1.5,1.5]); c.state.wet=wet;
+  for(const k of ['KeyW','ShiftLeft','KeyD']) c.driveKeys.add(k);
+  let turned=0, far=0, h=c.state.heading;
+  for(let i=0;i<60;i++) { c.tick(.05); turned+=((c.state.heading-h+3*Math.PI)%(2*Math.PI))-Math.PI; h=c.state.heading;
+    far=Math.max(far,Math.hypot(c.state.pos[0]-1.5,c.state.pos[1]-1.5)); }
+  return {turned,far};
+}
+const wetSpin=spinTest(1), drySpin=spinTest(0);
+assert(wetSpin.turned>2*Math.PI,`wet boost turns a full donut in 3 s (turned ${wetSpin.turned.toFixed(2)} rad)`);
+assert(drySpin.turned<wetSpin.turned/2,'dry tyres do not spin like that');
+assert(wetSpin.far<drySpin.far,'a donut stays closer to where it started than a dry boost');
+console.log('Car placement, drag cancellation, invalid drops, animated fall, delayed reset, camera restoration, reuse, arrow keys and wet-boost donuts passed.');

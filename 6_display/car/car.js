@@ -1,5 +1,5 @@
 /* MDB Model's selectable terrain car. This file is copied into docs/car for GitHub Pages. */
-window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief, refresh, pickTerrain, isWet }) {
+window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief, refresh, pickTerrain, isWet, playWhileDriving, getRivers }) {
   const playerCar = { kind:'playerCar', pos:[0,0], placed:false, heading:0, speed:0, selected:false, jump:0, jumpV:0, pitch:0, roll:0, pitchV:0, rollV:0, accel:0, grade:0, stalled:false, wet:0, course:0, slip:0, skids:[], offEdge:false, airZ:0, airV:0, falling:false, fallZ:0, fallV:0, fallTime:0, fallGravity:0 };
   const driveKeys = new Set(), driveCodes = new Set(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','ShiftLeft','ShiftRight']);
   const ARROWS = { ArrowUp:'KeyW', ArrowLeft:'KeyA', ArrowDown:'KeyS', ArrowRight:'KeyD' }; // arrows drive exactly like WASD
@@ -38,9 +38,9 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     if (!pos || !onTerrain(pos[0],pos[1])) return false;
     exitChase();
     Object.assign(playerCar,{pos:pos.slice(0,2),placed:true,selected:true,heading:0,speed:0,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,stalled:false,wet:0,course:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
-    driveKeys.clear(); choosing = false; dock.classList.remove('choosing');
+    driveKeys.clear(); choosing = false; dock.classList.remove('choosing'); hideGhost();
     dock.classList.add('placed'); dock.blur();
-    enterChase();
+    enterChase(); playWhileDriving?.(); // the climate scenario plays on while you drive
     hint.classList.add('active');
     setHint(HINT_DRIVE);
     refresh(); return true;
@@ -48,7 +48,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function reset() {
     exitChase(true);
     Object.assign(playerCar,{placed:false,selected:false,speed:0,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,stalled:false,wet:0,course:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
-    driveKeys.clear(); choosing=false; endRain();
+    driveKeys.clear(); choosing=false; endRain(); drawRadar();
     dock.classList.remove('placed','choosing'); hint.classList.remove('active');
     setHint('Drag the car onto the map to drive again.'); refresh();
   }
@@ -59,12 +59,14 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     if(hit&&onTerrain(hit[0],hit[1])) return hit;
     // Missed the surface (ridge in the way, valley rim, or the void just beyond it): snap to the nearest drivable
     // ground nearest to where the cursor points on the map, so a drop near the valley still lands.
-    const g=map.unproject([x,y]);
-    return g?nearestTerrain(g.lng,g.lat):null;
+    // Only within SNAP_PX of the cursor, so the green/red outline honestly says whether the car will land.
+    const g=map.unproject([x,y]), g2=map.unproject([x+SNAP_PX,y]);
+    return g?nearestTerrain(g.lng,g.lat,Math.ceil(Math.hypot(g2.lng-g.lng,g2.lat-g.lat)/terrain.step)):null;
   }
-  function nearestTerrain(lon,lat) {
+  const SNAP_PX=40;
+  function nearestTerrain(lon,lat,reach=150) {
     const {x0,y0,step}=terrain, c0=Math.round((lon-x0)/step), r0=Math.round((y0-lat)/step);
-    for(let k=0;k<=150;k++) for(let dr=-k;dr<=k;dr++) {
+    for(let k=0;k<=Math.min(150,reach);k++) for(let dr=-k;dr<=k;dr++) {
       const step2=Math.abs(dr)===k?1:2*k||1; // only the ring's perimeter
       for(let dc=-k;dc<=k;dc+=step2) {
         const cl=x0+(c0+dc)*step, lt=y0-(r0+dr)*step;
@@ -82,11 +84,19 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     if(!dragging||e.pointerId!==dragging.id) return;
     if(Math.hypot(e.clientX-dragging.x,e.clientY-dragging.y)>5) dragging.moved=true;
     if(!dragging.moved) return;
-    ghost.hidden=false; ghost.style.left=e.clientX+'px'; ghost.style.top=e.clientY+'px';
-    const pos=dropPosition(e);
-    ghost.classList.toggle('valid',!!pos&&onTerrain(pos[0],pos[1]));
+    showGhost(e);
   });
-  function cancelDrag() { dragging=null; ghost.hidden=true; refresh(); }
+  // The ghost car follows the cursor while dragging or choosing; its outline (and the dock's) is green where it will drop, red where not.
+  function showGhost(e) {
+    const pos=dropPosition(e), ok=!!pos&&onTerrain(pos[0],pos[1]);
+    ghost.hidden=false; ghost.style.left=e.clientX+'px'; ghost.style.top=e.clientY+'px';
+    ghost.classList.toggle('valid',ok);
+    dock.classList.toggle('drop-ok',ok); dock.classList.toggle('drop-no',!ok);
+  }
+  function hideGhost() { ghost.hidden=true; dock.classList.remove('drop-ok','drop-no'); }
+  map.getContainer().addEventListener('pointermove',e=>{ if(choosing&&!dragging) showGhost(e); });
+  map.getContainer().addEventListener('pointerleave',()=>{ if(choosing&&!dragging) hideGhost(); });
+  function cancelDrag() { dragging=null; hideGhost(); refresh(); }
   dock.addEventListener('pointerup',e=>{
     if(!dragging||e.pointerId!==dragging.id) return;
     const moved=dragging.moved, pos=moved?dropPosition(e):null; cancelDrag();
@@ -100,7 +110,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   dock.addEventListener('click',()=>{
     if(suppressClick) return;
     if(playerCar.selected) reset();
-    choosing=!choosing; dock.classList.toggle('choosing',choosing);
+    choosing=!choosing; dock.classList.toggle('choosing',choosing); if(!choosing) hideGhost();
     setHint(choosing?'Click a location on the terrain to place the car.':''); refresh();
   });
   map.getContainer().addEventListener('click',e=>{
@@ -183,7 +193,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function toggleSelected() {
     if(!playerCar.placed||playerCar.falling) return;
     playerCar.selected=!playerCar.selected; playerCar.speed=0; driveKeys.clear();
-    if(playerCar.selected) enterChase(); else { exitChase(); endRain(); }
+    if(playerCar.selected) enterChase(); else { exitChase(); endRain(); drawRadar(); }
     hintText=''; hint.classList.toggle('active',playerCar.selected);
     setHint(playerCar.selected?HINT_DRIVE:'Driving paused · click the car or press Esc to resume, or drag the dock icon to a new location');
     refresh();
@@ -354,19 +364,26 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     c.speed=Math.max(-.4*vmax,Math.min(vmax*1.15,v));
     // Steering: yaw rate follows speed (no turning on the spot), limited by lateral grip; reversing flips it like a real car.
     const radius=60*mpp, grip=Math.PI*.55, rate=Math.max(-1.6,Math.min(1.6,c.speed/radius))*input.steer*(1+2*c.wet);
-    c.heading=((c.heading+Math.max(-grip,Math.min(grip,rate))*dt)%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
+    // Power oversteer: boosting on wet tyres spins the driven wheels, so steering swings the tail round even from a standstill
+    // (a donut). The yaw comes from wheelspin, not speed; forward speed is held down because the power is going into the spin.
+    const spin=boost&&!airborne ? Math.min(1,c.wet/.6) : 0, donut=spin*Math.abs(input.steer);
+    const spinRate=donut ? spin*input.steer*3.6*Math.min(1,.35+Math.abs(c.speed)/(.25*vmax0)) : 0;
+    const yaw=Math.max(-grip,Math.min(grip,rate))*(1-donut*.6)+spinRate;
+    c.heading=((c.heading+yaw*dt)%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
+    if(donut) { const cap=vmax*(1-donut)+.7*vmax0*donut; if(c.speed>cap) c.speed+=(cap-c.speed)*(1-Math.exp(-6*dt)); }
     // Carry momentum over the edge and fall before returning to the dock.
     // Wet tyres (in a flowing river, drying over a few seconds) lose grip: the car keeps travelling along its old course
     // while the nose swings round, so it drifts. Dry, the course follows the heading exactly.
     const soak=c.jump===0 ? Math.max(rain.level,isWet?Math.max(0,Math.min(1,+isWet(c.pos[0],c.pos[1])||0)):0) : 0; // 0 dry … 1 flowing river
     c.wet=soak>c.wet ? Math.min(soak,c.wet+dt*4) : Math.max(0,c.wet-dt/2.5);
-    const gripRate=c.wet>.02 ? (.3+Math.pow(1-c.wet,2)*14)+Math.max(0,1-Math.abs(c.speed)/(.12*vmax))*30 : Infinity;
+    const gripRate=c.wet>.02 ? ((.3+Math.pow(1-c.wet,2)*14)+Math.max(0,1-Math.abs(c.speed)/(.12*vmax))*30)*(1-.85*spin) : Infinity;
     if(gripRate===Infinity) { c.course=c.heading; c.slip=0; }
     else {
       const slip=((c.heading-c.course+3*Math.PI)%(2*Math.PI))-Math.PI;
       c.course+=slip*(1-Math.exp(-gripRate*dt));
       c.speed*=Math.exp(-dt*.35*Math.min(1,Math.abs(slip)));
-      const s2=Math.max(-1.15,Math.min(1.15,((c.heading-c.course+3*Math.PI)%(2*Math.PI))-Math.PI)); c.course=c.heading-s2; c.slip=s2; // slide angle capped near 57°
+      const maxSlip=1.15+.45*spin; // slide angle capped near 66°, or ~92° when spinning the wheels
+      const s2=Math.max(-maxSlip,Math.min(maxSlip,((c.heading-c.course+3*Math.PI)%(2*Math.PI))-Math.PI)); c.course=c.heading-s2; c.slip=s2;
     }
     const dist=c.speed*dt, nLon=Math.sin(c.course)*dist*metresToLon(c.pos[1]), nLat=Math.cos(c.course)*dist*metresToLat;
     const nextOn=onTerrain(c.pos[0]+nLon,c.pos[1]+nLat);
@@ -416,6 +433,49 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   }
   function endRain() { Object.assign(rain,{level:0,left:0}); rainVeil.hidden=true; }
 
+  // GTA-style radar, bottom right while driving: heading-up, centred on the car, over a shaded height map of the whole terrain
+  // with its rivers. The base image is drawn once per terrain grid (it changes when a system's detail loads).
+  const radar=document.createElement('canvas'); radar.className='car-radar'; radar.hidden=true; radar.setAttribute('aria-hidden','true');
+  document.body.append(radar);
+  let radarBase=null, radarKey=null;
+  function radarImage() {
+    const rivers=getRivers?.()||[], key=[terrain.GZ,terrain.NC,rivers.length];
+    if(radarBase&&radarKey.every((v,i)=>v===key[i])) return radarBase;
+    const {x0,y0,step,GZ,NR,NC}=terrain, aspect=Math.cos((y0-NR*step/2)*Math.PI/180), k=Math.min(1,700/Math.max(NC*aspect,NR));
+    const W=Math.round(NC*aspect*k), H=Math.round(NR*k), cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+    const g=cv.getContext('2d'), img=g.createImageData(W,H);
+    let lo=Infinity, hi=-Infinity; for(let i=0;i<GZ.length;i++) { const z=GZ[i]; if(Number.isFinite(z)) { if(z<lo) lo=z; if(z>hi) hi=z; } }
+    const zAt=(r,c)=>GZ[Math.max(0,Math.min(NR-1,r))*NC+Math.max(0,Math.min(NC-1,c))];
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++) {
+      const r=Math.floor(y/k), c=Math.floor(x/k/aspect), z=zAt(r,c), o=(y*W+x)*4;
+      if(!Number.isFinite(z)) continue;
+      const t=Math.sqrt((z-lo)/Math.max(1,hi-lo)), dz=zAt(r,c+1)-zAt(r,c-1)-(zAt(r+1,c)-zAt(r-1,c)), shade=1+Math.max(-.25,Math.min(.25,(Number.isFinite(dz)?dz:0)*.004));
+      img.data[o]=(236-60*t)*shade; img.data[o+1]=(224-80*t)*shade; img.data[o+2]=(200-100*t)*shade; img.data[o+3]=255;
+    }
+    g.putImageData(img,0,0);
+    g.fillStyle='#3d7fbf';
+    for(const ring of rivers) { g.beginPath(); ring.forEach((p,i)=>g[i?'lineTo':'moveTo']((p[0]-x0)/step*aspect*k,(y0-p[1])/step*k)); g.fill(); }
+    radarBase={cv,toPx:(lon,lat)=>[(lon-x0)/step*aspect*k,(y0-lat)/step*k],span:Math.max(W,H)}; radarKey=key;
+    return radarBase;
+  }
+  function drawRadar() {
+    const on=playerCar.selected&&!!saved; radar.hidden=!on; if(!on) return;
+    const size=radar.clientWidth||180, dpr=devicePixelRatio||1;
+    if(radar.width!==size*dpr) { radar.width=radar.height=size*dpr; }
+    const g=radar.getContext('2d'), b=radarImage(), [px,py]=b.toPx(playerCar.pos[0],playerCar.pos[1]), R=size/2, zoom=size/(.6*b.span);
+    g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,size,size);
+    g.save(); g.beginPath(); g.arc(R,R,R-2,0,7); g.clip(); g.fillStyle='#1d2228'; g.fillRect(0,0,size,size);
+    g.translate(R,R); g.rotate(-playerCar.heading); g.scale(zoom,zoom); g.translate(-px,-py);
+    g.imageSmoothingEnabled=true; g.drawImage(b.cv,0,0); g.restore();
+    const n=-playerCar.heading-Math.PI/2; // north marker on the rim, turning with the map
+    g.fillStyle='#fff'; g.font='700 11px Arial,sans-serif'; g.textAlign='center'; g.textBaseline='middle';
+    g.beginPath(); g.arc(R+Math.cos(n)*(R-11),R+Math.sin(n)*(R-11),8,0,7); g.fillStyle='rgba(29,34,40,.85)'; g.fill();
+    g.fillStyle='#fff'; g.fillText('N',R+Math.cos(n)*(R-11),R+Math.sin(n)*(R-11));
+    g.beginPath(); g.moveTo(R,R-9); g.lineTo(R+6,R+7); g.lineTo(R,R+3); g.lineTo(R-6,R+7); g.closePath(); // the car, always pointing up
+    g.fillStyle='#e55735'; g.strokeStyle='#fff'; g.lineWidth=1.5; g.fill(); g.stroke();
+    g.beginPath(); g.arc(R,R,R-1.5,0,7); g.strokeStyle='rgba(255,255,255,.9)'; g.lineWidth=3; g.stroke();
+  }
+
   const HINT_DRIVE='Driving · W/↑ drive · A/D or ←/→ steer · S/↓ brake · Space jump · Q/E relief · Shift boost · Esc pause';
   let hintText='';
   function updateHint() {
@@ -435,12 +495,13 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     const n=Math.ceil(dt/(1/120)); // fixed small substeps keep the result independent of frame rate
     for(let i=0;i<n&&c.selected;i++) physicsStep(dt/n,input,mpp,vmax);
     if(c.selected&&!c.falling) { chaseCamera(dt); updateHint(); }
+    drawRadar();
     if(c.falling||!c.placed) return true;
     return Math.abs(c.pos[0]-old[0])+Math.abs(c.pos[1]-old[1])>0||c.heading!==old[2]||Math.abs(c.pitch-old[5])+Math.abs(c.roll-old[6])>1e-5||c.speed!==old[3]||c.jump!==old[4];
   }
 
   function keydown(e) {
-    if(e.code==='Escape') { if(playerCar.falling) { reset(); return; } cancelDrag(); if(choosing) { choosing=false; dock.classList.remove('choosing'); setHint(''); refresh(); } else if(playerCar.placed&&!e.repeat) toggleSelected(); return; }
+    if(e.code==='Escape') { if(playerCar.falling) { reset(); return; } cancelDrag(); if(choosing) { choosing=false; dock.classList.remove('choosing'); hideGhost(); setHint(''); refresh(); } else if(playerCar.placed&&!e.repeat) toggleSelected(); return; }
     const code=driveCode(e.code);
     if(!playerCar.selected||playerCar.falling||!driveCodes.has(code)||typing(e.target)) return;
     e.preventDefault();
@@ -461,6 +522,8 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   },{passive:false});
   addEventListener('keydown',keydown);
   addEventListener('keyup',keyup);
+  addEventListener('change',e=>{ if(playerCar.selected&&!typing(e.target)) e.target.blur?.(); },true);
+  addEventListener('click',e=>{ const el=e.target.closest?.('button,label'); if(playerCar.selected&&el&&el!==dock) setTimeout(()=>{ if(!typing(document.activeElement)) document.activeElement?.blur?.(); }); },true);
   addEventListener('blur',()=>driveKeys.clear());
 
   function start(redraw) {

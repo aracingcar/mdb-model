@@ -133,7 +133,7 @@
   </div>
   <div id="credit"><b>NARCliM2.0 &middot; NCI / NSW DCCEEW</b><br>GR4J + Muskingum, uncalibrated, indicative only<br>MDBA SDL resource units &middot; HydroBASINS &middot; AWS Terrain Tiles &middot; OSM</div>
 </div>
-<div id="relief"><label><span>Rivers</span><input id="riverReliefIn" type="range" min="0" max="2" step="0.05" value="1"></label><label><span>Terrain</span><input id="reliefIn" type="range" min="0" max="2" step="0.05" value="1"></label></div>
+<div id="relief"><label><span>Rivers</span><input id="riverReliefIn" type="range" min="0" max="3.4" step="0.05" value="1"></label><label><span>Terrain</span><input id="reliefIn" type="range" min="0" max="2" step="0.05" value="1"></label></div>
 <div id="model-panels">
 <details id="climate-panel">
   <summary>Climate model</summary>
@@ -311,7 +311,7 @@ const wyOf = s => +s.slice(0,4) + (+s.slice(5,7) >= 7 ? 1 : 0);
 const totalArea = D.units.reduce((a,u) => a + u.area, 0);
 const valleyMean = (series, i) => D.units.reduce((a,u) => a + series[u.id][i] * u.area, 0) / totalArea;
 const lerp = (a,b,t) => a.map((v,i) => Math.round(v + (b[i]-v)*t));
-let day = 0, playing = false, speeds = [10,30,90,365], si = 1, relief = 1, riverRelief = 1, last = performance.now(), acc = 0;
+let day = 0, playing = false, speeds = [7,10,30,90,365], si = 2, relief = 1, riverRelief = 1, last = performance.now(), acc = 0;
 let MAXQ = maxQ();
 const flowCol = q => [...lerp([28,111,176],[140,225,250],Math.min(1,Math.sqrt(q / MAXQ))), 245];
 const elev = q => (800 + 24 * Math.sqrt(q)) * riverRelief;  // river rises a little above the ground, deliberately unrealistic
@@ -855,7 +855,8 @@ function initMap() {
   syncCarTerrain();
   carMechanics=window.createCarMechanics({deck,map,terrain:carTerrain,getRelief:()=>relief,
     setRelief:delta=>{const input=$('reliefIn');input.value=Math.max(+input.min,Math.min(+input.max,relief+delta));input.dispatchEvent(new Event('input',{bubbles:true}));},
-    refresh:update,
+    refresh:update, getRivers:()=>rivers.map(d=>d.r),
+    playWhileDriving:()=>{si=0;$('speed').textContent=speeds[si]+' d/s';if(!playing)$('play').click();},
     isWet:riverWetAt,pickTerrain:(x,y)=>overlay?.pickObject({x,y,layerIds:['terrain-'+meshGen],unproject3D:true})?.coordinate});
   const lighting = new deck.LightingEffect({ ambientLight:new deck.AmbientLight({ color:[255,255,255], intensity:0.75 }), dirLight:new deck.DirectionalLight({ color:[255,248,238], intensity:0.9, direction:[1.0,-1.1,-0.85] }) });
   overlay = new deck.MapboxOverlay({ interleaved:false, layers:layers(), effects:[lighting], getTooltip:null, onHover:hover, onClick:info=>carMechanics.click(info) });
