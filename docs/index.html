@@ -11,10 +11,7 @@
   * { box-sizing:border-box; }
   html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); overflow:hidden; font-family:var(--sans); font-weight:300; }
   #map { position:absolute; left:400px; right:0; top:0; bottom:74px; }
-  .car-marker { width:42px; height:42px; padding:5px; display:grid; place-items:center; border:1px solid rgba(23,37,46,.8); border-radius:50%; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.28); cursor:pointer; }
-  .car-marker svg { width:30px; height:30px; overflow:visible; filter:drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
-  .car-marker.selected { outline:3px solid rgba(229,87,53,.4); }
-  #driveHint { position:absolute; z-index:6; right:22px; top:54px; max-width:350px; padding:7px 9px; border:1px solid rgba(72,78,86,.2); border-radius:5px; background:rgba(255,255,255,.88); color:#656b72; font:10px/1.5 var(--sans); box-shadow:0 2px 8px rgba(0,0,0,.08); pointer-events:none; }
+  #driveHint { position:absolute; z-index:6; right:22px; top:54px; max-width:350px; padding:7px 9px; border:1px solid rgba(72,78,86,.2); border-radius:5px; background:rgba(255,255,255,.88); color:#656b72; font:10px/1.5 var(--sans); box-shadow:0 2px 8px rgba(0,0,0,.08); pointer-events:auto; }
   #driveHint.active { border-color:#8a8e94; color:#3e4248; background:rgba(255,255,255,.96); }
   @media (max-width:760px) { #driveHint { top:52px; right:12px; max-width:min(300px,calc(100% - 24px)); font-size:9px; } }
   .maplibregl-ctrl-bottom-right,.maplibregl-ctrl-bottom-left { display:none; }
@@ -396,18 +393,23 @@ buildZ();
 let cache = { day: -1 }, meshGen = 0;
 buildMeshes();
 const tint = {}; let tintDay = -1;
-let map, overlay, carMarker, carMarkerElement;
+let map, overlay;
 const playerCar={kind:'playerCar',pos:[149.13,-35.28],heading:0,speed:0,selected:false,jump:0,jumpV:0};
 const driveKeys=new Set(),driveCodes=new Set(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space']);
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 function terrainHeightAt(lon,lat){
-  const x=(lon-T.x0)/T.step,y=(T.y0-lat)/T.step,c=Math.floor(x),r=Math.floor(y),fx=x-c,fy=y-r;let z=0,w=0;
-  for(let dr=0;dr<=1;dr++)for(let dc=0;dc<=1;dc++){const rr=r+dr,cc=c+dc;if(rr<0||cc<0||rr>=NR||cc>=NC)continue;const v=GZ[rr*NC+cc];if(!Number.isFinite(v))continue;const q=(dc?fx:1-fx)*(dr?fy:1-fy);z+=v*q;w+=q;}
-  if(w>0)return z/w*TERR;
+  const x=(lon-T.x0)/T.step,y=(T.y0-lat)/T.step,c=Math.floor(x),r=Math.floor(y),fx=x-c,fy=y-r;
+  if(r>=0&&c>=0&&r<NR-1&&c<NC-1&&quadOk(r,c)){
+    const a=GZ[r*NC+c],b=GZ[r*NC+c+1],d=GZ[(r+1)*NC+c],e=GZ[(r+1)*NC+c+1];
+    return (fx+fy<=1?a*(1-fx-fy)+b*fx+d*fy:b*(1-fy)+d*(1-fx)+e*(fx+fy-1))*TERR;
+  }
   let best=Infinity,bv=0;for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++){const rr=Math.round(y)+dr,cc=Math.round(x)+dc;if(rr<0||cc<0||rr>=NR||cc>=NC)continue;const v=GZ[rr*NC+cc];if(!Number.isFinite(v))continue;const d=dr*dr+dc*dc;if(d<best){best=d;bv=v;}}
   return bv*TERR;
 }
-function updateCarMarker(){if(!carMarker)return;carMarker.setLngLat(playerCar.pos);carMarkerElement.classList.toggle('selected',playerCar.selected);const glyph=carMarkerElement.querySelector('svg');glyph.style.transform=`rotate(${playerCar.heading*180/Math.PI}deg) scale(${1+playerCar.jump/500})`;}
+const carAtlas=document.createElement('canvas');carAtlas.width=64;carAtlas.height=64;{
+  const c=carAtlas.getContext('2d');c.translate(32,32);c.fillStyle='#17252e';c.beginPath();c.roundRect(-16,-26,32,52,9);c.fill();c.fillStyle='#e55735';c.beginPath();c.roundRect(-12,-22,24,44,7);c.fill();c.fillStyle='#bfe9ef';c.beginPath();c.roundRect(-9,-17,18,12,3);c.fill();c.beginPath();c.roundRect(-9,1,18,11,3);c.fill();c.fillStyle='#fff';c.fillRect(-15,-5,4,9);c.fillRect(11,-5,4,9);
+}
+const carIconMap={car:{x:0,y:0,width:64,height:64,mask:false,anchorY:32}};
 function driveTick(dt){
   if(!playerCar.selected)return false;dt=Math.min(.05,dt);const oldX=playerCar.pos[0],oldY=playerCar.pos[1],oldHeading=playerCar.heading,oldSpeed=playerCar.speed,oldJump=playerCar.jump;
   const throttle=driveKeys.has('KeyW'),brake=driveKeys.has('KeyS'),steer=(driveKeys.has('KeyD')?1:0)-(driveKeys.has('KeyA')?1:0),ground=terrainHeightAt(oldX,oldY),steerRate=.18+.62*Math.min(1,playerCar.speed/15);
@@ -443,6 +445,7 @@ function layers() {
     new deck.SolidPolygonLayer({ id:'context', data:ctxZ, getPolygon:d => d.r, getFillColor:[150,192,220,120], extruded:false, pickable:false }),
     new deck.SolidPolygonLayer({ id:'rivers', data:riverZ, getPolygon:d => d.r, extruded:true, getElevation:d => elev(flowOf(d)), getFillColor:d => flowCol(flowOf(d)), material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:true, autoHighlight:true, highlightColor:[255,247,224,100], updateTriggers:{getElevation:[day,relief], getFillColor:day} }),
     ...mist,
+    new deck.IconLayer({id:'player-car',data:[playerCar],iconAtlas:carAtlas,iconMapping:carIconMap,getIcon:()=> 'car',getPosition:d=>[d.pos[0],d.pos[1],terrainHeightAt(d.pos[0],d.pos[1])+15+d.jump],getSize:d=>d.selected?40:36,sizeUnits:'pixels',sizeMinPixels:32,sizeMaxPixels:44,billboard:true,getAngle:d=>d.heading*180/Math.PI,pickable:true,parameters:{depthTest:false},updateTriggers:{getPosition:[playerCar.pos[0],playerCar.pos[1],relief,playerCar.jump],getAngle:playerCar.heading,getSize:playerCar.selected}}),
   ];
 }
 function initMap() {
@@ -451,9 +454,6 @@ function initMap() {
   const lighting = new deck.LightingEffect({ ambientLight:new deck.AmbientLight({ color:[255,255,255], intensity:0.75 }), dirLight:new deck.DirectionalLight({ color:[255,248,238], intensity:0.9, direction:[1.0,-1.1,-0.85] }) });
   overlay = new deck.MapboxOverlay({ interleaved:false, layers:layers(), effects:[lighting], getTooltip:null, onHover:hover, onClick:clickCar });
   map.addControl(overlay);
-  carMarkerElement=document.createElement('button');carMarkerElement.id='carMarker';carMarkerElement.className='car-marker';carMarkerElement.type='button';carMarkerElement.setAttribute('aria-label','Select the Canberra car');carMarkerElement.title='Select car · WASD to drive';carMarkerElement.innerHTML='<svg viewBox="0 0 64 64" aria-hidden="true"><path fill="#17252e" d="M15 17 20 7h24l5 10 6 5v28l-6 2-3 8H18l-3-8-6-2V22z"/><path fill="#e55735" d="M19 19 23 10h18l4 9 5 4v24l-5 2-2 7H21l-2-7-5-2V23z"/><path fill="#bfe9ef" d="m23 20 3-7h12l3 7-3 7H26z"/><path fill="#bfe9ef" d="M25 31h14v11H25z"/><path fill="#fff" d="M18 28h4v8h-4zM42 28h4v8h-4z"/></svg>';
-  carMarkerElement.addEventListener('click',e=>{e.stopPropagation();clickCar({object:playerCar});updateCarMarker();});
-  carMarker=new maplibregl.Marker({element:carMarkerElement,anchor:'center'}).setLngLat(playerCar.pos).addTo(map);
 }
 function hover(info) {
   const tip = $('tip');
@@ -536,9 +536,9 @@ let drag = false; cv.onpointerdown = e => { drag = true; cv.setPointerCapture(e.
 $('play').onclick = () => { playing = !playing; $('play').innerHTML = playing ? '&#10073;&#10073;' : '&#9654;'; last = performance.now(); if (playing) requestAnimationFrame(tick); };
 $('speed').onclick = () => { si = (si + 1) % speeds.length; $('speed').textContent = speeds[si] + ' d/s'; };
 $('reliefIn').oninput = e => { relief = +e.target.value; TERR = TERR0 * relief; buildZ(); buildMeshes(); meshGen++; cache = { day: -1 }; update(); };
-addEventListener('keydown',e=>{if(!playerCar.selected||!driveCodes.has(e.code)||(e.target.matches('input,button,a')&&e.target.id!=='carMarker'))return;e.preventDefault();if(e.code==='KeyQ'||e.code==='KeyE'){if(!e.repeat)changeCarRelief(e.code==='KeyE'?.1:-.1);}else if(e.code==='Space'){if(!e.repeat&&playerCar.jump===0)playerCar.jumpV=520;}else driveKeys.add(e.code);});
+addEventListener('keydown',e=>{if(!playerCar.selected||!driveCodes.has(e.code)||e.target.matches('input,button,a'))return;e.preventDefault();if(e.code==='KeyQ'||e.code==='KeyE'){if(!e.repeat)changeCarRelief(e.code==='KeyE'?.1:-.1);}else if(e.code==='Space'){if(!e.repeat&&playerCar.jump===0)playerCar.jumpV=520;}else driveKeys.add(e.code);});
 addEventListener('keyup',e=>driveKeys.delete(e.code));addEventListener('blur',()=>driveKeys.clear());
-let driveLast=performance.now();function driveLoop(now){const dt=Math.min(.05,(now-driveLast)/1000);driveLast=now;if(playerCar.selected&&driveTick(dt)){updateCarMarker();}requestAnimationFrame(driveLoop);}
+let driveLast=performance.now();function driveLoop(now){const dt=Math.min(.05,(now-driveLast)/1000);driveLast=now;if(playerCar.selected&&driveTick(dt)&&overlay)overlay.setProps({layers:layers()});requestAnimationFrame(driveLoop);}
 function tick(now) {
   if (!playing) return;
   acc += (now - last) / 1000 * speeds[si]; last = now;
