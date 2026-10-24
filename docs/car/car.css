@@ -54,18 +54,18 @@
 #car-dock.drop-ok { outline:3px solid #2a8a48; outline-offset:2px; }
 #car-dock.drop-no { outline:3px solid #c0392b; outline-offset:2px; }
 .car-radar {
-  position:absolute; right:22px; bottom:140px; z-index:7; width:180px; height:180px;
+  position:absolute; right:22px; bottom:70px; z-index:7; width:180px; height:180px;
   border-radius:50%; box-shadow:0 3px 14px rgba(0,0,0,.35); pointer-events:none;
 }
 .car-radar[hidden] { display:none; }
 @media (max-width:760px) { .car-radar { width:130px; height:130px; right:12px; } }
 .car-hud[hidden], .car-here[hidden] { display:none; }
 .car-speedo {
-  position:absolute; z-index:7; right:216px; bottom:156px; width:150px; height:150px;
+  position:absolute; z-index:7; right:216px; bottom:86px; width:150px; height:150px;
   border-radius:50%; box-shadow:0 3px 14px rgba(0,0,0,.35); pointer-events:none;
 }
 .car-nitro {
-  position:absolute; z-index:7; right:216px; bottom:132px; width:150px;
+  position:absolute; z-index:7; right:216px; bottom:62px; width:150px;
   display:flex; align-items:center; gap:6px; color:#fff; font:700 9px/1 Arial,sans-serif; letter-spacing:.08em;
   padding:4px 7px; border-radius:4px; background:rgba(20,24,30,.82); pointer-events:none;
 }
@@ -84,7 +84,7 @@
 .car-here dt { color:#656b72; }
 .car-here dd { margin:0; text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
 @media (max-width:760px) {
-  .car-speedo { width:110px; height:110px; right:150px; bottom:150px; }
-  .car-nitro { width:110px; right:150px; bottom:128px; }
+  .car-speedo { width:110px; height:110px; right:150px; bottom:80px; }
+  .car-nitro { width:110px; right:150px; bottom:58px; }
   .car-here { width:200px; left:12px; top:12px; }
 }

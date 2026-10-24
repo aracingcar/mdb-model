@@ -102,7 +102,12 @@
   #site-menu a { display:block; padding:9px 10px; color:var(--head); text-decoration:none; border-radius:4px; }
   #site-menu a:hover, #site-menu a:focus-visible { background:#f2f4f5; }
   body.car-driving #side { display:none; }  /* driving: the car's own HUD replaces the side panel and the map takes the width */
-  body.car-driving #map { left:0; top:0; }
+  body.car-driving #map { left:0; top:0; bottom:0; }
+  body.car-driving #model-panels details { display:none; }  /* model choices wait until you stop driving */
+  body.car-driving #bar { left:50%; right:auto; bottom:14px; height:auto; transform:translateX(-50%); gap:10px; padding:4px 12px 4px 6px;
+    border:1px solid var(--rule); border-radius:22px; background:rgba(255,255,255,.94); box-shadow:0 2px 10px rgba(0,0,0,.12); z-index:7; }
+  body.car-driving #timeline { flex:none; width:180px; height:34px; }
+  body.car-driving #map-tools { bottom:20px; }
 </style>
 </head>
 <body>
