@@ -41,16 +41,6 @@
 }
 .car-drag-ghost.valid { border-color:#2a8a48; box-shadow:0 0 0 4px rgba(42,138,72,.25); opacity:1; }
 .car-drag-ghost[hidden], #driveHint[hidden] { display:none; }
-.car-rain {
-  position:fixed; inset:0; z-index:5; pointer-events:none;
-  background-image:repeating-linear-gradient(105deg, transparent 0 14px, rgba(120,150,180,.32) 14px 15px, transparent 15px 31px),
-    repeating-linear-gradient(100deg, transparent 0 23px, rgba(120,150,180,.22) 23px 24px, transparent 24px 47px);
-  background-size:200px 260px, 260px 340px;
-  animation:car-rain-fall .45s linear infinite;
-}
-.car-rain[hidden] { display:none; }
-@keyframes car-rain-fall { to { background-position:-70px 260px, -60px 340px; } }
-@media (prefers-reduced-motion:reduce) { .car-rain { animation:none; } }
 .vehicle-dock.drop-ok { outline:3px solid #2a8a48; outline-offset:2px; }
 .vehicle-dock.drop-no { outline:3px solid #c0392b; outline-offset:2px; }
 .car-radar {

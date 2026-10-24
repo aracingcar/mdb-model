@@ -87,6 +87,20 @@
   #routing-fields label { display:grid; gap:3px; }
   #routing-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
   #routing-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
+  #routing-edit { margin-top:2px; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--head); font:inherit; cursor:pointer; }
+  #routing-edit:hover { background:#f2f4f5; }
+  #routing-edit:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
+  #rt-editor { position:fixed; inset:5vh 5vw; z-index:40; display:none; flex-direction:column; border:1px solid var(--rule); border-radius:8px; background:#fff; box-shadow:0 8px 40px rgba(0,0,0,.25); font-size:12px; font-weight:400; color:var(--ink); }
+  #rt-editor.open { display:flex; }
+  #rt-head { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; padding:12px 16px; border-bottom:1px solid var(--rule); }
+  #rt-head b { font-size:14px; color:var(--head); }
+  #rt-head select { padding:4px 6px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
+  #rt-head .grow { flex:1; color:var(--dim); }
+  #rt-close { padding:4px 10px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--head); font:inherit; cursor:pointer; }
+  #rt-scroll { flex:1; overflow:auto; padding:8px; }
+  #rt-svg text { font:10px var(--sans); fill:var(--dim); }
+  #rt-foot { display:flex; flex-wrap:wrap; gap:6px 18px; align-items:center; padding:10px 16px; border-top:1px solid var(--rule); color:var(--dim); }
+  #rt-foot .ramp { width:90px; height:8px; border-radius:4px; background:linear-gradient(90deg,#cfe0ee,#1d4f7c); }
   @media (max-width:900px) { #model-panels { left:12px; right:12px; top:214px; flex-direction:column; max-height:calc(100% - 298px); overflow:auto; } #model-panels > details { width:240px; } }
   #err { position:absolute; inset:0; display:none; place-items:center; font:300 20px var(--sans); text-align:center; padding:40px; z-index:20; background:var(--bg); }
   @media (max-width:900px) { #map { left:0; top:300px; } #side { width:100%; bottom:auto; height:300px; padding:18px 20px; background:#fff; z-index:2; } h1 { font-size:24px; margin-top:8px; } #desc,#legend,#focus-row,#eco,#credit,#note2,#chartT,#bars { display:none; } #date { font-size:36px; } #wd { margin-top:8px; } }
@@ -165,6 +179,7 @@
   <summary>Routing</summary>
   <div id="routing-fields">
     <label for="routing-model">Method<select id="routing-model"></select></label>
+    <button type="button" id="routing-edit">Edit</button>
   </div>
 </details>
 <p id="calc-status" role="status" aria-live="polite" hidden><span></span> <button type="button" id="cache-clear" hidden>Clear saved</button></p>
@@ -173,10 +188,16 @@
 <label id="towns-toggle" for="townsIn"><span>Towns</span><input id="townsIn" type="checkbox" role="switch"></label>
 <label id="detail-toggle" for="detailIn"><span>Roads</span><input id="detailIn" type="checkbox" role="switch"></label>
 <label id="sdl-toggle" for="sdlIn"><span>SDL units</span><input id="sdlIn" type="checkbox" role="switch"></label>
+<div id="rt-editor" role="dialog" aria-label="Routing network" aria-modal="true">
+  <div id="rt-head"><b id="rt-title">Routing network</b><label>River system <select id="rt-system"></select></label><span class="grow" id="rt-sub"></span><button type="button" id="rt-close">Close</button></div>
+  <div id="rt-scroll"><svg id="rt-svg" role="img" aria-label="Basin nodes and the links the routing sends flow along"></svg></div>
+  <div id="rt-foot"></div>
+</div>
 <div id="tip"></div>
 <div id="err">The map libraries could not load. Open this page with an internet connection.</div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/deck.gl@9.0.38/dist.min.js"></script>
+<script src="../../6_display/car/boat.js"></script>
 <script src="../../6_display/car/car.js"></script>
 <script>
 (async () => {
@@ -287,6 +308,68 @@ async function chooseMethods() {
   } finally { selects.forEach(s => s.disabled = false); }
 }
 $('runoff-model').onchange = $('routing-model').onchange = chooseMethods;
+// ---- Routing editor: read-only for now. Plots the selected method's network (a node per basin, a link per Muskingum reach). ----
+const rtEngines = {};
+const rtEngine = sys => rtEngines[sys] ||= fetch(D.engines[sys]).then(r => { if (!r.ok) throw new Error(D.engines[sys]); return r.json(); });
+const prettySystem = s => s.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
+for (const s of Object.keys(D.engines)) $('rt-system').add(new Option(prettySystem(s), s));
+async function drawRouting() {
+  const sys = $('rt-system').value, spec = D.routing.specs[$('routing-model').value], svg = $('rt-svg');
+  $('rt-title').textContent = `Routing network · ${spec.label}`;
+  $('rt-sub').textContent = 'Loading…';
+  let eng;
+  try { eng = await rtEngine(sys); } catch (e) { $('rt-sub').textContent = 'Could not load the network: ' + e.message; return; }
+  if (sys !== $('rt-system').value) return;
+  const p = { ...spec.params, ...eng.calibration }, B = eng.basins, byId = Object.fromEntries(B.map(b => [b.id, b]));
+  const kids = Object.fromEntries(B.map(b => [b.id, []]));
+  for (const b of B) if (b.next) kids[b.next].push(b.id);
+  // channel travel time K as the routing computes it (length / wave speed, kept inside the daily stability range)
+  const K = b => Math.min(2.4, Math.max(0.7, (b.length > 0 ? b.length : 1.5 * Math.sqrt(b.area)) / p.velocity_km_day));
+  const lossy = b => b.lossRank >= 1 && b.lossRank <= (p.loss_regions || 0);
+  const pos = {}, cum = {}; let row = 0, maxDepth = 0;
+  const place = (id, depth) => {  // leaves take successive rows; a basin sits level with the mean of the basins feeding it
+    maxDepth = Math.max(maxDepth, depth);
+    cum[id] = byId[id].area;
+    const ys = kids[id].map(c => { place(c, depth + 1); cum[id] += cum[c]; return pos[c].y; });
+    pos[id] = { depth, y: ys.length ? ys.reduce((a, v) => a + v, 0) / ys.length : row++ };
+  };
+  const roots = B.filter(b => !b.next).map(b => b.id);
+  roots.forEach((r, i) => { if (i) row += 1; place(r, 0); });
+  const DX = 30, DY = 15, M = 24, W = (maxDepth + 1) * DX + 2 * M + 60, H = row * DY + 2 * M;
+  const X = id => W - M - 40 - pos[id].depth * DX, Y = id => M + pos[id].y * DY;  // outlets on the right: water runs left to right
+  const maxCum = Math.max(...roots.map(r => cum[r])), Ks = B.map(K), k0 = Math.min(...Ks), k1 = Math.max(...Ks);
+  const shade = k => { const t = k1 > k0 ? (k - k0) / (k1 - k0) : 0.5, c = (a, b) => Math.round(a + (b - a) * t); return `rgb(${c(207, 29)},${c(224, 79)},${c(238, 124)})`; };
+  const NS = 'http://www.w3.org/2000/svg', el = (tag, a, text) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (text) e.textContent = text; return e; };
+  svg.replaceChildren(); svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  for (const b of B) {  // links, thickness by drainage area upstream
+    if (b.next) svg.append(el('path', { d: `M${X(b.id)},${Y(b.id)} H${X(b.id) + DX / 2} V${Y(b.next)} H${X(b.next)}`, fill: 'none', stroke: '#8fa9bf', 'stroke-width': 0.8 + 3 * Math.sqrt(cum[b.id] / maxCum) }));
+    for (const [to, share] of Object.entries(b.splits || {})) {  // flow sent somewhere other than downstream
+      const [x2, y2] = to ? [X(to), Y(to)] : [X(b.id) + DX, Y(b.id) - DY];
+      svg.append(el('path', { d: `M${X(b.id)},${Y(b.id)} L${x2},${y2}`, fill: 'none', stroke: '#c0562a', 'stroke-dasharray': '4 3', 'stroke-width': 1.5 }, ''));
+      svg.append(el('text', { x: (X(b.id) + x2) / 2, y: (Y(b.id) + y2) / 2 - 3 }, `${Math.round(share * 100)}%`));
+    }
+  }
+  for (const b of B) {
+    const g = el('g', {}), tip = el('title', {}, [b.id, `area ${Math.round(b.area).toLocaleString()} km²`, `K ${K(b).toFixed(2)} d, x ${p.x}`,
+      `delivery ${p.delivery[b.id.startsWith('LOWLAND') ? 'LOWLAND' : b.id] ?? 1}`, lossy(b) ? 'carries the calibrated reach loss' : null, b.next ? `drains to ${b.next}` : 'outlet'].filter(Boolean).join('\n'));
+    g.append(tip, el('circle', { cx: X(b.id), cy: Y(b.id), r: Math.min(9, 2.5 + Math.sqrt(b.area) / 10), fill: shade(K(b)), stroke: lossy(b) ? '#c0392b' : '#4a6a86', 'stroke-width': lossy(b) ? 2.2 : 0.8 }));
+    if (!b.next) g.append(el('text', { x: X(b.id) + 12, y: Y(b.id) + 3 }, 'outlet'));
+    svg.append(g);
+  }
+  const lossN = B.filter(lossy).length;
+  $('rt-sub').textContent = `${B.length} basins, ${roots.length} outlet${roots.length > 1 ? 's' : ''}. Editing is not available yet.`;
+  $('rt-foot').replaceChildren(
+    ...[`Muskingum x ${p.x}`, `wave speed ${p.velocity_km_day} km/d`, `K ${k0.toFixed(1)}–${k1.toFixed(1)} d`,
+        p.target_outlet_m3s != null ? `loss over the last ${p.loss_regions} reaches (${lossN} basins, red ring), fitted to ${(p.target_outlet_m3s * p.target_scale).toFixed(1)} m³/s at the outlet` : 'no outlet loss calibration',
+        'node size: basin area', 'link width: area drained above it'].map(t => { const s = document.createElement('span'); s.textContent = t; return s; }),
+    Object.assign(document.createElement('span'), { className: 'ramp', title: 'node colour: K, light = short, dark = long' }));
+}
+const rtOpen = () => $('rt-editor').classList.contains('open');
+$('routing-edit').onclick = () => { $('rt-system').value = SYSTEM_OF[focus] in D.engines ? SYSTEM_OF[focus] : $('rt-system').options[0].value; $('rt-editor').classList.add('open'); drawRouting(); $('rt-close').focus(); };
+$('rt-close').onclick = () => { $('rt-editor').classList.remove('open'); $('routing-edit').focus(); };
+$('rt-system').onchange = drawRouting;
+$('routing-model').addEventListener('change', () => { if (rtOpen()) drawRouting(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && rtOpen()) $('rt-close').click(); });
 $('cache-clear').onclick = async () => { await idb.clear(); say('Saved results cleared.'); };
 $('climate-meta').textContent = `${D.climate.source} · ${D.climate.resolution} · ${D.climate.frequency}`;
 if (FULL) { const back = document.createElement('a'); back.href = location.pathname; back.textContent = `Back to the quick ${D.demoYears[0]}\u2013${D.demoYears[1]} view`; $('climate-meta').append(document.createElement('br'), back); }

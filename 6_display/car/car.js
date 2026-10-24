@@ -62,7 +62,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     const noun=V().noun;
     exitChase(true);
     Object.assign(playerCar,{placed:false,selected:false,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
-    driveKeys.clear(); choosing=false; endRain(); drawRadar(); drawHud();
+    driveKeys.clear(); choosing=false; drawRadar(); drawHud();
     for (const k in docks) docks[k].classList.remove('placed','choosing'); hint.classList.remove('active');
     setHint(`Drag the ${noun} onto the map to drive again.`); refresh();
   }
@@ -276,7 +276,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function toggleSelected() {
     if(!playerCar.placed||playerCar.falling) return;
     playerCar.selected=!playerCar.selected; Object.assign(playerCar,{speed:0,vel:[0,0],yawRate:0}); driveKeys.clear();
-    if(playerCar.selected) enterChase(); else { exitChase(); endRain(); drawRadar(); drawHud(); }
+    if(playerCar.selected) enterChase(); else { exitChase(); drawRadar(); drawHud(); }
     hintText=''; hint.classList.toggle('active',playerCar.selected);
     setHint(playerCar.selected?hintDrive():`Paused · click the ${V().noun} or press Esc to resume, or drag a dock icon to a new location`);
     refresh();
@@ -388,11 +388,11 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   // Driving model: Marco Monster's "Car Physics for Games" (2003), as adapted to JavaScript by Mike Linkovich in carphysics2d
   // (https://github.com/spacejack/carphysics2d, MIT licence, copyright (c) 2015 Mike Linkovich; see car/LICENSE-carphysics2d).
   // CAR is that project's default "lightweight sports sedan" config, except airResist: raised from 2.5 so the top speed is
-  // ~25 m/s (90 km/h) instead of ~57, which on this map was too fast to steer. The car is simulated in its own real-size
+  // ~30.5 m/s (110 km/h) instead of ~57, which on this map was too fast to steer. The car is simulated in its own real-size
   // metres and drawn carScale() times larger on the map, so it handles like a 4 m car whatever the map scale.
   const CAR={ gravity:9.81, mass:1200, inertiaScale:1, cgToFrontAxle:1.25, cgToRearAxle:1.25, cgHeight:.55, length:4,
-    tireGrip:2, lockGrip:.7, engineForce:8000, brakeForce:12000, weightTransfer:.2, maxSteer:.6,
-    cornerStiffnessFront:5, cornerStiffnessRear:5.2, airResist:12.8, rollResist:8 };
+    tireGrip:2.3, lockGrip:.7, engineForce:8000, brakeForce:12000, weightTransfer:.2, maxSteer:.6,
+    cornerStiffnessFront:5, cornerStiffnessRear:5.2, airResist:8.56, rollResist:8 };
   const WHEELBASE=CAR.cgToFrontAxle+CAR.cgToRearAxle, INERTIA=CAR.mass*CAR.inertiaScale;
   const carScale=()=>CHASE.drawPx*chaseMpp()/CAR.length; // map metres per car metre
   // Game additions on top of the source model:
@@ -400,10 +400,10 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   //    spins the wheels, even wet. Boost (Shift) switches it off.
   //  - Boost is extra engine force through the rear tyres plus, once rolling, a rocket push on the body for top speed (~2x).
   //    The wheel part is sized so dry tyres just hold it but wet ones spin up: that wheelspin is what makes donuts.
-  //  - Wet tyres (river, rain) lose up to WET_LOSS of their grip.
+  //  - Wet tyres (river) lose up to WET_LOSS of their grip.
   //  - Hills: gravity along and across the slope, scaled (HILL_G) so the normal engine just stalls at CLIMB_DEG.
-  const BOOST_WHEEL=1.25, BOOST_ROCKET=3, WET_LOSS=.6, STEER_ASSIST=.7, WHEELSPIN=12, HILL_G=CAR.engineForce/(CAR.mass*SIN_CLIMB);
-  const TOP_SPEED=Math.sqrt(CAR.engineForce/CAR.airResist); // ~25 m/s (90 km/h) unboosted on the flat
+  const BOOST_WHEEL=1.25, BOOST_ROCKET=3.2, WET_LOSS=.4, STEER_ASSIST=.7, WHEELSPIN=12, HILL_G=CAR.engineForce/(CAR.mass*SIN_CLIMB);
+  const TOP_SPEED=Math.sqrt(CAR.engineForce/CAR.airResist); // ~30.5 m/s (110 km/h) unboosted on the flat
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
   // Keep an absolute altitude after crossing the edge: outside-grid heights must not snap the car to zero.
@@ -433,60 +433,8 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     setHint('Off the edge! Returning the car to its dock…');
   }
 
-  // Boat: a planing runabout on flat water. Thrust from the outboard against quadratic water drag; the hull resists
-  // sliding sideways far more than going forwards, so it carves turns but drifts a little; the rudder turns it in
-  // proportion to the water flowing past, plus prop wash so it can still turn from rest under throttle. Banks stop it:
-  // hit one and it scrapes along it if it can, or bounces back. Simulated in its own metres like the car.
-  const BOAT={ length:6.6, mass:1100, thrust:7000, reverse:2500, dragFwd:20, dragFwdLin:60, dragSide:900, dragSideLin:500,
-    turnRate:.9, turnSpeed:6, washTurn:.4, nitro:2.2 };
-  const boatScale=()=>VEHICLES.boat.drawPx*chaseMpp()/BOAT.length; // map metres per boat metre
-  function boatStep(dt,input,mpp) {
-    const c=playerCar, B=BOAT, sin=Math.sin(c.heading), cos=Math.cos(c.heading);
-    c.steer=input.steer ? clamp(c.steer+input.steer*dt*2.5,-1,1) : c.steer>0 ? Math.max(c.steer-dt*1.5,0) : Math.min(c.steer+dt*1.5,0);
-    const vx=sin*c.vel[0]+cos*c.vel[1], vy=cos*c.vel[0]-sin*c.vel[1];
-    let Fx=0;
-    if(input.throttle) Fx+=B.thrust*(input.boost?B.nitro:1);
-    if(input.brake) Fx-=vx>.5 ? B.thrust*.6 : B.reverse; // throttle back hard, then reverse
-    Fx-=B.dragFwd*vx*Math.abs(vx)+B.dragFwdLin*vx;
-    const Fy=-(B.dragSide*vy*Math.abs(vy)+B.dragSideLin*vy);
-    const ax=Fx/B.mass, ay=Fy/B.mass;
-    c.accel=ax;
-    c.vel[0]+=(ax*sin+ay*cos)*dt; c.vel[1]+=(ax*cos-ay*sin)*dt;
-    const flow=Math.min(1,Math.abs(vx)/B.turnSpeed)*Math.sign(vx||1), wash=input.throttle?B.washTurn:0;
-    const yawWant=c.steer*(B.turnRate*flow+wash);
-    c.yawRate+=(yawWant-c.yawRate)*(1-Math.exp(-2.5*dt));
-    c.heading=((c.heading+c.yawRate*dt)%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
-    // Move, staying on the river.
-    const S=boatScale(), lat=c.pos[1], v=Math.hypot(c.vel[0],c.vel[1]), dir=Math.atan2(c.vel[0],c.vel[1]);
-    const go=(h,len)=>[c.pos[0]+Math.sin(h)*len*S*dt*metresToLon(lat), lat+Math.cos(h)*len*S*dt*metresToLat];
-    let next=go(dir,v);
-    if(v>0&&!onWater(...next)) {
-      next=null;
-      for(const a of [.35,-.35,.7,-.7,1.05,-1.05,1.4,-1.4]) { // scrape along the bank
-        const n=go(dir+a,v*Math.cos(a));
-        if(onWater(...n)) { next=n; const keep=.92*v*Math.cos(a); c.vel=[Math.sin(dir+a)*keep,Math.cos(dir+a)*keep]; break; }
-      }
-      if(!next) { c.vel=c.vel.map(x=>-.3*x); next=c.pos.slice(); c.yawRate*=.5; } // head-on: bounce off
-    }
-    c.pos[0]=next[0]; c.pos[1]=next[1];
-    c.waterTop=waterAt?.(c.pos[0],c.pos[1])?.top??c.waterTop;
-    const fwd=Math.sin(c.heading)*c.vel[0]+Math.cos(c.heading)*c.vel[1], side=Math.cos(c.heading)*c.vel[0]-Math.sin(c.heading)*c.vel[1];
-    c.speed=fwd; c.slip=Math.hypot(fwd,side)>1?-Math.atan2(side,Math.abs(fwd)):0;
-    // Wake: two white trails from the stern quarters while under way.
-    if(Math.abs(fwd)>1.5) {
-      const L=VEHICLES.boat.drawPx*mpp, hs=Math.sin(c.heading), hc=Math.cos(c.heading), now=performance.now(), z=waterZ()+L*.02;
-      const corner=k=>{ const f=-.45*L, s2=k*.2*L; return [c.pos[0]+(hs*f+hc*s2)*metresToLon(c.pos[1]), c.pos[1]+(hc*f-hs*s2)*metresToLat, z]; };
-      const pts=[corner(-1),corner(1)];
-      if(c.lastSkid&&now-c.lastSkid.t<250) for(let i=0;i<2;i++) c.skids.push({a:c.lastSkid.p[i],b:pts[i],t:now});
-      c.lastSkid={p:pts,t:now};
-      if(c.skids.length>400) c.skids.splice(0,c.skids.length-400);
-    } else c.lastSkid=null;
-    // Trim: bow lifts as it gets on the plane and settles at speed, leans into turns, and rocks gently on the water.
-    const t=performance.now()/1000, plane=Math.min(1,Math.abs(fwd)/7)-Math.max(0,(Math.abs(fwd)-12)/20);
-    const target={ pitch:.11*plane+.03*Math.sin(t*1.9), roll:clamp(c.yawRate*Math.abs(fwd)*.03,-.3,.3)+.03*Math.sin(t*1.3) };
-    c.pitchV+=((target.pitch-c.pitch)*40-c.pitchV*9)*dt; c.pitch+=c.pitchV*dt;
-    c.rollV+=((target.roll-c.roll)*40-c.rollV*9)*dt; c.roll+=c.rollV*dt;
-  }
+  const boat=window.createBoatMechanics({ playerCar, VEHICLES, chaseMpp, metresToLon, metresToLat, onWater, waterAt, waterZ, clamp });
+  const boatStep=boat.step;
 
   function physicsStep(dt, input, mpp) {
     if(playerCar.vehicle==='boat') { boatStep(dt,input,mpp); return; }
@@ -509,8 +457,8 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     c.bank+=((at(0,span)-at(0,-span))/(2*span)-c.bank)*ease;
     const sinTheta=c.grade/Math.hypot(1,c.grade), sinBank=c.bank/Math.hypot(1,c.bank);
     const airborne=c.jump>0||c.offEdge, boost=input.boost&&input.throttle;
-    // Wet tyres: soaked in a flowing river or by rain, drying over a few seconds.
-    const soak=c.jump===0 ? Math.max(rain.level,wetHere) : 0; // 0 dry … 1 flowing river
+    // Wet tyres: soaked in a flowing river, drying over a few seconds.
+    const soak=c.jump===0 ? wetHere : 0; // 0 dry … 1 flowing river
     c.wet=soak>c.wet ? Math.min(soak,c.wet+dt*4) : Math.max(0,c.wet-dt/2.5);
     let Fx=0, Fy=0, torque=0, spin=false, reversing=false;
     // Drag acts in the air too (source: rolling resistance + air resistance, per axis).
@@ -609,22 +557,6 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     }
   }
 
-  // Random rain showers while driving: every 10-35 s of driving a shower of 5-12 s builds up, wets the tyres anywhere on the
-  // map (like a rain cloud, less than a river) so the car drifts, then clears. A streak overlay shows it on screen.
-  const rain={level:0, peak:0, left:0, wait:8+Math.random()*20};
-  const rainVeil=document.createElement('div');
-  rainVeil.className='car-rain'; rainVeil.hidden=true; rainVeil.setAttribute('aria-hidden','true');
-  document.body.append(rainVeil);
-  function rainStep(dt) {
-    if(rain.left>0) rain.left=Math.max(0,rain.left-dt);
-    else if((rain.wait-=dt)<=0) { rain.left=5+Math.random()*7; rain.peak=.35+Math.random()*.3; rain.wait=10+Math.random()*25; }
-    const want=rain.left>0?rain.peak:0;
-    rain.level+=(want-rain.level)*(1-Math.exp(-(want>rain.level?1.5:.8)*dt)); // showers build in and ease off
-    if(rain.level<.01&&!want) rain.level=0;
-    rainVeil.hidden=rain.level===0; rainVeil.style.opacity=Math.min(1,rain.level/.5).toFixed(2);
-  }
-  function endRain() { Object.assign(rain,{level:0,left:0}); rainVeil.hidden=true; }
-
   // GTA-style radar, bottom right while driving: heading-up, centred on the car, over a shaded height map of the whole terrain
   // with its rivers. The base image is drawn once per terrain grid (it changes when a system's detail loads).
   const radar=document.createElement('canvas'); radar.className='car-radar'; radar.hidden=true; radar.setAttribute('aria-hidden','true');
@@ -691,8 +623,8 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   const esc=t=>String(t).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
   function drawHud() {
     const c=playerCar, on=c.selected&&!!saved; hud.hidden=!on; if(!on) return;
-    // speedometer: 0-200 km/h over a 240° dial, digital readout in the middle
-    const size=speedo.clientWidth||150, dpr=devicePixelRatio||1, R=size/2, kmh=Math.abs(c.speed)*3.6, MAX=200;
+    // speedometer: 0-240 km/h over a 240° dial, digital readout in the middle
+    const size=speedo.clientWidth||150, dpr=devicePixelRatio||1, R=size/2, kmh=Math.abs(c.speed)*3.6, MAX=240;
     const key=`${Math.round(kmh*2)},${c.boosting},${c.speed<-.5},${size*dpr}`;
     if(key!==speedoKey) { speedoKey=key; drawSpeedo(); }
     function drawSpeedo() {
@@ -729,7 +661,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function updateHint() {
     const deg=Math.round(Math.atan(playerCar.grade)*180/Math.PI);
     if(playerCar.vehicle==='boat') { if(hintText!==HINT_BOAT) { hintText=HINT_BOAT; setHint(HINT_BOAT); } return; }
-    const base=rain.left>0?`${HINT_DRIVE} · Rain shower: wet tyres`:HINT_DRIVE;
+    const base=HINT_DRIVE;
     const text=playerCar.stalled?(playerCar.nitroLocked?`Too steep (${deg}°) · nitro recharging, reverse out`:`Too steep (${deg}°) · hold Shift to boost, or reverse out`):Math.abs(deg)>=3?`${base} · slope ${deg>0?'+':''}${deg}°`:base;
     if(text!==hintText) { hintText=text; setHint(text); }
   }
@@ -743,7 +675,6 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     const throttle=driveKeys.has('KeyW');
     const input={throttle, brake:driveKeys.has('KeyS'), steer:(driveKeys.has('KeyD')?1:0)-(driveKeys.has('KeyA')?1:0),
       boost:nitroStep(dt,throttle&&(driveKeys.has('ShiftLeft')||driveKeys.has('ShiftRight')))};
-    rainStep(dt);
     wetHere=isWet&&c.vehicle==='car'?clamp(+isWet(c.pos[0],c.pos[1])||0,0,1):0; // once per frame: it scans the rivers
     const n=Math.ceil(dt/(1/120)); // fixed small substeps keep the result independent of frame rate
     for(let i=0;i<n&&c.selected;i++) physicsStep(dt/n,input,mpp);

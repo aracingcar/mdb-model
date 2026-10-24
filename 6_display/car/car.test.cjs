@@ -22,7 +22,7 @@ for(const h of ['dragPan','dragRotate','touchZoomRotate','touchPitch','keyboard'
 let picked=[1.5,1.5,20], redraws=0;
 const context=vm.createContext({window:{}, document:{createElement:()=>{const e=element();elements.push(e);return e;},body:element(),getElementById:()=>element()},
   addEventListener:(name,fn)=>events[name]=fn,performance:{now:()=>0},requestAnimationFrame(){},setTimeout(){},innerWidth:1000,devicePixelRatio:1});
-vm.runInContext(fs.readFileSync(__dirname+'/car.js','utf8'),context);
+for(const f of ['boat.js','car.js']) vm.runInContext(fs.readFileSync(__dirname+'/'+f,'utf8'),context);
 const car=context.window.createCarMechanics({deck:{SimpleMeshLayer:class{constructor(props){Object.assign(this,props);}}},map,
   terrain:{x0:0,y0:3,step:1,NR:4,NC:4,GZ:new Float32Array(16).fill(10),outline:[[[.1,.1],[2.9,.1],[2.9,2.9],[.1,2.9],[.1,.1]]],getExaggeration:()=>1},
   getRelief:()=>1,setRelief(){},refresh:()=>redraws++,pickTerrain:()=>picked});
@@ -72,7 +72,7 @@ assert.equal(car.state.falling,true);
 events.keydown({code:'Escape'}); assert.equal(car.state.placed,false,'Escape can skip the fall');
 assert(redraws>0);
 
-// Donuts: boost + full lock on wet tyres (rain-level wetness) spins the rear wheels and the car pivots in a tight circle;
+// Donuts: boost + full lock on wet tyres (river wetness) spins the rear wheels and the car pivots in a tight circle;
 // on dry tyres the rear holds the same input and the car carves a wide, fast arc instead.
 function spinTest(wet) {
   const flat={x0:0,y0:3,step:1,NR:4,NC:4,GZ:new Float32Array(16).fill(10),outline:[[[.1,.1],[2.9,.1],[2.9,2.9],[.1,2.9],[.1,.1]]],getExaggeration:()=>1};
@@ -86,7 +86,7 @@ function spinTest(wet) {
     far=Math.max(far,Math.hypot(c.state.pos[0]-1.5,c.state.pos[1]-1.5)/carMetres); }
   return {turns:turned/2/Math.PI,far};
 }
-const wetSpin=spinTest(.5), drySpin=spinTest(0);
+const wetSpin=spinTest(1), drySpin=spinTest(0);
 assert(wetSpin.turns>1.5,`wet boost at full lock keeps spinning (${wetSpin.turns.toFixed(2)} turns in 6 s)`);
 assert(wetSpin.far<12,`and stays on the spot (${wetSpin.far.toFixed(1)} m)`);
 assert(drySpin.turns<.75&&drySpin.far>50,`dry tyres grip and carve a wide arc (${drySpin.turns.toFixed(2)} turns, ${drySpin.far.toFixed(0)} m)`);
