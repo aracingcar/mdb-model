@@ -6,16 +6,47 @@ The shares are indicative (an even split by length), not routed.
 """
 import geopandas as gpd
 import pandas as pd
+import shapely
 
-from config import MAINSTEM, SYSTEM, WATERWAYS_FILE
+from catchment import load_buffered_catchment
+from config import MAINSTEM, OUTLINE_BUFFER_CRS, SYSTEM, WATERWAYS_FILE
 
 MIN_KM = 3  # skip river groups shorter than this inside a basin
 KM_PER_DEG = 111
+SEGMENT_DEG = 0.01  # river pieces outside the basins are cut to about this length before each goes to its nearest basin
 
 
-def _channel(candidates, geom, prefer=None):
+def _outside(ways, basins):
+    """River pieces inside the buffered outline (OUTLINE_BUFFER_KM beyond the SDL units) but outside every basin, which
+    is the strip along the exterior border that the basins, cut to the units, do not cover. Each piece goes to the
+    nearest basin: {basin: GeoSeries of pieces indexed like ``ways``}."""
+    zone = load_buffered_catchment().difference(basins.geometry.union_all())
+    pieces = ways.geometry.intersection(zone)
+    pieces = pieces[~pieces.is_empty]
+    if pieces.empty:
+        return {}
+    segments = gpd.GeoDataFrame({"way": pieces.index}, geometry=shapely.segmentize(pieces.values, SEGMENT_DEG), crs=ways.crs).explode(index_parts=False).reset_index(drop=True)
+    segments = segments[segments.length > 0]
+    mid = gpd.GeoDataFrame({"way": segments["way"].values}, geometry=segments.geometry.interpolate(0.5, normalized=True).values, crs=ways.crs)
+    nearest = gpd.sjoin_nearest(mid.to_crs(OUTLINE_BUFFER_CRS), basins[["subcatchment", "geometry"]].to_crs(OUTLINE_BUFFER_CRS))
+    nearest = nearest[~nearest.index.duplicated()]
+    segments["basin"] = nearest["subcatchment"].reindex(segments.index).values
+    return {b: g.groupby("way").geometry.apply(lambda x: x.union_all()) for b, g in segments.groupby("basin")}
+
+
+def _pieces(ways, geom, extra=None):
+    """The river pieces inside ``geom`` plus, if given, the pieces ``extra`` hands this basin from beyond the unit border."""
+    pieces = ways.geometry.intersection(geom)
+    if extra is not None and len(extra):
+        add = extra.reindex(pieces.index)
+        add = [g if g is not None else shapely.LineString() for g in add.values]
+        pieces = gpd.GeoSeries(shapely.union(pieces.values, add), index=pieces.index, crs=ways.crs)
+    return pieces
+
+
+def _channel(candidates, geom, prefer=None, extra=None):
     """River pieces inside geom that share the name with the most length (the main stem wins if present)."""
-    pieces = candidates.geometry.intersection(geom)
+    pieces = _pieces(candidates, geom, extra)
     length = pieces[pieces.length > 0].length
     if length.empty:
         return None, "", set()
@@ -25,10 +56,15 @@ def _channel(candidates, geom, prefer=None):
     return pieces.loc[chosen].union_all(), name, set(chosen)
 
 
-def _groups(ways, geom, skip):
-    """River pieces inside geom (excluding the main stem and ``skip``), grouped by name: (name, line, km)."""
-    pieces = ways.geometry.intersection(geom)
-    keep = pieces[(pieces.length > 0) & (~ways.index.isin(skip)) & (ways["name"] != MAINSTEM)]
+def _groups(ways, geom, skip, extra=None):
+    """River pieces inside geom (excluding the main stem and ``skip``), grouped by name: (name, line, km). Pieces from
+    beyond the unit border (``extra``) keep the main stem too: a river along the exterior border has no channel of its
+    own in a basin that the units cut away, so it is not already drawn as one."""
+    pieces = _pieces(ways, geom).where(ways["name"] != MAINSTEM, shapely.LineString())
+    if extra is not None and len(extra):
+        add = extra.reindex(pieces.index)
+        pieces = gpd.GeoSeries(shapely.union(pieces.values, [g if g is not None else shapely.LineString() for g in add.values]), index=pieces.index, crs=ways.crs)
+    keep = pieces[(pieces.length > 0) & (~ways.index.isin(skip))]
     out = []
     for name, idx in ways.loc[keep.index].groupby("name").groups.items():
         line = pieces.loc[idx].union_all()
@@ -49,6 +85,8 @@ def river_flows(basins, lateral, basin_flow):
     ways = allways[allways.waterway == "river"].reset_index(drop=True)
     streams = allways[allways.waterway == "stream"].reset_index(drop=True)
 
+    beyond, beyond_streams = _outside(ways, basins), _outside(streams, basins)  # rivers along the exterior border, past the units
+
     rows, series, count = [], {}, {}
     lowland = basins["subcatchment"].str.startswith("LOWLAND")
 
@@ -62,18 +100,18 @@ def river_flows(basins, lateral, basin_flow):
 
     for basin in basins[~lowland].itertuples():
         b = basin.subcatchment
-        line, name, chosen = _channel(ways, basin.geometry, prefer=MAINSTEM)
+        line, name, chosen = _channel(ways, basin.geometry, prefer=MAINSTEM, extra=beyond.get(b))
         if line is None:  # headwater basin with no mapped river: fall back to its longest stream
-            line, name, _ = _channel(streams, basin.geometry)
+            line, name, _ = _channel(streams, basin.geometry, extra=beyond_streams.get(b))
         if line is not None:
             add(b, name, line, "channel", 1.0, basin_flow[b])
-        side = _groups(ways, basin.geometry, chosen)
+        side = _groups(ways, basin.geometry, chosen, beyond.get(b))
         total = sum(km for _, _, km in side)
         for gname, gline, km in side:
             add(b, gname, gline, "tributary", km / total, lateral[b] * km / total)
 
     for basin in basins[lowland].itertuples():
-        plains = _groups(ways, basin.geometry, set())
+        plains = _groups(ways, basin.geometry, set(), beyond.get(basin.subcatchment))
         total = sum(km for _, _, km in plains)
         for gname, gline, km in plains:
             add(basin.subcatchment, gname, gline, "lowland", km / total, lateral[basin.subcatchment] * km / total)

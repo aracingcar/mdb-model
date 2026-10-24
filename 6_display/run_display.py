@@ -19,6 +19,7 @@ from scipy.ndimage import binary_dilation
 for folder in ("1_masking", "2_rainfall_runoff", "3_routing", "5_outputs"):  # also runs on its own: python 6_display/run_display.py
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / folder))
 
+from catchment import buffer_outline
 from config import DEFAULT_RUN, DISPLAY_SYSTEMS, SDL_UNITS, SYSTEMS, waterways_file
 from evap_grid import PIXEL_DEG
 from results_db import load_climate, load_geometry, load_results
@@ -183,7 +184,7 @@ def _evap_normals(sub, names, keys):
     return out
 
 
-def _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, terrain_step, window, demo):
+def _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, terrain_step, window, demo, fringe):
     """The page's data files for one time window (a slice of the run's days): geometry, the shared evaporation index,
     and per river system its climate series and flow results.
 
@@ -216,6 +217,7 @@ def _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, te
                    "rings": _rings(r.geometry.simplify(0.004), dem), "elev": stats[i]} for i, r in enumerate(regions.itertuples())],
         "terrain": terrain,
         "outline": _rings(regions.geometry.union_all().simplify(0.003), dem),
+        "outlineBuffer": _rings(fringe.simplify(0.003), dem),  # the SDL outlines grown by OUTLINE_BUFFER_KM: rivers are kept within it
         "sdlBounds": [{"id": u, "name": names[u], "fullName": geo[u]["outline"]["sdl_name"].iloc[0], "system": s,
                        "mid": _label_point(geo[u]["outline"].geometry.iloc[0], dem),
                        "rings": _rings(geo[u]["outline"].geometry.iloc[0].simplify(0.003), dem)} for s, us in units.items() for u in us],
@@ -275,12 +277,14 @@ def run_display(run=DEFAULT_RUN, methods=(RAINFALL_RUNOFF_MODEL, ROUTING_MODEL))
     regions["geometry"] = regions.geometry.make_valid()  # the stored GeoJSON can carry tiny self-touches that break the union
     rivers = gpd.GeoDataFrame(pd.concat([geo[u]["rivers"] for u in geo], ignore_index=True), crs=regions.crs)
     river_flow = pd.concat([results[u][2] for u in geo], axis=1)
-    dem = Dem(regions.total_bounds)
+    fringe = buffer_outline(shapely.union_all([geo[u]["outline"].geometry.union_all() for u in geo]))  # SDL outlines + OUTLINE_BUFFER_KM
+    bx = np.array(fringe.bounds).reshape(2, 2)
+    dem = Dem(np.concatenate([np.minimum(regions.total_bounds[:2], bx[0]), np.maximum(regions.total_bounds[2:], bx[1])]))
     all_days = climate[next(iter(geo))][1].index
     shown = np.flatnonzero((all_days.year >= DEMO_YEARS[0]) & (all_days.year <= DEMO_YEARS[1]))
     demo = slice(max(0, shown[0] - LEAD_DAYS), shown[-1] + 1)  # a lead-in so the rolling windows are full on the first shown day
-    files = {f"demo/{k}": v for k, v in _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, DEMO_GRID_STEP, demo, True).items()}
-    files.update({f"full/{k}": v for k, v in _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, GRID_STEP, slice(None), False).items()})
+    files = {f"demo/{k}": v for k, v in _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, DEMO_GRID_STEP, demo, True, fringe).items()}
+    files.update({f"full/{k}": v for k, v in _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, GRID_STEP, slice(None), False, fringe).items()})
     engines = {}
     for s, us in units.items():
         basins = pd.concat([geo[u]["basins"] for u in us], ignore_index=True)

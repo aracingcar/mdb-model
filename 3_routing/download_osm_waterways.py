@@ -22,8 +22,8 @@ from shapely.geometry import LineString, mapping
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "1_masking"))
 
-from catchment import load_catchment
-from config import SYSTEM_ID, UNITS, WATERWAYS_FILE as OUT
+from catchment import load_buffered_catchment
+from config import OUTLINE_BUFFER_KM, SYSTEM_ID, UNITS, WATERWAYS_FILE as OUT
 
 METADATA = OUT.with_name(OUT.stem + "_metadata.json")
 OVERPASS = "https://overpass-api.de/api/interpreter"
@@ -60,8 +60,8 @@ def main():
     parser.add_argument("--source", type=Path, help="existing Overpass JSON response (skip download)")
     args = parser.parse_args()
 
-    catchment = load_catchment().to_crs("EPSG:4326")
-    boundary = catchment.geometry.union_all()
+    boundary = load_buffered_catchment()  # the SDL outlines grown by OUTLINE_BUFFER_KM, so border rivers are not cut
+    catchment = gpd.GeoDataFrame(geometry=[boundary], crs="EPSG:4326")
     data = json.loads(args.source.read_text()) if args.source else get_overpass_data(catchment)
 
     features = []
@@ -94,7 +94,7 @@ def main():
     metadata = {
         "source": "OpenStreetMap contributors via Overpass API",
         "endpoint": OVERPASS,
-        "query": 'way[waterway~"^(river|stream|canal|drain|ditch)$"] within catchment bounding box, ' f"clipped to MDBA SDL resource units {', '.join(UNITS)}",
+        "query": 'way[waterway~"^(river|stream|canal|drain|ditch)$"] within catchment bounding box, ' f"clipped to MDBA SDL resource units {', '.join(UNITS)} grown by {OUTLINE_BUFFER_KM} km",
         "downloaded_at_utc": datetime.now(timezone.utc).isoformat(),
         "elements_in_response": len(data.get("elements", [])),
         "features_after_clip": len(features),

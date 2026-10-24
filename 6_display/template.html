@@ -713,6 +713,7 @@ const BSEG = interiorBorders(D.units.flatMap(u => u.rings)), SSEG = interiorBord
 let bounds, sdlZ, ctxZ, riverZ;
 function buildZ() {  // ground-following geometry depends on the relief setting
   bounds = BSEG.map(sg => ({ path: sg.map(p => [p[0], p[1], p[2] * TERR + 200]) }));
+  bufZ = D.outlineBuffer.map(r => ({ path: r.map(p => [p[0], p[1], p[2] * TERR + 200]) }));
   sdlZ = SSEG.map(sg => ({ path: sg.map(p => [p[0], p[1], p[2] * TERR + 260]) }));
   ctxZ = D.context.map(r => ({ r: r.map(p => [p[0], p[1], p[2] * TERR + 250]) }));
   riverZ = rivers.map(d => ({ ...d, r: d.r.map(p => [p[0], p[1], p[2] * TERR]) }));
@@ -826,6 +827,7 @@ function layers() {
     new deck.PolygonLayer({ id:'units', data:polys, getPolygon:d => d.r.map(p => [p[0], p[1], 0]), getFillColor:[0,0,0,2], stroked:false, pickable:true }),
     new deck.PathLayer({ id:'bounds', data:bounds, getPath:d => d.path, getColor:[70,76,86,90], getWidth:0.9, widthUnits:'pixels', pickable:false }),
     // SDL resource unit borders: a dark line on a white halo, so they read apart from the thin reach borders
+    new deck.PathLayer({ id:'outline-buffer', data:bufZ, getPath:d => d.path, getColor:[74,120,160,120], getWidth:1.5, widthUnits:'pixels', jointRounded:true, pickable:false }),
     new deck.PathLayer({ id:'sdl-halo', visible:showSdl, data:sdlZ, getPath:d => d.path, getColor:[255,255,255,190], getWidth:7, widthUnits:'pixels', jointRounded:true, capRounded:true, pickable:false }),
     new deck.PathLayer({ id:'sdl-bounds', visible:showSdl, data:sdlZ, getPath:d => d.path, getColor:[24,26,32,240], getWidth:3, widthUnits:'pixels', jointRounded:true, capRounded:true, pickable:false }),
     new deck.TextLayer({ id:'sdl-labels', visible:showSdl, data:D.sdlBounds, getPosition:d => [d.mid[0], d.mid[1], d.mid[2] * TERR + 900], getText:d => `${d.name.toUpperCase()} \u00b7 ${d.id}`,

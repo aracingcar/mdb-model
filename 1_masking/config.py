@@ -6,6 +6,12 @@ INPUT = DATA / "input"
 OUTPUT_ROOT = DATA / "output"
 DB_FILE = DATA / "results.db"  # reduced climate series and model results, one row per SDL unit and run
 
+# River channels (HydroBASINS network, OSM waterways) are kept within this distance of the exterior border of the SDL
+# unit outlines (the union of a system's units; internal unit borders are untouched), so a river running along or just
+# across the border is not cut off at it. The buffer is measured in OUTLINE_BUFFER_CRS (metres), never in degrees.
+OUTLINE_BUFFER_KM = 3
+OUTLINE_BUFFER_CRS = "EPSG:3577"  # Australian Albers
+
 # Surface water SDL resource units (Basin Plan 2012), outlines from the MDBA layer (1_masking/download_sdl_units.py).
 # Everything stored in results.db is keyed by unit. ecology: flow thresholds (ML/d) for the indicators scored at the
 # unit's outlet; leave an indicator out, or set ecology to None, to skip it.
