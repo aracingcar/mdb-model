@@ -1,0 +1,12 @@
+{
+  "source": "OpenStreetMap contributors via Overpass API",
+  "endpoint": "https://overpass-api.de/api/interpreter",
+  "query": "way[waterway~\"^(river|stream|canal|drain|ditch)$\"] within catchment bounding box, clipped to MDBA SDL resource units SS14, SS2, SS3, SS4, SS5, SS6 grown by 3 km",
+  "downloaded_at_utc": "2026-10-24T08:50:29.219688+00:00",
+  "elements_in_response": 167113,
+  "features_after_clip": 100403,
+  "output": "data/input/routing/osm_murray_waterways.geojson",
+  "attribution": "\u00a9 OpenStreetMap contributors",
+  "license": "Open Database License (ODbL) 1.0",
+  "license_url": "https://www.openstreetmap.org/copyright"
+}

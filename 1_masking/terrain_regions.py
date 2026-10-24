@@ -128,7 +128,11 @@ def terrain_regions(units, hybas_file, n=12, min_network_km2=None):
     kept["from_outlet"] = kept["region"].map(lambda o: from_outlet.get(o, 0)).astype(int)
     kept["region"] = kept["region"].map(code)
     kept["area_km2"] = kept.geometry.area / 1e6
+    # channel length through each basin: the drop in HydroBASINS' distance-to-sink from its outlet to its downstream basin's
+    down = pd.Series({i: d for i, d in nxt.items() if i in kept.index and d in kept.index})
+    drop = pd.Series(kept["DIST_SINK"].loc[down.index].to_numpy() - kept["DIST_SINK"].loc[down.to_numpy()].to_numpy(), index=down.index)
+    kept["length_km"] = drop.where(drop > 0)  # NaN at a system outlet or where the data has no positive drop: callers fall back to the area rule
     kept.index.name = "hybas_id"
-    columns = ["subcatchment", "hybas_id", "next_id", "region", "sdl_unit", "from_outlet", "area_km2", "geometry"]
+    columns = ["subcatchment", "hybas_id", "next_id", "region", "sdl_unit", "from_outlet", "area_km2", "length_km", "geometry"]
     network = pd.concat([kept.reset_index()[columns], gpd.GeoDataFrame(lowlands, columns=columns, crs=AREA_CRS)], ignore_index=True)
     return regions, _project_polygons(gpd.GeoDataFrame(network, crs=AREA_CRS), units.crs)
