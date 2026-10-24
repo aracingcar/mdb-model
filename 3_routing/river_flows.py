@@ -57,7 +57,7 @@ def river_flows(basins, lateral, basin_flow):
         count[unit] = count.get(unit, 0) + 1
         river_id = f"{unit}-R{count[unit]:03d}"
         rows.append({"river_id": river_id, "name": name or "Unnamed river", "basin": basin, "sdl_unit": unit, "kind": kind,
-                     "share": round(share, 4), "geometry": line})
+                     "share": share, "geometry": line})
         series[river_id] = flow
 
     for basin in basins[~lowland].itertuples():

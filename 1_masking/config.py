@@ -22,6 +22,9 @@ SDL_UNITS = {
     "SS16": {"name": "Lachlan", "system": "lachlan", "ecology": None},
     "SS18": {"name": "Lower Darling", "system": "lower_darling", "ecology": None},
     "SS14": {"name": "NSW Murray", "system": "nsw_murray", "ecology": None},
+    "SS2": {"name": "Victorian Murray", "system": "vic_murray", "ecology": None},
+    "SS6": {"name": "Goulburn", "system": "goulburn_broken", "ecology": None},
+    "SS5": {"name": "Broken", "system": "goulburn_broken", "ecology": None},
 }
 
 # River systems: the units whose rivers form one network, routed together across unit borders (the upper
@@ -60,8 +63,21 @@ SYSTEMS = {
         "routing": {"loss_regions": None, "target_outlet_m3s": None},  # no calibration gauge chosen yet
         "splits": {},
     },
+    # Victorian pilot: local runoff only, with secondary drainage networks retained. No inter-system inflows.
+    "vic_murray": {
+        "units": ("SS2",), "n_subcatchments": 11, "mainstem": "Murray River", "min_network_km2": 500,
+        "other_rivers": ("Goulburn River", "Broken River", "Murrumbidgee River", "Darling River"),
+        "routing": {"loss_regions": None, "target_outlet_m3s": None},
+        "splits": {},
+    },
+    "goulburn_broken": {
+        "units": ("SS6", "SS5"), "n_subcatchments": 11, "mainstem": "Goulburn River", "min_network_km2": 500,
+        "other_rivers": ("Murray River",),
+        "routing": {"loss_regions": None, "target_outlet_m3s": None},
+        "splits": {},
+    },
 }
-DISPLAY_SYSTEMS = ("murrumbidgee", "lachlan", "lower_darling", "nsw_murray")  # drawn together on docs/index.html
+DISPLAY_SYSTEMS = ("murrumbidgee", "lachlan", "lower_darling", "nsw_murray", "vic_murray", "goulburn_broken")  # drawn together on docs/index.html
 SYSTEM_ID = os.environ.get("SYSTEM", DISPLAY_SYSTEMS[0])  # the system this process models (main.py sets it per system)
 SYSTEM = SYSTEMS[SYSTEM_ID]
 UNITS = SYSTEM["units"]

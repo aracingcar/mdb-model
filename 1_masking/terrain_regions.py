@@ -1,10 +1,20 @@
 """Terrain-derived subcatchments from HydroBASINS (HydroSHEDS, DEM-derived watersheds with downstream links)."""
 import geopandas as gpd
 import pandas as pd
+import shapely
 
 AREA_CRS = "EPSG:3577"  # Australian Albers equal-area projection
 MIN_OVERLAP = 0.5  # keep basins at least half inside the system
 MIN_LOWLAND = 0.01  # a unit's leftover area smaller than this share of the unit is dropped instead of becoming a lowland unit
+
+
+def _project_polygons(frame, crs):
+    """Repair collapsed polygon fragments introduced by reprojection, retaining only area geometry."""
+    frame = frame.to_crs(crs)
+    for i in frame.index[~frame.geometry.is_valid]:
+        parts = shapely.get_parts(shapely.make_valid(frame.at[i, "geometry"]))
+        frame.at[i, "geometry"] = shapely.union_all([p for p in parts if p.geom_type in ("Polygon", "MultiPolygon")])
+    return frame
 
 
 def terrain_regions(units, hybas_file, n=12, min_network_km2=None):
@@ -109,7 +119,7 @@ def terrain_regions(units, hybas_file, n=12, min_network_km2=None):
         })
         lowlands.append({"subcatchment": f"LOWLAND-{u}", "hybas_id": 0, "next_id": f"B{unit_outlet[u]}", "region": sc, "sdl_unit": u,
                          "from_outlet": 0, "area_km2": rest.area / 1e6, "geometry": rest})
-    regions = gpd.GeoDataFrame(rows, crs=AREA_CRS).to_crs(units.crs)
+    regions = _project_polygons(gpd.GeoDataFrame(rows, crs=AREA_CRS), units.crs)
 
     if networks:  # routing calibrates at the first basin with no downstream link, so keep the system outlet first
         kept = kept.loc[[outlet] + [i for i in kept.index if i != outlet]]
@@ -121,4 +131,4 @@ def terrain_regions(units, hybas_file, n=12, min_network_km2=None):
     kept.index.name = "hybas_id"
     columns = ["subcatchment", "hybas_id", "next_id", "region", "sdl_unit", "from_outlet", "area_km2", "geometry"]
     network = pd.concat([kept.reset_index()[columns], gpd.GeoDataFrame(lowlands, columns=columns, crs=AREA_CRS)], ignore_index=True)
-    return regions, gpd.GeoDataFrame(network, crs=AREA_CRS).to_crs(units.crs)
+    return regions, _project_polygons(gpd.GeoDataFrame(network, crs=AREA_CRS), units.crs)
