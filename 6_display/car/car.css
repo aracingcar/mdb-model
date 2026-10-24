@@ -1,0 +1,23 @@
+#driveHint.car-drive-hint {
+  position:absolute;
+  z-index:6;
+  right:22px;
+  top:54px;
+  max-width:350px;
+  padding:7px 9px;
+  border:1px solid rgba(72,78,86,.2);
+  border-radius:5px;
+  background:rgba(255,255,255,.88);
+  color:#656b72;
+  font:10px/1.5 var(--sans);
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+  pointer-events:auto;
+}
+#driveHint.car-drive-hint.active {
+  border-color:#8a8e94;
+  color:#3e4248;
+  background:rgba(255,255,255,.96);
+}
+@media (max-width:760px) {
+  #driveHint.car-drive-hint { top:52px; right:12px; max-width:min(300px,calc(100% - 24px)); font-size:9px; }
+}
