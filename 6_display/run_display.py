@@ -19,6 +19,7 @@ from car.build import publish_assets
 HERE = Path(__file__).resolve().parent
 TEMPLATE = HERE / "template.html"
 DISPLAY_FILE = HERE.parent / "docs" / "index.html"
+DATA_DIR = HERE.parent / "docs" / "data"
 WATERWAYS_FILE = INPUT / "routing" / "osm_murrumbidgee_waterways.geojson"
 MAINSTEM = "Murrumbidgee River"
 CONTEXT_RIVERS = 120  # longest other named rivers drawn as thin context lines
@@ -89,36 +90,54 @@ def run_display(forcing, subcatchments, subcatchment_forcing, evap_grid, flow, r
     mids = {r.subcatchment: (r.geometry.centroid if r.geometry.contains(r.geometry.centroid) else r.geometry.representative_point()) for r in units.itertuples()}
     terrain, stats = _terrain(units, dem)
     days = subcatchment_forcing.index.strftime("%Y-%m-%d").tolist()
-    data = {
-        "climate": {"globalModel": GLOBAL_MODEL, "scenario": SCENARIO,
-                    "regionalConfig": REGIONAL_CONFIG,
-                    "period": f"{days[0][:4]}–{days[-1][:4]}",
-                    "source": "NARCliM2.0", "resolution": "4 km", "frequency": "Daily"},
-        "runoff": {"selected": RAINFALL_RUNOFF_MODEL, "options": [{"id": i, "label": l} for i, l in runoff_options()]},
-        "routing": {"selected": ROUTING_MODEL, "options": [{"id": i, "label": l} for i, l in routing_options()]},
-        "days": days,
+    run = f"{GLOBAL_MODEL}_{SCENARIO}_{REGIONAL_CONFIG}"
+    methods = f"{RAINFALL_RUNOFF_MODEL}_{ROUTING_MODEL}"
+    # Three groups of data, each its own file: geometry (changes with the valley), climate (changes with the climate
+    # run) and flow results (change with the methods). The page loads them at start-up.
+    geometry = {
         "units": [{"id": r.subcatchment, "name": r.region_name, "area": round(r.area_km2), "mid": [round(mids[r.subcatchment].x, 4), round(mids[r.subcatchment].y, 4), int(dem.at(mids[r.subcatchment].x, mids[r.subcatchment].y))],
                    "rings": _rings(r.geometry.simplify(0.004), dem), "elev": stats[i]} for i, r in enumerate(units.itertuples())],
         "terrain": terrain,
         "outline": _rings(units.geometry.union_all().simplify(0.003), dem),
+        "reaches": reaches,
+        "context": context,
+    }
+    climate = {
+        "days": days,
         "evap": {"bbox": [round(v, 4) for v in evap_grid["bbox"]], "nx": evap_grid["nx"], "ny": evap_grid["ny"], "dates": evap_grid["dates"],
                  "scale": evap_grid["scale"], "cells": int(evap_grid["values"].shape[1]),
                  "values": base64.b64encode(evap_grid["values"].tobytes()).decode(),
                  "idx": base64.b64encode(np.where(evap_grid["idx"] < 0, 65535, evap_grid["idx"]).astype("<u2").tobytes()).decode(),
                  "weights": base64.b64encode(np.round(evap_grid["weights"] * 255).astype("uint8").tobytes()).decode()},
-        "reaches": reaches,
-        "context": context,
         "P": {n: subcatchment_forcing[f"{n}_P"].round(1).tolist() for n in ids},
         "PET": {n: subcatchment_forcing[f"{n}_PET"].round(1).tolist() for n in ids},
+    }
+    results = {
         "reachFlow": {n: reach_flow[n].round(0).astype(int).tolist() for n in ids},
         "riverFlow": {n: base64.b64encode(np.clip(river_flow[n].round(0).to_numpy(), 0, 65535).astype("<u2").tobytes()).decode() for n in river_flow.columns},
         "flow": flow.round(0).astype(int).tolist(),
         "fish": fish.reset_index().round(3).to_dict("list"),
-        "birds": waterbirds.reset_index().assign(trigger_date=lambda d: d.trigger_date.astype(str)).to_dict("list"),
+        "birds": {**waterbirds.reset_index().drop(columns="trigger_date").to_dict("list"),
+                  "trigger_date": [None if v != v else str(v) for v in waterbirds["trigger_date"]]},
         "gum": river_red_gum.reset_index().round(3).to_dict("list"),
     }
+    files = {"geometry.json": geometry, f"climate_{run}.json": climate, f"flow_{run}_{methods}.json": results}
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    for old in DATA_DIR.glob("*.json"):  # keep only the build's own files; unchanged content is rewritten byte-for-byte
+        if old.name not in files:
+            old.unlink()
+    for name, payload in files.items():
+        (DATA_DIR / name).write_text(json.dumps(payload, separators=(",", ":"), allow_nan=False))
+    meta = {
+        "climate": {"globalModel": GLOBAL_MODEL, "scenario": SCENARIO, "regionalConfig": REGIONAL_CONFIG,
+                    "period": f"{days[0][:4]}–{days[-1][:4]}", "source": "NARCliM2.0", "resolution": "4 km", "frequency": "Daily"},
+        "runoff": {"selected": RAINFALL_RUNOFF_MODEL, "options": [{"id": i, "label": l} for i, l in runoff_options()]},
+        "routing": {"selected": ROUTING_MODEL, "options": [{"id": i, "label": l} for i, l in routing_options()]},
+        "files": [f"data/{name}" for name in files],
+    }
     DISPLAY_FILE.parent.mkdir(parents=True, exist_ok=True)
-    html = TEMPLATE.read_text().replace("__DATA__", json.dumps(data, separators=(",", ":"))).replace("__ROADS__", (HERE / "roads.json").read_text())
+    html = TEMPLATE.read_text().replace("__META__", json.dumps(meta, separators=(",", ":"))).replace("__ROADS__", (HERE / "roads.json").read_text())
     DISPLAY_FILE.write_text(html.replace("../../6_display/car/", "car/"))
     publish_assets()
-    print(f"Wrote river pulse page ({DISPLAY_FILE.stat().st_size / 1e6:.1f} MB): {DISPLAY_FILE}")
+    size = (DISPLAY_FILE.stat().st_size + sum(f.stat().st_size for f in DATA_DIR.glob("*.json"))) / 1e6
+    print(f"Wrote river pulse page ({DISPLAY_FILE.stat().st_size / 1e6:.2f} MB) and data files ({size:.1f} MB total): {DISPLAY_FILE}")

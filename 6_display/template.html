@@ -60,7 +60,9 @@
   #townsIn:focus-visible, #detailIn:focus-visible { outline:2px solid #2d6aa8; outline-offset:3px; }
   #tip { position:absolute; pointer-events:none; padding:9px 12px; display:none; z-index:5; font-size:13px; line-height:1.45; background:#fff; border:1px solid var(--rule); box-shadow:0 2px 10px rgba(0,0,0,.08); color:var(--ink); font-weight:400; }
   #tip b { font-weight:700; display:block; color:var(--head); }
-  #climate-panel { position:absolute; left:420px; top:18px; z-index:8; width:260px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
+  #model-panels { position:absolute; left:420px; top:18px; right:300px; z-index:8; display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start; pointer-events:none; }
+  #model-panels > details { pointer-events:auto; }
+  #climate-panel { width:240px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
   #climate-panel summary { cursor:pointer; font-weight:600; color:var(--head); }
   #climate-fields { display:grid; gap:8px; margin-top:12px; }
   #climate-fields label { display:grid; gap:3px; }
@@ -68,21 +70,19 @@
   #climate-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
   #climate-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
   #climate-meta { margin:8px 0 0; color:var(--dim); line-height:1.4; }
-  #runoff-panel { position:absolute; left:700px; top:18px; z-index:8; width:200px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
+  #runoff-panel { width:170px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
   #runoff-panel summary { cursor:pointer; font-weight:600; color:var(--head); }
   #runoff-fields { display:grid; gap:8px; margin-top:12px; }
   #runoff-fields label { display:grid; gap:3px; }
   #runoff-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
   #runoff-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
-  #routing-panel { position:absolute; left:940px; top:18px; z-index:8; width:200px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
+  #routing-panel { width:150px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
   #routing-panel summary { cursor:pointer; font-weight:600; color:var(--head); }
   #routing-fields { display:grid; gap:8px; margin-top:12px; }
   #routing-fields label { display:grid; gap:3px; }
   #routing-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
   #routing-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
-  @media (max-width:900px) { #routing-panel { left:12px; top:214px; width:240px; } }
-  @media (max-width:900px) { #runoff-panel { left:12px; top:262px; width:240px; } }
-  @media (max-width:900px) { #climate-panel { left:12px; top:310px; width:240px; max-height:calc(100% - 394px); overflow:auto; } }
+  @media (max-width:900px) { #model-panels { left:12px; right:12px; top:214px; flex-direction:column; max-height:calc(100% - 298px); overflow:auto; } #model-panels > details { width:240px; } }
   #err { position:absolute; inset:0; display:none; place-items:center; font:300 20px var(--sans); text-align:center; padding:40px; z-index:20; background:var(--bg); }
   @media (max-width:900px) { #map { left:0; top:300px; } #side { width:100%; bottom:auto; height:300px; padding:18px 20px; background:#fff; z-index:2; } h1 { font-size:24px; margin-top:8px; } #desc,#legend,#eco,#credit,#note2,#chartT,#bars { display:none; } #date { font-size:36px; } #wd { margin-top:8px; } }
   #site-menu { position:fixed; z-index:30; top:16px; right:210px; font-size:11px; font-weight:400; color:#888d92; }
@@ -128,6 +128,7 @@
   <div id="credit"><b>NARCliM2.0 &middot; NCI / NSW DCCEEW</b><br>GR4J + Muskingum, uncalibrated, indicative only<br>HydroBASINS &middot; AWS Terrain Tiles &middot; OSM</div>
 </div>
 <div id="relief"><label><span>Rivers</span><input id="riverReliefIn" type="range" min="0" max="2" step="0.05" value="1"></label><label><span>Terrain</span><input id="reliefIn" type="range" min="0" max="2" step="0.05" value="1"></label></div>
+<div id="model-panels">
 <details id="climate-panel">
   <summary>Climate model</summary>
   <div id="climate-fields">
@@ -153,6 +154,7 @@
     <label for="routing-model">Method<select id="routing-model"></select></label>
   </div>
 </details>
+</div>
 <div id="bar"><button id="play">&#9654;</button><div id="timeline"><canvas id="tl"></canvas></div><div id="clock"></div><button id="speed">30 d/s</button></div>
 <label id="towns-toggle" for="townsIn"><span>Towns</span><input id="townsIn" type="checkbox" role="switch"></label>
 <label id="detail-toggle" for="detailIn"><span>Roads</span><input id="detailIn" type="checkbox" role="switch"></label>
@@ -162,7 +164,15 @@
 <script src="https://unpkg.com/deck.gl@9.0.38/dist.min.js"></script>
 <script src="../../6_display/car/car.js"></script>
 <script>
-const D = __DATA__;
+(async () => {
+// Geometry, climate series and the flow results are separate files (see run_display.py), so editing the page does not rewrite them.
+const META = __META__;
+const D = { ...META };
+try {
+  for (const f of await Promise.all(META.files.map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); })))) Object.assign(D, f);
+} catch (e) {
+  const err = document.getElementById('err'); err.textContent = 'The model data could not be loaded. Serve this folder over http (for example python -m http.server in docs).'; err.style.display = 'grid'; return;
+}
 if (typeof maplibregl === 'undefined' || typeof deck === 'undefined') document.getElementById('err').style.display = 'grid';
 const BF = {};
 for (const id in D.riverFlow) { const bin = atob(D.riverFlow[id]), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); BF[id] = new Uint16Array(u8.buffer); }
@@ -203,7 +213,7 @@ const totalArea = D.units.reduce((a,u) => a + u.area, 0);
 const valleyMean = (series, i) => D.units.reduce((a,u) => a + series[u.id][i] * u.area, 0) / totalArea;
 const lerp = (a,b,t) => a.map((v,i) => Math.round(v + (b[i]-v)*t));
 let day = 0, playing = false, speeds = [10,30,90,365], si = 1, relief = 1, riverRelief = 1, last = performance.now(), acc = 0;
-const MAXQ = Math.max(...D.flow, ...Object.values(D.reachFlow).map(a => Math.max(...a)));
+let MAXQ = Math.max(...D.flow, ...Object.values(D.reachFlow).map(a => Math.max(...a)));
 const flowCol = q => [...lerp([28,111,176],[140,225,250],Math.min(1,Math.sqrt(q / MAXQ))), 245];
 const elev = q => (800 + 24 * Math.sqrt(q)) * riverRelief;  // river rises a little above the ground, deliberately unrealistic
 
@@ -747,6 +757,7 @@ addEventListener('resize', () => update());
 { const q = new URLSearchParams(location.search).get('day'), i = q ? D.days.indexOf(q) : -1; if (i >= 0) day = i; }
 $('climate-start').onchange = setPeriod; $('climate-end').onchange = setPeriod;
 if (typeof maplibregl !== 'undefined' && typeof deck !== 'undefined') { initMap(); legend(); setPeriod(); }
+})();
 </script>
 </body>
 </html>
