@@ -9,6 +9,7 @@ function element() {
     classList:{add:(...xs)=>xs.forEach(x=>classes.add(x)),remove:(...xs)=>xs.forEach(x=>classes.delete(x)),toggle:(x,on)=>on?classes.add(x):classes.delete(x)},
     addEventListener:(name,fn)=>listeners[name]=fn, append(){}, setAttribute(){}, setPointerCapture(){}, blur(){},
     getBoundingClientRect:()=>({left:100,top:50,width:800,height:600}),
+    querySelector:()=>element(),
     getContext:()=>new Proxy({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)})},{get:(t,k)=>k in t?t[k]:()=>{},set:()=>true})
   };
 }
@@ -89,4 +90,18 @@ const wetSpin=spinTest(.5), drySpin=spinTest(0);
 assert(wetSpin.turns>1.5,`wet boost at full lock keeps spinning (${wetSpin.turns.toFixed(2)} turns in 6 s)`);
 assert(wetSpin.far<12,`and stays on the spot (${wetSpin.far.toFixed(1)} m)`);
 assert(drySpin.turns<.75&&drySpin.far>50,`dry tyres grip and carve a wide arc (${drySpin.turns.toFixed(2)} turns, ${drySpin.far.toFixed(0)} m)`);
-console.log('Car placement, drag cancellation, invalid drops, animated fall, delayed reset, camera restoration, reuse, arrow keys and wet-boost donuts passed.');
+// Nitro: Shift burns the tank in about 4 s, locks when empty (no boost), and refills after you let go.
+{
+  const flat={x0:0,y0:3,step:1,NR:4,NC:4,GZ:new Float32Array(16).fill(10),outline:[[[.1,.1],[2.9,.1],[2.9,2.9],[.1,2.9],[.1,.1]]],getExaggeration:()=>1};
+  const c=context.window.createCarMechanics({deck:{SimpleMeshLayer:class{constructor(props){Object.assign(this,props);}}},map,terrain:flat,
+    getRelief:()=>1,setRelief(){},refresh(){},pickTerrain:()=>picked,isWet:()=>0});
+  c.place([1.5,1.5]); c.driveKeys.add('KeyW'); c.driveKeys.add('ShiftLeft');
+  for(let i=0;i<60;i++) c.tick(.05);
+  assert(c.state.nitro>.15&&c.state.nitro<.4&&c.state.boosting,`3 s of boost leaves about a quarter (${c.state.nitro.toFixed(2)})`);
+  for(let i=0;i<30;i++) c.tick(.05);
+  assert.equal(c.state.nitro,0); assert.equal(c.state.nitroLocked,true); assert.equal(c.state.boosting,false,'an empty tank gives no boost');
+  c.driveKeys.delete('ShiftLeft');
+  for(let i=0;i<60;i++) c.tick(.05);
+  assert(c.state.nitro>.25&&!c.state.nitroLocked,`it refills once you let go (${c.state.nitro.toFixed(2)})`);
+}
+console.log('Car placement, drag cancellation, invalid drops, animated fall, delayed reset, camera restoration, reuse, arrow keys, wet-boost donuts and the nitro tank passed.');

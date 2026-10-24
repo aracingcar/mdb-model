@@ -59,3 +59,32 @@
 }
 .car-radar[hidden] { display:none; }
 @media (max-width:760px) { .car-radar { width:130px; height:130px; right:12px; } }
+.car-hud[hidden], .car-here[hidden] { display:none; }
+.car-speedo {
+  position:absolute; z-index:7; right:216px; bottom:156px; width:150px; height:150px;
+  border-radius:50%; box-shadow:0 3px 14px rgba(0,0,0,.35); pointer-events:none;
+}
+.car-nitro {
+  position:absolute; z-index:7; right:216px; bottom:132px; width:150px;
+  display:flex; align-items:center; gap:6px; color:#fff; font:700 9px/1 Arial,sans-serif; letter-spacing:.08em;
+  padding:4px 7px; border-radius:4px; background:rgba(20,24,30,.82); pointer-events:none;
+}
+.car-nitro-bar { flex:1; height:7px; border-radius:4px; background:rgba(255,255,255,.15); overflow:hidden; }
+.car-nitro-bar i { display:block; height:100%; background:#4fc3ff; }
+.car-nitro.boosting .car-nitro-bar i { background:#9fe0ff; box-shadow:0 0 8px #4fc3ff; }
+.car-nitro.locked .car-nitro-bar i { background:#e0913a; }
+.car-here {
+  position:absolute; z-index:7; left:22px; top:22px; width:250px; padding:12px 14px;
+  border-radius:6px; background:rgba(255,255,255,.94); box-shadow:0 2px 10px rgba(0,0,0,.12);
+  color:#3e4248; font:12px/1.4 var(--sans,Arial,sans-serif); pointer-events:none;
+}
+.car-here b { display:block; font-size:15px; color:#24272b; }
+.car-here small { display:block; color:#7a7f86; font-size:11px; }
+.car-here dl { display:grid; grid-template-columns:auto auto; gap:3px 12px; margin:9px 0 0; }
+.car-here dt { color:#656b72; }
+.car-here dd { margin:0; text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
+@media (max-width:760px) {
+  .car-speedo { width:110px; height:110px; right:150px; bottom:150px; }
+  .car-nitro { width:110px; right:150px; bottom:128px; }
+  .car-here { width:200px; left:12px; top:12px; }
+}

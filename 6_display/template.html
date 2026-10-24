@@ -101,6 +101,8 @@
   #site-menu nav::before { content:'PROJECT PAGES'; display:block; padding:5px 10px 7px; color:var(--dim); font-size:10px; letter-spacing:.08em; }
   #site-menu a { display:block; padding:9px 10px; color:var(--head); text-decoration:none; border-radius:4px; }
   #site-menu a:hover, #site-menu a:focus-visible { background:#f2f4f5; }
+  body.car-driving #side { display:none; }  /* driving: the car's own HUD replaces the side panel and the map takes the width */
+  body.car-driving #map { left:0; top:0; }
 </style>
 </head>
 <body>
@@ -855,7 +857,7 @@ function initMap() {
   syncCarTerrain();
   carMechanics=window.createCarMechanics({deck,map,terrain:carTerrain,getRelief:()=>relief,
     setRelief:delta=>{const input=$('reliefIn');input.value=Math.max(+input.min,Math.min(+input.max,relief+delta));input.dispatchEvent(new Event('input',{bubbles:true}));},
-    refresh:update, getRivers:()=>rivers.map(d=>d.r),
+    refresh:update, getRivers:()=>rivers.map(d=>d.r), conditionsAt:carConditions,
     playWhileDriving:()=>{si=0;$('speed').textContent=speeds[si]+' d/s';if(!playing)$('play').click();},
     isWet:riverWetAt,pickTerrain:(x,y)=>overlay?.pickObject({x,y,layerIds:['terrain-'+meshGen],unproject3D:true})?.coordinate});
   const lighting = new deck.LightingEffect({ ambientLight:new deck.AmbientLight({ color:[255,255,255], intensity:0.75 }), dirLight:new deck.DirectionalLight({ color:[255,248,238], intensity:0.9, direction:[1.0,-1.1,-0.85] }) });
@@ -869,9 +871,20 @@ function initMap() {
   });
   carMechanics.start(()=>overlay.setProps({layers:layers()}));
 }
+// What the driving HUD shows for the ground under the car: its subcatchment, and that day's climate and flow there.
+function carConditions(lon, lat) {
+  const r = Math.round((T.y0 - lat) / T.step), c = Math.round((lon - T.x0) / T.step);
+  const u = r >= 0 && c >= 0 && r < NR && c < NC ? D.units[GO[r * NC + c]] : null;
+  if (!u) return null;
+  const d = Math.min(N - 1, Math.floor(day)), id = u.id, one = v => v.toFixed(1), a = ANOM[id][d];
+  return { place: u.name, region: `${UNIT_NAME[u.sdl]} SDL unit (${u.sdl})`, date: `${WD[new Date(...D.days[d].split('-').map((v, i) => +v - (i === 1))).getDay()]} ${nice(D.days[d])}`, rows: [
+    ['Rain today', `${one(D.P[id][d])} mm`], ['Rain, last 60 days', `${fmt(RP[id][d])} mm`],
+    ['PET today', `${one(D.PET[id][d])} mm`], ['Evaporation vs normal', `${a >= 0 ? '+' : '\u2212'}${fmt(Math.abs(a))} mm / 30 d`],
+    ['Reach flow', `${fmt(D.reachFlow[id][d])} ML/d`], ['Ground elevation', `${fmt(GZ[r * NC + c])} m`]] };
+}
 function hover(info) {
-  const tip = $('tip');
-  if (!info.object || info.layer?.id.startsWith('terrain-')) { tip.style.display = 'none'; return; }
+  const tip = $('tip');  // no tooltips while driving: the HUD shows the conditions under the car
+  if (!info.object || info.layer?.id.startsWith('terrain-') || document.body.classList.contains('car-driving')) { tip.style.display = 'none'; return; }
   if (carMechanics.hover(info)) return;
   if (info.object.name !== undefined) {
     const o = info.object;

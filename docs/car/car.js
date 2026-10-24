@@ -1,6 +1,6 @@
 /* MDB Model's selectable terrain car. This file is copied into docs/car for GitHub Pages. */
-window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief, refresh, pickTerrain, isWet, playWhileDriving, getRivers }) {
-  const playerCar = { kind:'playerCar', pos:[0,0], placed:false, heading:0, speed:0, vel:[0,0], yawRate:0, steer:0, spin:false, selected:false, jump:0, jumpV:0, pitch:0, roll:0, pitchV:0, rollV:0, accel:0, grade:0, bank:0, stalled:false, wet:0, slip:0, skids:[], offEdge:false, airZ:0, airV:0, falling:false, fallZ:0, fallV:0, fallTime:0, fallGravity:0 };
+window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief, refresh, pickTerrain, isWet, playWhileDriving, getRivers, conditionsAt }) {
+  const playerCar = { kind:'playerCar', pos:[0,0], placed:false, heading:0, speed:0, vel:[0,0], yawRate:0, steer:0, spin:false, nitro:1, nitroWait:0, nitroLocked:false, boosting:false, selected:false, jump:0, jumpV:0, pitch:0, roll:0, pitchV:0, rollV:0, accel:0, grade:0, bank:0, stalled:false, wet:0, slip:0, skids:[], offEdge:false, airZ:0, airV:0, falling:false, fallZ:0, fallV:0, fallTime:0, fallGravity:0 };
   const driveKeys = new Set(), driveCodes = new Set(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','ShiftLeft','ShiftRight']);
   const ARROWS = { ArrowUp:'KeyW', ArrowLeft:'KeyA', ArrowDown:'KeyS', ArrowRight:'KeyD' }; // arrows drive exactly like WASD
   const driveCode = code => ARROWS[code] || code;
@@ -37,7 +37,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function place(pos) {
     if (!pos || !onTerrain(pos[0],pos[1])) return false;
     exitChase();
-    Object.assign(playerCar,{pos:pos.slice(0,2),placed:true,selected:true,heading:0,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
+    Object.assign(playerCar,{pos:pos.slice(0,2),placed:true,selected:true,heading:0,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,nitro:1,nitroWait:0,nitroLocked:false,boosting:false,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
     driveKeys.clear(); choosing = false; dock.classList.remove('choosing'); hideGhost();
     dock.classList.add('placed'); dock.blur();
     enterChase(); playWhileDriving?.(); // the climate scenario plays on while you drive
@@ -48,7 +48,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function reset() {
     exitChase(true);
     Object.assign(playerCar,{placed:false,selected:false,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
-    driveKeys.clear(); choosing=false; endRain(); drawRadar();
+    driveKeys.clear(); choosing=false; endRain(); drawRadar(); drawHud();
     dock.classList.remove('placed','choosing'); hint.classList.remove('active');
     setHint('Drag the car onto the map to drive again.'); refresh();
   }
@@ -193,7 +193,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function toggleSelected() {
     if(!playerCar.placed||playerCar.falling) return;
     playerCar.selected=!playerCar.selected; Object.assign(playerCar,{speed:0,vel:[0,0],yawRate:0}); driveKeys.clear();
-    if(playerCar.selected) enterChase(); else { exitChase(); endRain(); drawRadar(); }
+    if(playerCar.selected) enterChase(); else { exitChase(); endRain(); drawRadar(); drawHud(); }
     hintText=''; hint.classList.toggle('active',playerCar.selected);
     setHint(playerCar.selected?HINT_DRIVE:'Driving paused · click the car or press Esc to resume, or drag the dock icon to a new location');
     refresh();
@@ -217,6 +217,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
 
   function enterChase() {
     saved={ center:map.getCenter(), enabled:handlers.filter(h=>map[h]?.isEnabled()), pitch:map.getPitch(), bearing:map.getBearing(), zoom:map.getZoom(), padding:map.getPadding(), maxPitch:map.getMaxPitch() };
+    document.body.classList.add('car-driving'); map.resize?.(); // the page hides its side panel and gives the map the width
     map.setMaxPitch(85);
     handlers.forEach(h=>map[h]?.disable());
     rig=null; viewScale=1;
@@ -225,6 +226,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function exitChase(restoreView=false) {
     if(!saved) return;
     saved.enabled.forEach(h=>map[h]?.enable());
+    document.body.classList.remove('car-driving'); map.resize?.();
     map.setMaxPitch(saved.maxPitch);
     map.jumpTo({ center:restoreView?saved.center:playerCar.pos, zoom:saved.zoom, pitch:saved.pitch, bearing:saved.bearing, padding:saved.padding });
     saved=null; rig=null;
@@ -295,20 +297,23 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
 
   // Driving model: Marco Monster's "Car Physics for Games" (2003), as adapted to JavaScript by Mike Linkovich in carphysics2d
   // (https://github.com/spacejack/carphysics2d, MIT licence, copyright (c) 2015 Mike Linkovich; see car/LICENSE-carphysics2d).
-  // CAR is that project's default "lightweight sports sedan" config, unchanged. The car is simulated in its own real-size
-  // metres and drawn CAR_SCALE times larger on the map, so it handles like a 4 m car whatever the map scale.
+  // CAR is that project's default "lightweight sports sedan" config, except airResist: raised from 2.5 so the top speed is
+  // ~25 m/s (90 km/h) instead of ~57, which on this map was too fast to steer. The car is simulated in its own real-size
+  // metres and drawn carScale() times larger on the map, so it handles like a 4 m car whatever the map scale.
   const CAR={ gravity:9.81, mass:1200, inertiaScale:1, cgToFrontAxle:1.25, cgToRearAxle:1.25, cgHeight:.55, length:4,
     tireGrip:2, lockGrip:.7, engineForce:8000, brakeForce:12000, weightTransfer:.2, maxSteer:.6,
-    cornerStiffnessFront:5, cornerStiffnessRear:5.2, airResist:2.5, rollResist:8 };
+    cornerStiffnessFront:5, cornerStiffnessRear:5.2, airResist:12.8, rollResist:8 };
   const WHEELBASE=CAR.cgToFrontAxle+CAR.cgToRearAxle, INERTIA=CAR.mass*CAR.inertiaScale;
   const carScale=()=>CHASE.drawPx*chaseMpp()/CAR.length; // map metres per car metre
   // Game additions on top of the source model:
-  //  - Boost (Shift) is extra engine force through the rear tyres plus, once rolling, a rocket push on the body for top speed.
+  //  - Traction control on normal throttle: drive is held inside what the rear tyres can take, so plain driving never
+  //    spins the wheels, even wet. Boost (Shift) switches it off.
+  //  - Boost is extra engine force through the rear tyres plus, once rolling, a rocket push on the body for top speed (~2x).
   //    The wheel part is sized so dry tyres just hold it but wet ones spin up: that wheelspin is what makes donuts.
   //  - Wet tyres (river, rain) lose up to WET_LOSS of their grip.
   //  - Hills: gravity along and across the slope, scaled (HILL_G) so the normal engine just stalls at CLIMB_DEG.
   const BOOST_WHEEL=1.25, BOOST_ROCKET=3, WET_LOSS=.6, STEER_ASSIST=.7, WHEELSPIN=12, HILL_G=CAR.engineForce/(CAR.mass*SIN_CLIMB);
-  const TOP_SPEED=Math.sqrt(CAR.engineForce/CAR.airResist); // ~57 m/s (205 km/h) unboosted on the flat
+  const TOP_SPEED=Math.sqrt(CAR.engineForce/CAR.airResist); // ~25 m/s (90 km/h) unboosted on the flat
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
   // Keep an absolute altitude after crossing the edge: outside-grid heights must not snap the car to zero.
@@ -387,7 +392,9 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
       // lockGrip) directed against its contact patch's slip: the tread running WHEELSPIN m/s ahead of the ground, plus however
       // fast the axle slides sideways. Mostly drive, with sideways hold growing as the tail slides: on wet tyres, boost and
       // full lock swing the tail round and hold it there, a donut.
-      const budget=grip*wRear, demand=Math.hypot(drive,latRear);
+      const budget=grip*wRear;
+      if(drive&&!boost) drive=Math.sign(drive)*Math.min(Math.abs(drive),.98*Math.sqrt(Math.max(0,budget*budget-latRear*latRear))); // traction control
+      const demand=Math.hypot(drive,latRear);
       if(drive&&demand>budget) {
         const slideRear=vy-P.cgToRearAxle*c.yawRate, ahead=Math.sign(drive)*WHEELSPIN, k=P.lockGrip*budget/Math.hypot(ahead,slideRear);
         drive=ahead*k; latRear=-slideRear*k; spin=true;
@@ -500,7 +507,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function drawRadar() {
     const on=playerCar.selected&&!!saved; radar.hidden=!on; if(!on) return;
     const size=radar.clientWidth||180, dpr=devicePixelRatio||1;
-    if(radar.width!==size*dpr) { radar.width=radar.height=size*dpr; }
+    if(radar.width!==size*dpr||radar.height!==size*dpr) radar.width=radar.height=size*dpr;
     const g=radar.getContext('2d'), b=radarImage(), [px,py]=b.toPx(playerCar.pos[0],playerCar.pos[1]), R=size/2, zoom=size/(.6*b.span);
     g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,size,size);
     g.save(); g.beginPath(); g.arc(R,R,R-2,0,7); g.clip(); g.fillStyle='#1d2228'; g.fillRect(0,0,size,size);
@@ -515,12 +522,62 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     g.beginPath(); g.arc(R,R,R-1.5,0,7); g.strokeStyle='rgba(255,255,255,.9)'; g.lineWidth=3; g.stroke();
   }
 
+  // Nitro: Shift burns a tank that lasts NITRO_BURN s and refills over NITRO_FILL s, starting NITRO_DELAY s after you let go.
+  // Run it dry and it locks until a quarter has come back, so boost comes in bursts rather than flickering.
+  const NITRO_BURN=4, NITRO_FILL=8, NITRO_DELAY=.75;
+  function nitroStep(dt,want) {
+    const c=playerCar;
+    if(c.nitroLocked&&c.nitro>=.25) c.nitroLocked=false;
+    c.boosting=want&&!c.nitroLocked&&c.nitro>0;
+    if(c.boosting) { c.nitro=Math.max(0,c.nitro-dt/NITRO_BURN); c.nitroWait=NITRO_DELAY; if(c.nitro===0) c.nitroLocked=true; }
+    else if((c.nitroWait-=dt)<=0) c.nitro=Math.min(1,c.nitro+dt/NITRO_FILL);
+    return c.boosting;
+  }
+
+  // Driving HUD: speedometer and nitro gauge beside the radar, and a card with the conditions where the car is (the page
+  // supplies them through conditionsAt), in place of the page's side panel while driving.
+  const hud=document.createElement('div'); hud.className='car-hud'; hud.hidden=true;
+  hud.innerHTML='<canvas class="car-speedo" aria-hidden="true"></canvas><div class="car-nitro"><span>NITRO</span><div class="car-nitro-bar"><i></i></div></div>'+
+    '<div class="car-here" role="status" aria-live="off"></div>';
+  document.body.append(hud);
+  const speedo=hud.querySelector('.car-speedo'), nitroBox=hud.querySelector('.car-nitro'), nitroFill=hud.querySelector('.car-nitro-bar i'), here=hud.querySelector('.car-here');
+  let hereAt=0;
+  const esc=t=>String(t).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+  function drawHud() {
+    const c=playerCar, on=c.selected&&!!saved; hud.hidden=!on; if(!on) return;
+    // speedometer: 0-200 km/h over a 240° dial, digital readout in the middle
+    const size=speedo.clientWidth||150, dpr=devicePixelRatio||1, R=size/2, kmh=Math.abs(c.speed)*3.6, MAX=200;
+    if(speedo.width!==size*dpr||speedo.height!==size*dpr) speedo.width=speedo.height=size*dpr; // a fresh canvas is 300×150
+    const g=speedo.getContext('2d'), a0=Math.PI*.75, sweep=Math.PI*1.5, ang=v=>a0+sweep*Math.min(1,v/MAX);
+    g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,size,size);
+    g.beginPath(); g.arc(R,R,R-2,0,7); g.fillStyle='rgba(20,24,30,.82)'; g.fill();
+    g.lineWidth=6; g.lineCap='round';
+    g.beginPath(); g.arc(R,R,R-12,a0,a0+sweep); g.strokeStyle='rgba(255,255,255,.15)'; g.stroke();
+    g.beginPath(); g.arc(R,R,R-12,a0,ang(kmh)); g.strokeStyle=c.boosting?'#4fc3ff':'#f2f4f5'; g.stroke();
+    g.lineWidth=1.5; g.strokeStyle='rgba(255,255,255,.6)'; g.fillStyle='rgba(255,255,255,.75)'; g.font='600 9px Arial,sans-serif'; g.textAlign='center'; g.textBaseline='middle';
+    for(let v=0;v<=MAX;v+=20) { const t=ang(v), x=Math.cos(t), y=Math.sin(t);
+      g.beginPath(); g.moveTo(R+x*(R-20),R+y*(R-20)); g.lineTo(R+x*(R-26),R+y*(R-26)); g.stroke();
+      if(v%40===0) g.fillText(v,R+x*(R-35),R+y*(R-35)); }
+    const t=ang(kmh); g.beginPath(); g.moveTo(R,R); g.lineTo(R+Math.cos(t)*(R-18),R+Math.sin(t)*(R-18)); g.strokeStyle='#e55735'; g.lineWidth=2.5; g.stroke();
+    g.beginPath(); g.arc(R,R,4,0,7); g.fillStyle='#e55735'; g.fill();
+    g.fillStyle='#fff'; g.font='700 24px Arial,sans-serif'; g.fillText(Math.round(kmh),R,R+R*.42);
+    g.fillStyle='rgba(255,255,255,.6)'; g.font='600 9px Arial,sans-serif'; g.fillText(c.speed<-.5?'km/h · R':'km/h',R,R+R*.62);
+    nitroFill.style.width=(c.nitro*100).toFixed(1)+'%';
+    nitroBox.classList.toggle('boosting',c.boosting); nitroBox.classList.toggle('locked',c.nitroLocked);
+    const now=performance.now();
+    if(conditionsAt&&now-hereAt>300) { hereAt=now;
+      const k=conditionsAt(c.pos[0],c.pos[1]);
+      here.hidden=!k;
+      if(k) here.innerHTML=`<small>${esc(k.date)}</small><b>${esc(k.place)}</b><small>${esc(k.region)}</small><dl>${k.rows.map(([l,v])=>`<dt>${esc(l)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`;
+    }
+  }
+
   const HINT_DRIVE='Driving · W/↑ drive · A/D or ←/→ steer · S/↓ brake · Space jump · Q/E relief · Shift boost · Esc pause';
   let hintText='';
   function updateHint() {
     const deg=Math.round(Math.atan(playerCar.grade)*180/Math.PI);
     const base=rain.left>0?`${HINT_DRIVE} · Rain shower: wet tyres`:HINT_DRIVE;
-    const text=playerCar.stalled?`Too steep (${deg}°) · hold Shift to boost, or reverse out`:Math.abs(deg)>=3?`${base} · slope ${deg>0?'+':''}${deg}°`:base;
+    const text=playerCar.stalled?(playerCar.nitroLocked?`Too steep (${deg}°) · nitro recharging, reverse out`:`Too steep (${deg}°) · hold Shift to boost, or reverse out`):Math.abs(deg)>=3?`${base} · slope ${deg>0?'+':''}${deg}°`:base;
     if(text!==hintText) { hintText=text; setHint(text); }
   }
 
@@ -529,12 +586,14 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     dt=Math.min(.05,dt);
     const c=playerCar, old=[c.pos[0],c.pos[1],c.heading,c.speed,c.jump,c.pitch,c.roll];
     const mpp=metresPerPixel();
-    const input={throttle:driveKeys.has('KeyW'), brake:driveKeys.has('KeyS'), steer:(driveKeys.has('KeyD')?1:0)-(driveKeys.has('KeyA')?1:0), boost:driveKeys.has('ShiftLeft')||driveKeys.has('ShiftRight')};
+    const throttle=driveKeys.has('KeyW');
+    const input={throttle, brake:driveKeys.has('KeyS'), steer:(driveKeys.has('KeyD')?1:0)-(driveKeys.has('KeyA')?1:0),
+      boost:nitroStep(dt,throttle&&(driveKeys.has('ShiftLeft')||driveKeys.has('ShiftRight')))};
     rainStep(dt);
     const n=Math.ceil(dt/(1/120)); // fixed small substeps keep the result independent of frame rate
     for(let i=0;i<n&&c.selected;i++) physicsStep(dt/n,input,mpp);
     if(c.selected&&!c.falling) { chaseCamera(dt); updateHint(); }
-    drawRadar();
+    drawRadar(); drawHud();
     if(c.falling||!c.placed) return true;
     return Math.abs(c.pos[0]-old[0])+Math.abs(c.pos[1]-old[1])>0||c.heading!==old[2]||Math.abs(c.pitch-old[5])+Math.abs(c.roll-old[6])>1e-5||c.speed!==old[3]||c.jump!==old[4];
   }
