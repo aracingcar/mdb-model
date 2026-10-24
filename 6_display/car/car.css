@@ -26,14 +26,14 @@
   display:flex; align-items:center; gap:8px;
 }
 #map-tools #towns-toggle, #map-tools #detail-toggle, #map-tools #sdl-toggle { position:static; }
-#car-dock {
+.vehicle-dock {
   display:grid; place-items:center; width:42px; height:38px; padding:0;
   border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94);
   font-size:25px; cursor:grab; touch-action:none; user-select:none;
 }
-#car-dock:active { cursor:grabbing; }
-#car-dock.placed { background:#eef4f8; }
-#car-dock.choosing, #car-dock:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
+.vehicle-dock:active { cursor:grabbing; }
+.vehicle-dock.placed { background:#eef4f8; }
+.vehicle-dock.choosing, .vehicle-dock:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
 .car-drag-ghost {
   position:fixed; z-index:40; pointer-events:none; transform:translate(-50%,-50%);
   font-size:34px; padding:6px; border-radius:50%; background:rgba(255,255,255,.85);
@@ -51,8 +51,8 @@
 .car-rain[hidden] { display:none; }
 @keyframes car-rain-fall { to { background-position:-70px 260px, -60px 340px; } }
 @media (prefers-reduced-motion:reduce) { .car-rain { animation:none; } }
-#car-dock.drop-ok { outline:3px solid #2a8a48; outline-offset:2px; }
-#car-dock.drop-no { outline:3px solid #c0392b; outline-offset:2px; }
+.vehicle-dock.drop-ok { outline:3px solid #2a8a48; outline-offset:2px; }
+.vehicle-dock.drop-no { outline:3px solid #c0392b; outline-offset:2px; }
 .car-radar {
   position:absolute; right:22px; bottom:70px; z-index:7; width:180px; height:180px;
   border-radius:50%; box-shadow:0 3px 14px rgba(0,0,0,.35); pointer-events:none;

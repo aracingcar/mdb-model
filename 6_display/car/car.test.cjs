@@ -104,4 +104,27 @@ assert(drySpin.turns<.75&&drySpin.far>50,`dry tyres grip and carve a wide arc ($
   for(let i=0;i<60;i++) c.tick(.05);
   assert(c.state.nitro>.25&&!c.state.nitroLocked,`it refills once you let go (${c.state.nitro.toFixed(2)})`);
 }
-console.log('Car placement, drag cancellation, invalid drops, animated fall, delayed reset, camera restoration, reuse, arrow keys, wet-boost donuts and the nitro tank passed.');
+// Boat: only on the river, pointed along it, kept on the water when steered into the bank, with the relief raised for it.
+{
+  const flat={x0:0,y0:3,step:.01,NR:301,NC:301,GZ:new Float32Array(301*301).fill(10),outline:[[[.1,.1],[2.9,.1],[2.9,2.9],[.1,2.9],[.1,.1]]],getExaggeration:()=>1};
+  const river=(lon,lat)=>lon>1.49&&lon<1.51&&lat>1&&lat<2; // a 2 km-wide river running north-south
+  let reliefs=[1,1], setCalls=[];
+  const b=context.window.createCarMechanics({deck:{SimpleMeshLayer:class{constructor(props){Object.assign(this,props);}}},map,terrain:flat,
+    getRelief:()=>1,setRelief(){},refresh(){},pickTerrain:()=>picked,isWet:()=>0,
+    waterAt:(lon,lat)=>river(lon,lat)?{top:50}:null, pickRiver:()=>null,
+    setReliefs:(t,r)=>{ const before=reliefs; reliefs=[t,r]; setCalls.push([t,r]); return before; }});
+  assert.equal(b.place([1.6,1.5],'boat'),false,'a boat cannot go on land');
+  assert.equal(b.place([1.5,1.5],'boat'),true);
+  assert.equal(b.state.vehicle,'boat');
+  assert(Math.abs(Math.sin(b.state.heading))<.2,'it is pointed along the river');
+  assert.deepEqual(reliefs,[2,.1],'terrain up, rivers down for the boat');
+  b.driveKeys.add('KeyW'); b.driveKeys.add('KeyD');
+  let left=false;
+  for(let i=0;i<200;i++) { b.tick(.05); if(!river(...b.state.pos)) left=true; }
+  assert.equal(left,false,'the boat never leaves the water, even steering into the bank');
+  assert(Math.hypot(...b.state.vel)>0||b.state.pos[1]!==1.5,'it moves');
+  b.reset();
+  assert.deepEqual(reliefs,[1,1],'relief restored when the boat is put away');
+  assert.equal(b.place([1.2,1.2],'car'),true,'the car still works after the boat'); assert.equal(b.state.vehicle,'car');
+}
+console.log('Car placement, drag cancellation, invalid drops, animated fall, delayed reset, camera restoration, reuse, arrow keys, wet-boost donuts, the nitro tank and the river boat passed.');

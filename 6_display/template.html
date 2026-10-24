@@ -810,6 +810,12 @@ function buildRoads(raw) {
   return out;
 }
 
+const placeSets = new Map();  // memoised per zoom tier so the town layers keep their data identity between frames
+function placesNow() {
+  const z = map ? map.getZoom() : 6.5, key = PLACES.filter(p => p.minZoom <= z).length;
+  if (!placeSets.has(key)) placeSets.set(key, PLACES.filter(p => p.minZoom <= z));
+  return placeSets.get(key);
+}
 function layers() {
   const blend = { depthWriteEnabled:false, depthCompare:'always' };
   if (cache.day !== day) {
@@ -817,7 +823,7 @@ function layers() {
     cache = { day, wet, discs: wet.flatMap(u => cloudDiscs(u, Math.sqrt(Math.min(1, RP[u.id][day] / RAIN_MAX)))) };
   }
   const discs = cache.discs;
-  const places = PLACES.filter(p => p.minZoom <= (map ? map.getZoom() : 6.5));
+  const places = placesNow();
   const placePosition = p => [p.lon,p.lat,p.z * TERR + 300];
   if (tintDay !== day) { tintDay = day; D.units.forEach(u => tint[u.id] = evapShade(ANOM[u.id][day])); }
   const mist = [
@@ -863,10 +869,19 @@ function initMap() {
   carMechanics=window.createCarMechanics({deck,map,terrain:carTerrain,getRelief:()=>relief,
     setRelief:delta=>{const input=$('reliefIn');input.value=Math.max(+input.min,Math.min(+input.max,relief+delta));input.dispatchEvent(new Event('input',{bubbles:true}));},
     refresh:update, getRivers:()=>rivers.map(d=>d.r), conditionsAt:carConditions,
+    waterAt:(lon, lat) => { const d = riverAt(lon, lat); return d && { top: elev(flowOf(d)), name: d.name }; },
+    pickRiver:(x, y) => overlay?.pickObject({ x, y, radius: 8, layerIds: ['rivers'], unproject3D: true })?.coordinate,
+    setReliefs:(terrain, river) => {  // set both relief sliders (as if moved by hand) and return the previous values
+      const before = [relief, riverRelief];
+      for (const [id, v] of [['reliefIn', terrain], ['riverReliefIn', river]]) { const input = $(id); input.value = v; input.dispatchEvent(new Event('input', { bubbles: true })); }
+      return before;
+    },
     playWhileDriving:()=>{si=0;$('speed').textContent=speeds[si]+' d/s';if(!playing)$('play').click();},
     isWet:riverWetAt,pickTerrain:(x,y)=>overlay?.pickObject({x,y,layerIds:['terrain-'+meshGen],unproject3D:true})?.coordinate});
   const lighting = new deck.LightingEffect({ ambientLight:new deck.AmbientLight({ color:[255,255,255], intensity:0.75 }), dirLight:new deck.DirectionalLight({ color:[255,248,238], intensity:0.9, direction:[1.0,-1.1,-0.85] }) });
-  overlay = new deck.MapboxOverlay({ interleaved:false, layers:layers(), effects:[lighting], getTooltip:null, onHover:hover, onClick:info=>carMechanics.click(info) });
+  // The near clipping plane scales with camera altitude, and the exaggerated terrain is kilometres high: close up (the boat)
+  // the default would cut away the ground right in front of the camera.
+  overlay = new deck.MapboxOverlay({ interleaved:false, views:new deck.MapView({ id:'mapbox', nearZMultiplier:.005 }), layers:layers(), effects:[lighting], getTooltip:null, onHover:hover, onClick:info=>carMechanics.click(info) });
   map.addControl(overlay);
   map.on('zoomend', () => overlay.setProps({layers:layers()}));
   map.on('moveend', () => {  // zoomed in on a system: fetch its detail (demo bundle only)
@@ -875,6 +890,19 @@ function initMap() {
     if (u) loadDetail(SYSTEM_OF[u.sdl]);
   });
   carMechanics.start(()=>overlay.setProps({layers:layers()}));
+}
+// The river polygon under a point (the boat's water), or null. Called every physics step, so it keeps the rivers near the
+// last query and tries the last hit first.
+let nearBox = null, nearRivers = [], lastRiver = -1;
+function riverAt(lon, lat) {
+  if (!nearBox || lon < nearBox[0] || lon > nearBox[2] || lat < nearBox[1] || lat > nearBox[3] || nearRivers.n !== rivers.length) {
+    nearBox = [lon - .1, lat - .1, lon + .1, lat + .1]; nearRivers = []; nearRivers.n = rivers.length;
+    riverBox.forEach((b, i) => { if (b[0] <= nearBox[2] && b[2] >= nearBox[0] && b[1] <= nearBox[3] && b[3] >= nearBox[1]) nearRivers.push(i); });
+  }
+  const hit = i => { const [a, b, c, e] = riverBox[i]; return lon >= a && lon <= c && lat >= b && lat <= e && inRing(rivers[i].r, lon, lat); };
+  if (lastRiver >= 0 && lastRiver < rivers.length && hit(lastRiver)) return rivers[lastRiver];
+  for (const i of nearRivers) if (hit(i)) { lastRiver = i; return rivers[i]; }
+  return null;
 }
 // What the driving HUD shows for the ground under the car: its subcatchment, and that day's climate and flow there.
 function carConditions(lon, lat) {

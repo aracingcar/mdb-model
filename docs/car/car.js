@@ -1,6 +1,6 @@
-/* MDB Model's selectable terrain car. This file is copied into docs/car for GitHub Pages. */
-window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief, refresh, pickTerrain, isWet, playWhileDriving, getRivers, conditionsAt }) {
-  const playerCar = { kind:'playerCar', pos:[0,0], placed:false, heading:0, speed:0, vel:[0,0], yawRate:0, steer:0, spin:false, nitro:1, nitroWait:0, nitroLocked:false, boosting:false, selected:false, jump:0, jumpV:0, pitch:0, roll:0, pitchV:0, rollV:0, accel:0, grade:0, bank:0, stalled:false, wet:0, slip:0, skids:[], offEdge:false, airZ:0, airV:0, falling:false, fallZ:0, fallV:0, fallTime:0, fallGravity:0 };
+/* MDB Model's drivable vehicles: a terrain car and a river boat. This file is copied into docs/car for GitHub Pages. */
+window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief, refresh, pickTerrain, isWet, playWhileDriving, getRivers, conditionsAt, waterAt, pickRiver, setReliefs }) {
+  const playerCar = { kind:'playerCar', vehicle:'car', waterTop:0, pos:[0,0], placed:false, heading:0, speed:0, vel:[0,0], yawRate:0, steer:0, spin:false, nitro:1, nitroWait:0, nitroLocked:false, boosting:false, selected:false, jump:0, jumpV:0, pitch:0, roll:0, pitchV:0, rollV:0, accel:0, grade:0, bank:0, stalled:false, wet:0, slip:0, skids:[], offEdge:false, airZ:0, airV:0, falling:false, fallZ:0, fallV:0, fallTime:0, fallGravity:0 };
   const driveKeys = new Set(), driveCodes = new Set(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','ShiftLeft','ShiftRight']);
   const ARROWS = { ArrowUp:'KeyW', ArrowLeft:'KeyA', ArrowDown:'KeyS', ArrowRight:'KeyD' }; // arrows drive exactly like WASD
   const driveCode = code => ARROWS[code] || code;
@@ -15,13 +15,22 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   document.body.append(hint);
   const tools = document.createElement('div');
   tools.id = 'map-tools';
-  const dock = document.createElement('button');
-  dock.id = 'car-dock'; dock.type = 'button';
-  dock.textContent = '🚗';
-  dock.title = 'Drag the car onto the map to drive';
-  dock.setAttribute('aria-label', 'Place car: drag onto the map, or click then click a location');
+  // One dock per vehicle: drag it onto the map, or click it and then click a spot. The car drives on the terrain, the boat
+  // only on the rivers.
+  const VEHICLES = {
+    car:  { icon:'🚗', noun:'car',  where:'the coloured terrain', zoom:10.5, drawPx:55, meshLength:4.5, camera:1,   elevation:24 },
+    boat: { icon:'🚤', noun:'boat', where:'a river',              zoom:15.5, drawPx:110, meshLength:6.6, camera:1, elevation:20 },
+  };
+  const V = () => VEHICLES[playerCar.vehicle];
+  const docks = {};
+  for (const [kind, v] of Object.entries(VEHICLES)) {
+    const b = docks[kind] = document.createElement('button');
+    b.id = kind + '-dock'; b.type = 'button'; b.className = 'vehicle-dock'; b.textContent = v.icon;
+    b.title = `Drag the ${v.noun} onto ${v.where} to drive`;
+    b.setAttribute('aria-label', `Place ${v.noun}: drag onto ${v.where}, or click then click a location`);
+    tools.append(b);
+  }
   const towns = document.getElementById('towns-toggle');
-  tools.append(dock);
   if (towns) tools.append(towns);
   const detailToggle = document.getElementById('detail-toggle');
   if (detailToggle) tools.append(detailToggle);
@@ -31,30 +40,39 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   const ghost = document.createElement('div');
   ghost.className = 'car-drag-ghost'; ghost.textContent = '🚗'; ghost.hidden = true;
   ghost.setAttribute('aria-hidden','true'); document.body.append(ghost);
-  let dragging = null, choosing = false, suppressClick = false;
+  let dragging = null, choosing = false, suppressClick = false, placedAt = -1e9; // choosing: false, or the vehicle being placed by clicking
 
+  const onWater = (lon,lat) => !!waterAt?.(lon,lat);
+  const validFor = kind => kind==='boat' ? onWater : onTerrain;
   function setHint(text) { hint.textContent = text; hint.hidden = !text; }
-  function place(pos) {
-    if (!pos || !onTerrain(pos[0],pos[1])) return false;
+  function place(pos, kind='car') {
+    if (!pos || !validFor(kind)(pos[0],pos[1])) return false;
     exitChase();
-    Object.assign(playerCar,{pos:pos.slice(0,2),placed:true,selected:true,heading:0,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,nitro:1,nitroWait:0,nitroLocked:false,boosting:false,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
-    driveKeys.clear(); choosing = false; dock.classList.remove('choosing'); hideGhost();
-    dock.classList.add('placed'); dock.blur();
-    enterChase(); playWhileDriving?.(); // the climate scenario plays on while you drive
+    Object.assign(playerCar,{vehicle:kind,waterTop:0,pos:pos.slice(0,2),placed:true,selected:true,heading:0,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,nitro:1,nitroWait:0,nitroLocked:false,boosting:false,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
+    if (kind==='boat') playerCar.heading = alongRiver(pos);
+    driveKeys.clear(); stopChoosing();
+    for (const k in docks) docks[k].classList.toggle('placed', k===kind);
+    docks[kind].blur();
+    enterChase(); playWhileDriving?.(); placedAt=performance.now(); // the climate scenario plays on while you drive
     hint.classList.add('active');
-    setHint(HINT_DRIVE);
+    setHint(hintDrive());
     refresh(); return true;
   }
   function reset() {
+    const noun=V().noun;
     exitChase(true);
     Object.assign(playerCar,{placed:false,selected:false,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
     driveKeys.clear(); choosing=false; endRain(); drawRadar(); drawHud();
-    dock.classList.remove('placed','choosing'); hint.classList.remove('active');
-    setHint('Drag the car onto the map to drive again.'); refresh();
+    for (const k in docks) docks[k].classList.remove('placed','choosing'); hint.classList.remove('active');
+    setHint(`Drag the ${noun} onto the map to drive again.`); refresh();
   }
-  function dropPosition(e) {
+  function dropPosition(e, kind) {
     const box=map.getContainer().getBoundingClientRect(), x=e.clientX-box.left, y=e.clientY-box.top;
     if(x<0||y<0||x>=box.width||y>=box.height) return null;
+    if(kind==='boat') { // the river under the cursor, or one within a few pixels of it
+      const hit=pickRiver?.(x,y);
+      return hit&&onWater(hit[0],hit[1]) ? hit : null;
+    }
     const hit=pickTerrain(x,y);
     if(hit&&onTerrain(hit[0],hit[1])) return hit;
     // Missed the surface (ridge in the way, valley rim, or the void just beyond it): snap to the nearest drivable
@@ -75,46 +93,63 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     }
     return null;
   }
-  dock.addEventListener('pointerdown',e=>{
-    if(e.button!==0) return;
-    dragging={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false};
-    dock.setPointerCapture(e.pointerId); refresh();
-  });
-  dock.addEventListener('pointermove',e=>{
-    if(!dragging||e.pointerId!==dragging.id) return;
-    if(Math.hypot(e.clientX-dragging.x,e.clientY-dragging.y)>5) dragging.moved=true;
-    if(!dragging.moved) return;
-    showGhost(e);
-  });
-  // The ghost car follows the cursor while dragging or choosing; its outline (and the dock's) is green where it will drop, red where not.
-  function showGhost(e) {
-    const pos=dropPosition(e), ok=!!pos&&onTerrain(pos[0],pos[1]);
+  // Point a new boat down the river: the heading with the longest clear run of water ahead.
+  function alongRiver(pos) {
+    const step=VEHICLES.boat.drawPx*mppAt(VEHICLES.boat.zoom,pos[1]), lat=pos[1];
+    let best=0, run=-1;
+    for(let a=0;a<360;a+=10) {
+      const h=a*Math.PI/180; let n=0;
+      while(n<40&&onWater(pos[0]+Math.sin(h)*step*(n+1)*metresToLon(lat), lat+Math.cos(h)*step*(n+1)*metresToLat)) n++;
+      if(n>run) { run=n; best=h; }
+    }
+    return best;
+  }
+  for (const [kind, d] of Object.entries(docks)) {
+    d.addEventListener('pointerdown',e=>{
+      if(e.button!==0) return;
+      dragging={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false,kind};
+      d.setPointerCapture(e.pointerId); refresh();
+    });
+    d.addEventListener('pointermove',e=>{
+      if(!dragging||e.pointerId!==dragging.id) return;
+      if(Math.hypot(e.clientX-dragging.x,e.clientY-dragging.y)>5) dragging.moved=true;
+      if(!dragging.moved) return;
+      queueGhost(e,kind);
+    });
+    d.addEventListener('pointerup',e=>{
+      if(!dragging||e.pointerId!==dragging.id) return;
+      const moved=dragging.moved, pos=moved?dropPosition(e,kind):null; cancelDrag();
+      if(moved) {
+        suppressClick=true; setTimeout(()=>{suppressClick=false;},0);
+        if(!place(pos,kind)) setHint(`Drop the ${VEHICLES[kind].noun} on ${VEHICLES[kind].where}.`);
+      }
+    });
+    d.addEventListener('pointercancel',cancelDrag);
+    d.addEventListener('lostpointercapture',cancelDrag);
+    d.addEventListener('click',()=>{
+      if(suppressClick) return;
+      if(playerCar.placed) reset();
+      const on=choosing!==kind; stopChoosing(); choosing=on&&kind; d.classList.toggle('choosing',on);
+      setHint(on?`Click a location on ${VEHICLES[kind].where} to place the ${VEHICLES[kind].noun}.`:''); refresh();
+    });
+  }
+  // The ghost follows the cursor while dragging or choosing; its outline (and the dock's) is green where it will drop, red where not.
+  function showGhost(e,kind) {
+    const pos=dropPosition(e,kind), ok=!!pos&&validFor(kind)(pos[0],pos[1]);
+    ghost.textContent=VEHICLES[kind].icon;
     ghost.hidden=false; ghost.style.left=e.clientX+'px'; ghost.style.top=e.clientY+'px';
     ghost.classList.toggle('valid',ok);
-    dock.classList.toggle('drop-ok',ok); dock.classList.toggle('drop-no',!ok);
+    docks[kind].classList.toggle('drop-ok',ok); docks[kind].classList.toggle('drop-no',!ok);
   }
-  function hideGhost() { ghost.hidden=true; dock.classList.remove('drop-ok','drop-no'); }
-  map.getContainer().addEventListener('pointermove',e=>{ if(choosing&&!dragging) showGhost(e); });
+  function hideGhost() { ghost.hidden=true; for (const k in docks) docks[k].classList.remove('drop-ok','drop-no'); }
+  function stopChoosing() { choosing=false; for (const k in docks) docks[k].classList.remove('choosing'); hideGhost(); }
+  let ghostEvent=null; // picking the terrain is a GPU read, so the ghost updates at most once per frame
+  function queueGhost(e,kind) { if(!ghostEvent) requestAnimationFrame(()=>{ const q=ghostEvent; ghostEvent=null; if(q&&(dragging||choosing)) showGhost(q.e,q.kind); }); ghostEvent={e,kind}; }
+  map.getContainer().addEventListener('pointermove',e=>{ if(choosing&&!dragging) queueGhost(e,choosing); });
   map.getContainer().addEventListener('pointerleave',()=>{ if(choosing&&!dragging) hideGhost(); });
   function cancelDrag() { dragging=null; hideGhost(); refresh(); }
-  dock.addEventListener('pointerup',e=>{
-    if(!dragging||e.pointerId!==dragging.id) return;
-    const moved=dragging.moved, pos=moved?dropPosition(e):null; cancelDrag();
-    if(moved) {
-      suppressClick=true; setTimeout(()=>{suppressClick=false;},0);
-      if(!place(pos)) setHint('Drop the car on the coloured terrain.');
-    }
-  });
-  dock.addEventListener('pointercancel',cancelDrag);
-  dock.addEventListener('lostpointercapture',cancelDrag);
-  dock.addEventListener('click',()=>{
-    if(suppressClick) return;
-    if(playerCar.selected) reset();
-    choosing=!choosing; dock.classList.toggle('choosing',choosing); if(!choosing) hideGhost();
-    setHint(choosing?'Click a location on the terrain to place the car.':''); refresh();
-  });
   map.getContainer().addEventListener('click',e=>{
-    if(choosing&&!place(dropPosition(e))) setHint('Choose a location on the coloured terrain.');
+    if(choosing&&!place(dropPosition(e,choosing),choosing)) setHint(`Choose a location on ${VEHICLES[choosing].where}.`);
   });
 
   // Low-poly car in metres: x right, y forward (north at heading 0), z up. Per-vertex colours.
@@ -140,6 +175,52 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     return { attributes:{ POSITION:{value:new Float32Array(pos),size:3}, NORMAL:{value:new Float32Array(nor),size:3}, COLOR_0:{value:new Float32Array(col.map(v=>v/255)),size:4} }, indices:{value:new Uint32Array(idx),size:1} };
   })();
 
+  // Low-poly runabout in metres, same axes as the car: a V hull lofted from a pointed deck outline (white topsides with a
+  // navy boot stripe, antifouling below), teak deck, raked windscreen, helm console, seats and an outboard motor.
+  const boatMesh = (function () {
+    const pos=[], nor=[], col=[], idx=[];
+    function face(pts,color) { // flat-shaded polygon, normal turned to face away from the hull's centre
+      const [a,b,c]=pts, u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]], v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
+      let n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]]; const l=Math.hypot(...n)||1; n=n.map(x=>x/l);
+      const m=pts.reduce((s,p)=>s.map((x,i)=>x+p[i]/pts.length),[0,0,0]);
+      if(n[0]*m[0]+n[1]*(m[1]-.2)+n[2]*(m[2]-.5)<0) n=n.map(x=>-x);
+      const base=pos.length/3;
+      for(const q of pts) { pos.push(...q); nor.push(...n); col.push(...color); }
+      for(let i=1;i<pts.length-1;i++) idx.push(base,base+i,base+i+1);
+    }
+    function box(x0,x1,y0,y1,z0,z1,color) {
+      const P=(x,y,z)=>[x,y,z];
+      face([P(x1,y0,z0),P(x1,y1,z0),P(x1,y1,z1),P(x1,y0,z1)],color); face([P(x0,y1,z0),P(x0,y0,z0),P(x0,y0,z1),P(x0,y1,z1)],color);
+      face([P(x1,y1,z0),P(x0,y1,z0),P(x0,y1,z1),P(x1,y1,z1)],color); face([P(x0,y0,z0),P(x1,y0,z0),P(x1,y0,z1),P(x0,y0,z1)],color);
+      face([P(x0,y0,z1),P(x1,y0,z1),P(x1,y1,z1),P(x0,y1,z1)],color); face([P(x0,y1,z0),P(x1,y1,z0),P(x1,y0,z0),P(x0,y0,z0)],color);
+    }
+    const white=[244,245,242,255], navy=[28,52,92,255], anti=[150,40,40,255], teak=[176,128,82,255], glass=[120,170,195,255],
+      grey=[200,204,206,255], dark=[30,33,36,255], seat=[226,222,210,255];
+    // deck outline, one side from stern to bow (x = half-beam), mirrored for the other side
+    const half=[[1.05,-3.1],[1.12,-1.5],[1.12,.2],[1.0,1.5],[.7,2.5],[.32,3.1],[0,3.4]];
+    const ring=[...half.map(([x,y])=>[x,y]),...half.slice(0,-1).reverse().map(([x,y])=>[-x,y])];
+    const at=(z,k)=>ring.map(([x,y])=>[x*k,y,z]);
+    const deck=at(.95,1), stripe=at(.72,.98), chine=at(.32,.82), keel=ring.map(([x,y])=>[0,Math.min(y,3.0),0]);
+    for(let i=0;i<ring.length;i++) {
+      const j=(i+1)%ring.length;
+      if(ring[i][1]===-3.1&&ring[j][1]===-3.1) continue; // transom, closed below
+      face([deck[i],deck[j],stripe[j],stripe[i]],white); face([stripe[i],stripe[j],chine[j],chine[i]],navy);
+      face([chine[i],chine[j],keel[j],keel[i]],anti);
+    }
+    face([[1.05,-3.1,.95],[-1.05,-3.1,.95],[-1.05*.98,-3.1,.72],[1.05*.98,-3.1,.72]],white);   // transom
+    face([[1.05*.98,-3.1,.72],[-1.05*.98,-3.1,.72],[-.86,-3.1,.32],[.86,-3.1,.32]],navy);
+    face([[.86,-3.1,.32],[-.86,-3.1,.32],[0,-3.1,0]],anti);
+    face(deck.slice().reverse(),teak);                                                          // deck
+    box(-1.05,1.05,-3.1,-2.9,.95,1.12,white); box(-.18,.18,2.4,3.25,.95,1.0,grey);               // transom rail, bow rail
+    box(-.95,-.75,-2.9,1.4,.95,1.15,white); box(.75,.95,-2.9,1.4,.95,1.15,white);                // gunwales
+    box(.2,.85,.05,.75,.95,1.6,white);                                                          // helm console
+    face([[-.95,.8,1.15],[.95,.8,1.15],[.85,.45,1.85],[-.85,.45,1.85]],glass);                   // raked windscreen
+    box(-.75,-.15,-.9,-.25,.95,1.35,seat); box(.2,.8,-.9,-.25,.95,1.35,seat);                    // seats
+    box(-.8,.8,-2.6,-2.0,.95,1.3,seat);                                                          // rear bench
+    box(-.28,.28,-3.55,-3.1,.55,1.55,dark); box(-.1,.1,-3.45,-3.25,-.25,.55,dark);              // outboard: cowling and leg
+    return { attributes:{ POSITION:{value:new Float32Array(pos),size:3}, NORMAL:{value:new Float32Array(nor),size:3}, COLOR_0:{value:new Float32Array(col.map(v=>v/255)),size:4} }, indices:{value:new Uint32Array(idx),size:1} };
+  })();
+
   // Metres-per-pixel at the car's latitude for the current zoom; used to keep the car legible and drivable at any zoom.
   function metresPerPixel() { return saved ? chaseMpp() : 78271.5*Math.cos(playerCar.pos[1]*Math.PI/180)/Math.pow(2,map.getZoom()); }
 
@@ -148,7 +229,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     const x=(lon-x0)/step, y=(y0-lat)/step, c=Math.floor(x), r=Math.floor(y), fx=x-c, fy=y-r;
     if(r>=0&&c>=0&&r<NR-1&&c<NC-1) {
       const a=GZ[r*NC+c], b=GZ[r*NC+c+1], d=GZ[(r+1)*NC+c], e=GZ[(r+1)*NC+c+1];
-      if([a,b,d,e].every(Number.isFinite)) return (fx+fy<=1 ? a*(1-fx-fy)+b*fx+d*fy : b*(1-fy)+d*(1-fx)+e*(fx+fy-1))*exaggeration;
+      if(Number.isFinite(a)&&Number.isFinite(b)&&Number.isFinite(d)&&Number.isFinite(e)) return (fx+fy<=1 ? a*(1-fx-fy)+b*fx+d*fy : b*(1-fy)+d*(1-fx)+e*(fx+fy-1))*exaggeration;
     }
     let best=Infinity, value=0;
     for(let dr=-2;dr<=2;dr++) for(let dc=-2;dc<=2;dc++) {
@@ -163,22 +244,23 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function layer() {
     // Fixed real-world size, so the car is the same size selected or not; the floor only keeps it findable when zoomed far out.
     const viewMpp=78271.5*Math.cos(playerCar.pos[1]*Math.PI/180)/Math.pow(2,map.getZoom());
-    const scale=Math.max(1,CHASE.drawPx*chaseMpp()/4.5, saved?0:9*viewMpp/4.5);
+    const v=V(), boat=playerCar.vehicle==='boat', scale=Math.max(1,v.drawPx*chaseMpp()/v.meshLength, saved?0:9*viewMpp/v.meshLength);
     const car=new deck.SimpleMeshLayer({
-      id:'player-car', data:playerCar.placed?[playerCar]:[], mesh:carMesh, sizeScale:scale,
-      getPosition:d=>[d.pos[0],d.pos[1],(d.falling?d.fallZ:d.offEdge?d.airZ:terrainHeightAt(d.pos[0],d.pos[1])+d.jump)+scale*1.2],
+      id:'player-car', data:playerCar.placed?[playerCar]:[], mesh:boat?boatMesh:carMesh, sizeScale:scale,
+      getPosition:d=>boat ? [d.pos[0],d.pos[1],waterZ()+scale*.25] // sits in the water to just below the boot stripe
+        : [d.pos[0],d.pos[1],(d.falling?d.fallZ:d.offEdge?d.airZ:terrainHeightAt(d.pos[0],d.pos[1])+d.jump)+scale*1.2],
       getOrientation:d=>[-d.roll*180/Math.PI,-d.heading*180/Math.PI,d.pitch*180/Math.PI], // deck: [about forward axis, yaw, about side axis]
       getColor:[255,255,255,255], _useMeshColors:true, pickable:true,
       material:{ambient:.55,diffuse:.7,shininess:30,specularColor:[80,80,80]},
-      updateTriggers:{getPosition:[playerCar.pos[0],playerCar.pos[1],getRelief(),playerCar.jump,playerCar.falling,playerCar.fallZ,playerCar.airZ,playerCar.offEdge],getOrientation:[playerCar.heading,playerCar.pitch,playerCar.roll]}
+      updateTriggers:{getPosition:[playerCar.pos[0],playerCar.pos[1],getRelief(),playerCar.waterTop,playerCar.vehicle,playerCar.jump,playerCar.falling,playerCar.fallZ,playerCar.airZ,playerCar.offEdge],getOrientation:[playerCar.heading,playerCar.pitch,playerCar.roll]}
     });
     return car;
   }
 
-  function skidLayer() {
-    const now=performance.now(), skids=playerCar.skids.filter(k=>now-k.t<2500);
+  function skidLayer() { // the car's skid marks, or the boat's white wake
+    const now=performance.now(), skids=playerCar.skids.filter(k=>now-k.t<2500), rgb=playerCar.vehicle==='boat'?[250,252,255,170]:[24,24,28,80];
     return new deck.LineLayer({ id:'car-skids', data:skids, getSourcePosition:k=>k.a, getTargetPosition:k=>k.b,
-      getColor:k=>[24,24,28,Math.round(80*(1-(now-k.t)/2500))], getWidth:5, widthUnits:'pixels', pickable:false,
+      getColor:k=>[...rgb.slice(0,3),Math.round(rgb[3]*(1-(now-k.t)/2500))], getWidth:playerCar.vehicle==='boat'?3:5, widthUnits:'pixels', pickable:false,
       updateTriggers:{getColor:now} });
   }
 
@@ -186,6 +268,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
 
   function click(info) {
     if(info.object?.kind!=='playerCar') return;
+    if(performance.now()-placedAt<500) return; // the click that placed it lands on it too
     toggleSelected();
   }
 
@@ -195,14 +278,14 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     playerCar.selected=!playerCar.selected; Object.assign(playerCar,{speed:0,vel:[0,0],yawRate:0}); driveKeys.clear();
     if(playerCar.selected) enterChase(); else { exitChase(); endRain(); drawRadar(); drawHud(); }
     hintText=''; hint.classList.toggle('active',playerCar.selected);
-    setHint(playerCar.selected?HINT_DRIVE:'Driving paused · click the car or press Esc to resume, or drag the dock icon to a new location');
+    setHint(playerCar.selected?hintDrive():`Paused · click the ${V().noun} or press Esc to resume, or drag a dock icon to a new location`);
     refresh();
   }
 
   function hover(info) {
     if(info.object?.kind!=='playerCar') return false;
     const tip=document.getElementById('tip');
-    tip.innerHTML='<b>Terrain car</b>Click to select, then drive with WASD or the arrow keys';
+    tip.innerHTML=`<b>${playerCar.vehicle==='boat'?'River boat':'Terrain car'}</b>Click to select, then drive with WASD or the arrow keys`;
     tip.style.display='block'; tip.style.left=Math.min(info.x+14,innerWidth-230)+'px'; tip.style.top=(info.y+14)+'px';
     return true;
   }
@@ -210,23 +293,30 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   // Third-person chase camera. The terrain is heavily exaggerated, so a ground-level map centre would sit far from the
   // elevated car; instead the camera is placed in 3D (free camera) behind and above the car, smoothed, and kept above the
   // ground. Distance is tied to the reference zoom so the car stays the same size on screen.
-  const CHASE={ zoom:10.5, elevation:24*Math.PI/180, follow:7, turn:3, carPx:100, drawPx:55 } // carPx drives interactions; drawPx is only how big the model is drawn;
+  const CHASE={ zoom:10.5, follow:7, turn:3, carPx:100, drawPx:55 } // the car's view; the boat's zoom and size are in VEHICLES; carPx drives interactions, drawPx is only how big the model is drawn;
   let saved=null, rig=null, viewScale=1; // viewScale only moves the camera; car size, speed and jumps stay tied to CHASE.zoom
   const handlers=['dragPan','dragRotate','touchZoomRotate','touchPitch','keyboard','doubleClickZoom','scrollZoom'];
-  const chaseMpp=()=>78271.5*Math.cos(playerCar.pos[1]*Math.PI/180)/Math.pow(2,CHASE.zoom);
+  const mppAt=(zoom,lat)=>78271.5*Math.cos(lat*Math.PI/180)/Math.pow(2,zoom);
+  const chaseMpp=()=>mppAt(V().zoom,playerCar.pos[1]);
+  const waterZ=()=>terrainHeightAt(playerCar.pos[0],playerCar.pos[1])+playerCar.waterTop; // river surface under the boat
+  // The boat's view: terrain relief turned right up and the rivers brought right down, so it runs between high banks.
+  const BOAT_RELIEF=[2,.1]; let reliefBefore=null;
 
   function enterChase() {
     saved={ center:map.getCenter(), enabled:handlers.filter(h=>map[h]?.isEnabled()), pitch:map.getPitch(), bearing:map.getBearing(), zoom:map.getZoom(), padding:map.getPadding(), maxPitch:map.getMaxPitch() };
     document.body.classList.add('car-driving'); map.resize?.(); // the page hides its side panel and gives the map the width
+    const tip=document.getElementById('tip'); if(tip) tip.style.display='none'; // a tooltip left from choosing the spot
     map.setMaxPitch(85);
     handlers.forEach(h=>map[h]?.disable());
-    rig=null; viewScale=1;
+    rig=null; viewScale=V().camera; // the boat's camera sits closer and lower
+    if(playerCar.vehicle==='boat'&&setReliefs) reliefBefore=setReliefs(...BOAT_RELIEF);
   }
 
   function exitChase(restoreView=false) {
     if(!saved) return;
     saved.enabled.forEach(h=>map[h]?.enable());
     document.body.classList.remove('car-driving'); map.resize?.();
+    if(reliefBefore) { setReliefs(...reliefBefore); reliefBefore=null; }
     map.setMaxPitch(saved.maxPitch);
     map.jumpTo({ center:restoreView?saved.center:playerCar.pos, zoom:saved.zoom, pitch:saved.pitch, bearing:saved.bearing, padding:saved.padding });
     saved=null; rig=null;
@@ -238,8 +328,8 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     const wantH=c.heading;
     if(!rig) rig={ h:wantH };
     rig.h+=(((wantH-rig.h+3*Math.PI)%(2*Math.PI))-Math.PI)*k(CHASE.turn);
-    const sin=Math.sin(rig.h), cos=Math.cos(rig.h), back=d*Math.cos(CHASE.elevation), up=d*Math.sin(CHASE.elevation);
-    const carZ=c.offEdge?c.airZ:terrainHeightAt(c.pos[0],lat)+c.jump*.2; // camera only partly follows a jump so the car visibly leaves the ground
+    const el=V().elevation*Math.PI/180, sin=Math.sin(rig.h), cos=Math.cos(rig.h), back=d*Math.cos(el), up=d*Math.sin(el);
+    const carZ=c.vehicle==='boat'?waterZ():c.offEdge?c.airZ:terrainHeightAt(c.pos[0],lat)+c.jump*.2; // camera only partly follows a jump so the car visibly leaves the ground
     const tx=c.pos[0]+sin*d*.45*metresToLon(lat), ty=lat+cos*d*.45*metresToLat;
     let cx=c.pos[0]-sin*back*metresToLon(lat), cy=lat-cos*back*metresToLat;
     let alt=Math.max(carZ+up, terrainHeightAt(cx,cy)+.25*d);
@@ -256,17 +346,17 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   }
 
   function onTerrain(lon,lat) {
-    if(terrain.outline && !terrain.outline.some(ring=>{
+    const {x0,y0,step,GZ,NR,NC} = terrain, x=(lon-x0)/step, y=(y0-lat)/step, c=Math.floor(x), r=Math.floor(y);
+    if(r<0||c<0||r>=NR-1||c>=NC-1) return false; // the cheap grid checks first, the outline polygon last
+    if(!(Number.isFinite(GZ[r*NC+c])&&Number.isFinite(GZ[r*NC+c+1])&&Number.isFinite(GZ[(r+1)*NC+c])&&Number.isFinite(GZ[(r+1)*NC+c+1]))) return false;
+    return !terrain.outline || terrain.outline.some(ring=>{
       let inside=false;
       for(let i=0,j=ring.length-1;i<ring.length;j=i++) {
         const a=ring[i], b=ring[j];
         if((a[1]>lat)!==(b[1]>lat) && lon<(b[0]-a[0])*(lat-a[1])/(b[1]-a[1])+a[0]) inside=!inside;
       }
       return inside;
-    })) return false;
-    const {x0,y0,step,GZ,NR,NC} = terrain, x=(lon-x0)/step, y=(y0-lat)/step, c=Math.floor(x), r=Math.floor(y);
-    if(r<0||c<0||r>=NR-1||c>=NC-1) return false;
-    return Number.isFinite(GZ[r*NC+c])&&Number.isFinite(GZ[r*NC+c+1])&&Number.isFinite(GZ[(r+1)*NC+c])&&Number.isFinite(GZ[(r+1)*NC+c+1]);
+    });
   }
 
   const metresToLon=lat=>1/(111320*Math.max(.2,Math.cos(lat*Math.PI/180))), metresToLat=1/111320;
@@ -343,7 +433,63 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     setHint('Off the edge! Returning the car to its dock…');
   }
 
+  // Boat: a planing runabout on flat water. Thrust from the outboard against quadratic water drag; the hull resists
+  // sliding sideways far more than going forwards, so it carves turns but drifts a little; the rudder turns it in
+  // proportion to the water flowing past, plus prop wash so it can still turn from rest under throttle. Banks stop it:
+  // hit one and it scrapes along it if it can, or bounces back. Simulated in its own metres like the car.
+  const BOAT={ length:6.6, mass:1100, thrust:7000, reverse:2500, dragFwd:20, dragFwdLin:60, dragSide:900, dragSideLin:500,
+    turnRate:.9, turnSpeed:6, washTurn:.4, nitro:2.2 };
+  const boatScale=()=>VEHICLES.boat.drawPx*chaseMpp()/BOAT.length; // map metres per boat metre
+  function boatStep(dt,input,mpp) {
+    const c=playerCar, B=BOAT, sin=Math.sin(c.heading), cos=Math.cos(c.heading);
+    c.steer=input.steer ? clamp(c.steer+input.steer*dt*2.5,-1,1) : c.steer>0 ? Math.max(c.steer-dt*1.5,0) : Math.min(c.steer+dt*1.5,0);
+    const vx=sin*c.vel[0]+cos*c.vel[1], vy=cos*c.vel[0]-sin*c.vel[1];
+    let Fx=0;
+    if(input.throttle) Fx+=B.thrust*(input.boost?B.nitro:1);
+    if(input.brake) Fx-=vx>.5 ? B.thrust*.6 : B.reverse; // throttle back hard, then reverse
+    Fx-=B.dragFwd*vx*Math.abs(vx)+B.dragFwdLin*vx;
+    const Fy=-(B.dragSide*vy*Math.abs(vy)+B.dragSideLin*vy);
+    const ax=Fx/B.mass, ay=Fy/B.mass;
+    c.accel=ax;
+    c.vel[0]+=(ax*sin+ay*cos)*dt; c.vel[1]+=(ax*cos-ay*sin)*dt;
+    const flow=Math.min(1,Math.abs(vx)/B.turnSpeed)*Math.sign(vx||1), wash=input.throttle?B.washTurn:0;
+    const yawWant=c.steer*(B.turnRate*flow+wash);
+    c.yawRate+=(yawWant-c.yawRate)*(1-Math.exp(-2.5*dt));
+    c.heading=((c.heading+c.yawRate*dt)%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
+    // Move, staying on the river.
+    const S=boatScale(), lat=c.pos[1], v=Math.hypot(c.vel[0],c.vel[1]), dir=Math.atan2(c.vel[0],c.vel[1]);
+    const go=(h,len)=>[c.pos[0]+Math.sin(h)*len*S*dt*metresToLon(lat), lat+Math.cos(h)*len*S*dt*metresToLat];
+    let next=go(dir,v);
+    if(v>0&&!onWater(...next)) {
+      next=null;
+      for(const a of [.35,-.35,.7,-.7,1.05,-1.05,1.4,-1.4]) { // scrape along the bank
+        const n=go(dir+a,v*Math.cos(a));
+        if(onWater(...n)) { next=n; const keep=.92*v*Math.cos(a); c.vel=[Math.sin(dir+a)*keep,Math.cos(dir+a)*keep]; break; }
+      }
+      if(!next) { c.vel=c.vel.map(x=>-.3*x); next=c.pos.slice(); c.yawRate*=.5; } // head-on: bounce off
+    }
+    c.pos[0]=next[0]; c.pos[1]=next[1];
+    c.waterTop=waterAt?.(c.pos[0],c.pos[1])?.top??c.waterTop;
+    const fwd=Math.sin(c.heading)*c.vel[0]+Math.cos(c.heading)*c.vel[1], side=Math.cos(c.heading)*c.vel[0]-Math.sin(c.heading)*c.vel[1];
+    c.speed=fwd; c.slip=Math.hypot(fwd,side)>1?-Math.atan2(side,Math.abs(fwd)):0;
+    // Wake: two white trails from the stern quarters while under way.
+    if(Math.abs(fwd)>1.5) {
+      const L=VEHICLES.boat.drawPx*mpp, hs=Math.sin(c.heading), hc=Math.cos(c.heading), now=performance.now(), z=waterZ()+L*.02;
+      const corner=k=>{ const f=-.45*L, s2=k*.2*L; return [c.pos[0]+(hs*f+hc*s2)*metresToLon(c.pos[1]), c.pos[1]+(hc*f-hs*s2)*metresToLat, z]; };
+      const pts=[corner(-1),corner(1)];
+      if(c.lastSkid&&now-c.lastSkid.t<250) for(let i=0;i<2;i++) c.skids.push({a:c.lastSkid.p[i],b:pts[i],t:now});
+      c.lastSkid={p:pts,t:now};
+      if(c.skids.length>400) c.skids.splice(0,c.skids.length-400);
+    } else c.lastSkid=null;
+    // Trim: bow lifts as it gets on the plane and settles at speed, leans into turns, and rocks gently on the water.
+    const t=performance.now()/1000, plane=Math.min(1,Math.abs(fwd)/7)-Math.max(0,(Math.abs(fwd)-12)/20);
+    const target={ pitch:.11*plane+.03*Math.sin(t*1.9), roll:clamp(c.yawRate*Math.abs(fwd)*.03,-.3,.3)+.03*Math.sin(t*1.3) };
+    c.pitchV+=((target.pitch-c.pitch)*40-c.pitchV*9)*dt; c.pitch+=c.pitchV*dt;
+    c.rollV+=((target.roll-c.roll)*40-c.rollV*9)*dt; c.roll+=c.rollV*dt;
+  }
+
   function physicsStep(dt, input, mpp) {
+    if(playerCar.vehicle==='boat') { boatStep(dt,input,mpp); return; }
     if(playerCar.falling) { fallStep(dt); return; }
     const c=playerCar, P=CAR, sin=Math.sin(c.heading), cos=Math.cos(c.heading);
     // Steering filter, from the source's applySmoothSteer: the wheel turns at 2/s and recentres at 1/s. Its applySafeSteer
@@ -364,7 +510,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     const sinTheta=c.grade/Math.hypot(1,c.grade), sinBank=c.bank/Math.hypot(1,c.bank);
     const airborne=c.jump>0||c.offEdge, boost=input.boost&&input.throttle;
     // Wet tyres: soaked in a flowing river or by rain, drying over a few seconds.
-    const soak=c.jump===0 ? Math.max(rain.level,isWet?clamp(+isWet(c.pos[0],c.pos[1])||0,0,1):0) : 0; // 0 dry … 1 flowing river
+    const soak=c.jump===0 ? Math.max(rain.level,wetHere) : 0; // 0 dry … 1 flowing river
     c.wet=soak>c.wet ? Math.min(soak,c.wet+dt*4) : Math.max(0,c.wet-dt/2.5);
     let Fx=0, Fy=0, torque=0, spin=false, reversing=false;
     // Drag acts in the air too (source: rolling resistance + air resistance, per axis).
@@ -541,27 +687,31 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     '<div class="car-here" role="status" aria-live="off"></div>';
   document.body.append(hud);
   const speedo=hud.querySelector('.car-speedo'), nitroBox=hud.querySelector('.car-nitro'), nitroFill=hud.querySelector('.car-nitro-bar i'), here=hud.querySelector('.car-here');
-  let hereAt=0;
+  let hereAt=0, speedoKey='';
   const esc=t=>String(t).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
   function drawHud() {
     const c=playerCar, on=c.selected&&!!saved; hud.hidden=!on; if(!on) return;
     // speedometer: 0-200 km/h over a 240° dial, digital readout in the middle
     const size=speedo.clientWidth||150, dpr=devicePixelRatio||1, R=size/2, kmh=Math.abs(c.speed)*3.6, MAX=200;
-    if(speedo.width!==size*dpr||speedo.height!==size*dpr) speedo.width=speedo.height=size*dpr; // a fresh canvas is 300×150
-    const g=speedo.getContext('2d'), a0=Math.PI*.75, sweep=Math.PI*1.5, ang=v=>a0+sweep*Math.min(1,v/MAX);
-    g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,size,size);
-    g.beginPath(); g.arc(R,R,R-2,0,7); g.fillStyle='rgba(20,24,30,.82)'; g.fill();
-    g.lineWidth=6; g.lineCap='round';
-    g.beginPath(); g.arc(R,R,R-12,a0,a0+sweep); g.strokeStyle='rgba(255,255,255,.15)'; g.stroke();
-    g.beginPath(); g.arc(R,R,R-12,a0,ang(kmh)); g.strokeStyle=c.boosting?'#4fc3ff':'#f2f4f5'; g.stroke();
-    g.lineWidth=1.5; g.strokeStyle='rgba(255,255,255,.6)'; g.fillStyle='rgba(255,255,255,.75)'; g.font='600 9px Arial,sans-serif'; g.textAlign='center'; g.textBaseline='middle';
-    for(let v=0;v<=MAX;v+=20) { const t=ang(v), x=Math.cos(t), y=Math.sin(t);
-      g.beginPath(); g.moveTo(R+x*(R-20),R+y*(R-20)); g.lineTo(R+x*(R-26),R+y*(R-26)); g.stroke();
-      if(v%40===0) g.fillText(v,R+x*(R-35),R+y*(R-35)); }
-    const t=ang(kmh); g.beginPath(); g.moveTo(R,R); g.lineTo(R+Math.cos(t)*(R-18),R+Math.sin(t)*(R-18)); g.strokeStyle='#e55735'; g.lineWidth=2.5; g.stroke();
-    g.beginPath(); g.arc(R,R,4,0,7); g.fillStyle='#e55735'; g.fill();
-    g.fillStyle='#fff'; g.font='700 24px Arial,sans-serif'; g.fillText(Math.round(kmh),R,R+R*.42);
-    g.fillStyle='rgba(255,255,255,.6)'; g.font='600 9px Arial,sans-serif'; g.fillText(c.speed<-.5?'km/h · R':'km/h',R,R+R*.62);
+    const key=`${Math.round(kmh*2)},${c.boosting},${c.speed<-.5},${size*dpr}`;
+    if(key!==speedoKey) { speedoKey=key; drawSpeedo(); }
+    function drawSpeedo() {
+      if(speedo.width!==size*dpr||speedo.height!==size*dpr) speedo.width=speedo.height=size*dpr; // a fresh canvas is 300×150
+      const g=speedo.getContext('2d'), a0=Math.PI*.75, sweep=Math.PI*1.5, ang=v=>a0+sweep*Math.min(1,v/MAX);
+      g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,size,size);
+      g.beginPath(); g.arc(R,R,R-2,0,7); g.fillStyle='rgba(20,24,30,.82)'; g.fill();
+      g.lineWidth=6; g.lineCap='round';
+      g.beginPath(); g.arc(R,R,R-12,a0,a0+sweep); g.strokeStyle='rgba(255,255,255,.15)'; g.stroke();
+      g.beginPath(); g.arc(R,R,R-12,a0,ang(kmh)); g.strokeStyle=c.boosting?'#4fc3ff':'#f2f4f5'; g.stroke();
+      g.lineWidth=1.5; g.strokeStyle='rgba(255,255,255,.6)'; g.fillStyle='rgba(255,255,255,.75)'; g.font='600 9px Arial,sans-serif'; g.textAlign='center'; g.textBaseline='middle';
+      for(let v=0;v<=MAX;v+=20) { const t=ang(v), x=Math.cos(t), y=Math.sin(t);
+        g.beginPath(); g.moveTo(R+x*(R-20),R+y*(R-20)); g.lineTo(R+x*(R-26),R+y*(R-26)); g.stroke();
+        if(v%40===0) g.fillText(v,R+x*(R-35),R+y*(R-35)); }
+      const t=ang(kmh); g.beginPath(); g.moveTo(R,R); g.lineTo(R+Math.cos(t)*(R-18),R+Math.sin(t)*(R-18)); g.strokeStyle='#e55735'; g.lineWidth=2.5; g.stroke();
+      g.beginPath(); g.arc(R,R,4,0,7); g.fillStyle='#e55735'; g.fill();
+      g.fillStyle='#fff'; g.font='700 24px Arial,sans-serif'; g.fillText(Math.round(kmh),R,R+R*.42);
+      g.fillStyle='rgba(255,255,255,.6)'; g.font='600 9px Arial,sans-serif'; g.fillText(c.speed<-.5?'km/h · R':'km/h',R,R+R*.62);
+    }
     nitroFill.style.width=(c.nitro*100).toFixed(1)+'%';
     nitroBox.classList.toggle('boosting',c.boosting); nitroBox.classList.toggle('locked',c.nitroLocked);
     const now=performance.now();
@@ -573,14 +723,18 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   }
 
   const HINT_DRIVE='Driving · W/↑ drive · A/D or ←/→ steer · S/↓ brake · Space jump · Q/E relief · Shift boost · Esc pause';
+  const HINT_BOAT='Boating · W/↑ throttle · A/D or ←/→ steer · S/↓ reverse · Q/E relief · Shift boost · Esc pause';
+  const hintDrive=()=>playerCar.vehicle==='boat'?HINT_BOAT:HINT_DRIVE;
   let hintText='';
   function updateHint() {
     const deg=Math.round(Math.atan(playerCar.grade)*180/Math.PI);
+    if(playerCar.vehicle==='boat') { if(hintText!==HINT_BOAT) { hintText=HINT_BOAT; setHint(HINT_BOAT); } return; }
     const base=rain.left>0?`${HINT_DRIVE} · Rain shower: wet tyres`:HINT_DRIVE;
     const text=playerCar.stalled?(playerCar.nitroLocked?`Too steep (${deg}°) · nitro recharging, reverse out`:`Too steep (${deg}°) · hold Shift to boost, or reverse out`):Math.abs(deg)>=3?`${base} · slope ${deg>0?'+':''}${deg}°`:base;
     if(text!==hintText) { hintText=text; setHint(text); }
   }
 
+  let wetHere=0;
   function tick(dt) {
     if(!playerCar.selected) return false;
     dt=Math.min(.05,dt);
@@ -590,6 +744,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     const input={throttle, brake:driveKeys.has('KeyS'), steer:(driveKeys.has('KeyD')?1:0)-(driveKeys.has('KeyA')?1:0),
       boost:nitroStep(dt,throttle&&(driveKeys.has('ShiftLeft')||driveKeys.has('ShiftRight')))};
     rainStep(dt);
+    wetHere=isWet&&c.vehicle==='car'?clamp(+isWet(c.pos[0],c.pos[1])||0,0,1):0; // once per frame: it scans the rivers
     const n=Math.ceil(dt/(1/120)); // fixed small substeps keep the result independent of frame rate
     for(let i=0;i<n&&c.selected;i++) physicsStep(dt/n,input,mpp);
     if(c.selected&&!c.falling) { chaseCamera(dt); updateHint(); }
@@ -599,12 +754,12 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   }
 
   function keydown(e) {
-    if(e.code==='Escape') { if(playerCar.falling) { reset(); return; } cancelDrag(); if(choosing) { choosing=false; dock.classList.remove('choosing'); hideGhost(); setHint(''); refresh(); } else if(playerCar.placed&&!e.repeat) toggleSelected(); return; }
+    if(e.code==='Escape') { if(playerCar.falling) { reset(); return; } cancelDrag(); if(choosing) { stopChoosing(); setHint(''); refresh(); } else if(playerCar.placed&&!e.repeat) toggleSelected(); return; }
     const code=driveCode(e.code);
     if(!playerCar.selected||playerCar.falling||!driveCodes.has(code)||typing(e.target)) return;
     e.preventDefault();
     if(code==='KeyQ'||code==='KeyE') { if(!e.repeat) setRelief(code==='KeyE'?.1:-.1); }
-    else if(code==='Space') { if(!e.repeat&&playerCar.jump===0&&!playerCar.offEdge) playerCar.jumpV=jumpSpeed(metresPerPixel()); }
+    else if(code==='Space') { if(!e.repeat&&playerCar.vehicle==='car'&&playerCar.jump===0&&!playerCar.offEdge) playerCar.jumpV=jumpSpeed(metresPerPixel()); }
     else driveKeys.add(code);
   }
   function keyup(e) {
@@ -621,7 +776,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   addEventListener('keydown',keydown);
   addEventListener('keyup',keyup);
   addEventListener('change',e=>{ if(playerCar.selected&&!typing(e.target)) e.target.blur?.(); },true);
-  addEventListener('click',e=>{ const el=e.target.closest?.('button,label'); if(playerCar.selected&&el&&el!==dock) setTimeout(()=>{ if(!typing(document.activeElement)) document.activeElement?.blur?.(); }); },true);
+  addEventListener('click',e=>{ const el=e.target.closest?.('button,label'); if(playerCar.selected&&el&&!Object.values(docks).includes(el)) setTimeout(()=>{ if(!typing(document.activeElement)) document.activeElement?.blur?.(); }); },true);
   addEventListener('blur',()=>driveKeys.clear());
 
   function start(redraw) {
