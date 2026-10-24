@@ -143,7 +143,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   }
 
   function layer() {
-    const scale=Math.max(1,(saved?CHASE.carPx:34)*metresPerPixel()/4.5)*(playerCar.selected&&!saved?1.3:1);
+    const scale=Math.max(1,(saved?CHASE.drawPx:34)*metresPerPixel()/4.5)*(playerCar.selected&&!saved?1.3:1);
     const car=new deck.SimpleMeshLayer({
       id:'player-car', data:playerCar.placed?[playerCar]:[], mesh:carMesh, sizeScale:scale,
       getPosition:d=>[d.pos[0],d.pos[1],(d.falling?d.fallZ:d.offEdge?d.airZ:terrainHeightAt(d.pos[0],d.pos[1])+d.jump)+scale*1.2],
@@ -190,8 +190,8 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   // Third-person chase camera. The terrain is heavily exaggerated, so a ground-level map centre would sit far from the
   // elevated car; instead the camera is placed in 3D (free camera) behind and above the car, smoothed, and kept above the
   // ground. Distance is tied to the reference zoom so the car stays the same size on screen.
-  const CHASE={ zoom:10.5, elevation:24*Math.PI/180, follow:7, turn:3, carPx:100 };
-  let saved=null, rig=null;
+  const CHASE={ zoom:10.5, elevation:24*Math.PI/180, follow:7, turn:3, carPx:100, drawPx:55 } // carPx drives interactions; drawPx is only how big the model is drawn;
+  let saved=null, rig=null, viewScale=1; // viewScale only moves the camera; car size, speed and jumps stay tied to CHASE.zoom
   const handlers=['dragPan','dragRotate','touchZoomRotate','touchPitch','keyboard','doubleClickZoom','scrollZoom'];
   const chaseMpp=()=>78271.5*Math.cos(playerCar.pos[1]*Math.PI/180)/Math.pow(2,CHASE.zoom);
 
@@ -199,7 +199,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     saved={ center:map.getCenter(), enabled:handlers.filter(h=>map[h]?.isEnabled()), pitch:map.getPitch(), bearing:map.getBearing(), zoom:map.getZoom(), padding:map.getPadding(), maxPitch:map.getMaxPitch() };
     map.setMaxPitch(85);
     handlers.forEach(h=>map[h]?.disable());
-    rig=null;
+    rig=null; viewScale=1;
   }
 
   function exitChase(restoreView=false) {
@@ -212,7 +212,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
 
   function chaseCamera(dt) {
     if(!saved) return;
-    const c=playerCar, lat=c.pos[1], mpp=chaseMpp(), d=1.5*map.getContainer().clientHeight*mpp, k=r=>1-Math.exp(-r*dt);
+    const c=playerCar, lat=c.pos[1], mpp=chaseMpp(), d=1.5*map.getContainer().clientHeight*mpp*viewScale, k=r=>1-Math.exp(-r*dt);
     const wantH=c.heading;
     if(!rig) rig={ h:wantH };
     rig.h+=(((wantH-rig.h+3*Math.PI)%(2*Math.PI))-Math.PI)*k(CHASE.turn);
@@ -272,7 +272,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   // Jumps are sized in screen terms: peak ~JUMP_PX pixels high, ~JUMP_AIR seconds in the air, at any zoom.
   const JUMP_PX=60, JUMP_AIR=.7;
   const jumpGravity=mpp=>8*JUMP_PX*mpp/(JUMP_AIR*JUMP_AIR), jumpSpeed=mpp=>4*JUMP_PX*mpp/JUMP_AIR;
-  const MAX_CLIMB=Math.tan(32*Math.PI/180); // steepest slope (rise/run) the car can climb
+  const CLIMB_DEG=38, SIN_CLIMB=Math.sin(CLIMB_DEG*Math.PI/180); // the normal engine just stalls at this slope; boost climbs steeper
 
   // Keep an absolute altitude after crossing the edge: outside-grid heights must not snap the car to zero.
   // Hold the camera at the cliff so the fall stays visible, then restore the overview and dock.
@@ -304,30 +304,33 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     if(playerCar.falling) { fallStep(dt); return; }
     const boost=input.boost&&input.throttle, vmax=vmax0*(boost?4:1); // Shift: higher top speed and a much harder push
     const c=playerCar, engine=vmax0/1.5*(boost?7:1), sin=Math.sin(c.heading), cos=Math.cos(c.heading);
-    // Hill mechanics. Slope along the heading is sampled either side of the car (terrain as drawn, incl. relief) and
-    // low-passed so single rough cells don't jolt the car. Climbing costs traction: engine force fades to nothing as the
-    // slope approaches MAX_CLIMB, gravity drags the car back, and a face steeper than MAX_CLIMB stops it dead.
-    const span=Math.max(150,mpp*6), dLon=sin*span*metresToLon(c.pos[1]), dLat=cos*span*metresToLat;
+    // Hill mechanics, built on a few standard vehicle-game rules:
+    //  - Slope is read over the car's wheelbase (half a car length either side) and low-passed, so rough cells never jolt it.
+    //  - Gravity is a real force along the slope (sin of the angle) set so the normal engine just stalls at CLIMB_DEG.
+    //    Climbing therefore costs speed smoothly, and momentum carries you: arriving fast gets you up further than creeping.
+    //  - Boost multiplies engine force but not gravity, so it is the answer to a steep face.
+    //  - No hard wall: on a face the engine cannot hold the car just runs out of speed, then rolls back slowly (capped), and
+    //    reversing out or turning always works. A gentler slope the car can hold stays parked when you let go.
+    const span=Math.max(150,.5*CHASE.carPx*mpp), dLon=sin*span*metresToLon(c.pos[1]), dLat=cos*span*metresToLat;
     const raw=(terrainHeightAt(c.pos[0]+dLon,c.pos[1]+dLat)-terrainHeightAt(c.pos[0]-dLon,c.pos[1]-dLat))/(2*span);
-    c.grade+=(raw-c.grade)*(1-Math.exp(-10*dt));
+    c.grade+=(raw-c.grade)*(1-Math.exp(-8*dt));
     const grade=c.grade, airborne=c.jump>0||c.offEdge;
-    const climb=g=>Math.max(0,g)/MAX_CLIMB;                        // 0 flat/downhill → 1 at the limit
-    const topSpeed=g=>vmax*Math.max(0,1-climb(g));                 // the steeper the climb, the lower the speed the engine can hold
+    const sinTheta=grade/Math.hypot(1,grade), baseEngine=vmax0/1.5, G=baseEngine/SIN_CLIMB; // gravity scale: engine == G·sin(θ) at CLIMB_DEG
+    const pull=G*sinTheta;                                          // along-heading gravity (positive = holding you back when facing uphill)
     let a=0;
     if(!airborne) {
-      if(input.throttle) { const top=topSpeed(grade); a+=engine*(top>0?Math.max(-1,1-Math.max(0,c.speed)/top):-1); }
-      if(input.brake) { const top=.3*topSpeed(-grade); a+=c.speed>.02*vmax ? -engine*2.2 : -engine*2*Math.max(-.3,Math.min(.6,(top+c.speed)/vmax)); } // brake, then reverse up to a (slope-limited) crawl
-      if(!input.throttle) a-=c.speed*.35+Math.sign(c.speed)*engine*.12; // coasting: rolling resistance plus a little friction so it settles
-      if(!input.throttle||grade<0) a-=grade/Math.hypot(1,grade)*engine*.5; // gravity along the slope: pulls back uphill, speeds you up downhill
+      if(input.throttle) a+=engine*Math.max(-1,1-Math.max(0,c.speed)/vmax);
+      if(input.brake) a+=c.speed>.02*vmax ? -baseEngine*2.2 : -baseEngine*1.1; // brake, then reverse
+      if(!input.throttle) a-=c.speed*.35+Math.sign(c.speed)*baseEngine*.12;   // coasting: rolling resistance plus a little friction
+      a-=pull;
     }
     c.accel=a;
     let v=c.speed+a*dt;
-    const dir=input.throttle?1:input.brake&&c.speed<=.02*vmax?-1:(v>=0?1:-1);
-    const movingUp=dir*grade>=MAX_CLIMB;
-    c.stalled=!airborne&&movingUp&&(input.throttle||input.brake);
-    if(!airborne&&movingUp) v=v>0?Math.max(0,v-engine*5*dt):Math.min(0,v+engine*5*dt); // too steep: speed bleeds off to zero
-    if(!input.throttle&&!input.brake&&Math.abs(v)<.01*vmax&&Math.abs(grade)<MAX_CLIMB*.6) v=0; // parked on a hill it can hold
-    c.speed=Math.max(-.3*vmax,Math.min(vmax*1.15,v));
+    const cantHold=pull>=baseEngine*.98;                              // even full normal throttle can't push up this
+    c.stalled=!airborne&&input.throttle&&!boost&&cantHold&&v<.05*vmax;
+    if(!airborne&&cantHold&&v<0&&(input.throttle||input.brake)) v=Math.max(v,-.12*vmax); // rolls back, but never runs away
+    if(!input.throttle&&!input.brake&&Math.abs(v)<.01*vmax&&Math.abs(sinTheta)<SIN_CLIMB*.55) v=0; // parked on a slope it can hold
+    c.speed=Math.max(-.4*vmax,Math.min(vmax*1.15,v));
     // Steering: yaw rate follows speed (no turning on the spot), limited by lateral grip; reversing flips it like a real car.
     const radius=60*mpp, grip=Math.PI*.55, rate=Math.max(-1.6,Math.min(1.6,c.speed/radius))*input.steer*(1+2*c.wet);
     c.heading=((c.heading+Math.max(-grip,Math.min(grip,rate))*dt)%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
@@ -360,7 +363,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     c.pos[0]+=nLon; c.pos[1]+=nLat;
     // Skid marks: two rear-wheel tracks laid down while the car is visibly sliding.
     if(Math.abs(c.slip)>.18&&c.jump===0&&!c.offEdge&&Math.abs(c.speed)>.05*vmax) {
-      const L=CHASE.carPx*mpp, lat=c.pos[1], hs=Math.sin(c.heading), hc=Math.cos(c.heading), now=performance.now();
+      const L=CHASE.drawPx*mpp, lat=c.pos[1], hs=Math.sin(c.heading), hc=Math.cos(c.heading), now=performance.now();
       const wheel=side=>{ const f=-.3*L, s2=side*.2*L;
         const lon2=c.pos[0]+(hs*f+hc*s2)*metresToLon(lat), lat2=lat+(hc*f-hs*s2)*metresToLat;
         return [lon2,lat2,terrainHeightAt(lon2,lat2)+L*.02]; };
@@ -380,7 +383,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   let hintText='';
   function updateHint() {
     const deg=Math.round(Math.atan(playerCar.grade)*180/Math.PI);
-    const text=playerCar.stalled?`Too steep (${deg}°) · reverse out or turn`:Math.abs(deg)>=3?`${HINT_DRIVE} · slope ${deg>0?'+':''}${deg}°`:HINT_DRIVE;
+    const text=playerCar.stalled?`Too steep (${deg}°) · hold Shift to boost, or reverse out`:Math.abs(deg)>=3?`${HINT_DRIVE} · slope ${deg>0?'+':''}${deg}°`:HINT_DRIVE;
     if(text!==hintText) { hintText=text; setHint(text); }
   }
 
@@ -405,6 +408,12 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     else if(e.code==='Space') { if(!e.repeat&&playerCar.jump===0&&!playerCar.offEdge) playerCar.jumpV=jumpSpeed(metresPerPixel()); }
     else driveKeys.add(e.code);
   }
+  // Mouse wheel zooms the chase camera (towns appear/disappear with the map zoom); the car itself is unaffected.
+  map.getContainer().addEventListener('wheel',e=>{
+    if(!saved) return;
+    e.preventDefault();
+    viewScale=Math.min(8,Math.max(.2,viewScale*Math.exp(e.deltaY*.0015)));
+  },{passive:false});
   addEventListener('keydown',keydown);
   addEventListener('keyup',e=>driveKeys.delete(e.code));
   addEventListener('blur',()=>driveKeys.clear());
