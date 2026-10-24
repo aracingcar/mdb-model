@@ -106,14 +106,16 @@ def river_flows(basins, lateral, basin_flow):
         if line is not None:
             add(b, name, line, "channel", 1.0, basin_flow[b])
         side = _groups(ways, basin.geometry, chosen, beyond.get(b))
-        total = sum(km for _, _, km in side)
+        total = sum(km for n, _, km in side if n != MAINSTEM)
         for gname, gline, km in side:
-            add(b, gname, gline, "tributary", km / total, lateral[b] * km / total)
+            share = 0.0 if gname == MAINSTEM else km / total  # the main stem past the border is not routed here: kept, with no flow
+            add(b, gname, gline, "tributary", share, lateral[b] * share)
 
     for basin in basins[lowland].itertuples():
         plains = _groups(ways, basin.geometry, set(), beyond.get(basin.subcatchment))
-        total = sum(km for _, _, km in plains)
+        total = sum(km for n, _, km in plains if n != MAINSTEM)
         for gname, gline, km in plains:
-            add(basin.subcatchment, gname, gline, "lowland", km / total, lateral[basin.subcatchment] * km / total)
+            share = 0.0 if gname == MAINSTEM else km / total
+            add(basin.subcatchment, gname, gline, "lowland", share, lateral[basin.subcatchment] * share)
 
     return gpd.GeoDataFrame(rows, crs=basins.crs), pd.DataFrame(series)

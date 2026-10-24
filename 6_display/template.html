@@ -710,7 +710,7 @@ function interiorBorders(rings) {
   return out;
 }
 const BSEG = interiorBorders(D.units.flatMap(u => u.rings)), SSEG = interiorBorders(D.sdlBounds.flatMap(b => b.rings));
-let bounds, sdlZ, ctxZ, riverZ;
+let bounds, bufZ, sdlZ, ctxZ, riverZ;
 function buildZ() {  // ground-following geometry depends on the relief setting
   bounds = BSEG.map(sg => ({ path: sg.map(p => [p[0], p[1], p[2] * TERR + 200]) }));
   bufZ = D.outlineBuffer.map(r => ({ path: r.map(p => [p[0], p[1], p[2] * TERR + 200]) }));

@@ -50,6 +50,24 @@ def _rings(geom, dem=None, ndigits=4):
     return out
 
 
+def _drop_duplicate_borders(rivers, tol_m=100):
+    """A river along the border between two systems is kept by both (each keeps rivers up to OUTLINE_BUFFER_KM past its
+    own border). Where the same named river is drawn twice, remove the copy that carries no flow (share 0), or the later
+    one if neither does, so each stretch is drawn once and a routed copy wins over an unrouted one."""
+    metric = rivers.to_crs("EPSG:3577")
+    geoms = metric.geometry.copy()
+    for i in metric.index[metric["share"] == 0]:
+        other = metric.index[(metric["name"] == metric.at[i, "name"]) & (metric.index != i) & ((metric["share"] > 0) | (metric.index < i))]
+        if len(other) == 0:
+            continue
+        near = shapely.union_all(geoms.loc[other].values).buffer(tol_m)
+        geoms.at[i] = geoms.at[i].difference(near)
+    kept = ~geoms.is_empty & (geoms.length > 0)
+    out = rivers.copy()
+    out["geometry"] = gpd.GeoSeries(geoms, crs=metric.crs).to_crs(rivers.crs)
+    return out[kept].reset_index(drop=True)
+
+
 def _ribbon(line, mean_flow, peak, dem):
     width = 0.0018 + 0.0115 * np.sqrt(mean_flow / peak)
     ribbon = line.buffer(width, cap_style=2, join_style=2).simplify(0.001)
@@ -277,6 +295,7 @@ def run_display(run=DEFAULT_RUN, methods=(RAINFALL_RUNOFF_MODEL, ROUTING_MODEL))
     regions["geometry"] = regions.geometry.make_valid()  # the stored GeoJSON can carry tiny self-touches that break the union
     rivers = gpd.GeoDataFrame(pd.concat([geo[u]["rivers"] for u in geo], ignore_index=True), crs=regions.crs)
     river_flow = pd.concat([results[u][2] for u in geo], axis=1)
+    rivers = _drop_duplicate_borders(rivers)
     fringe = buffer_outline(shapely.union_all([geo[u]["outline"].geometry.union_all() for u in geo]))  # SDL outlines + OUTLINE_BUFFER_KM
     bx = np.array(fringe.bounds).reshape(2, 2)
     dem = Dem(np.concatenate([np.minimum(regions.total_bounds[:2], bx[0]), np.maximum(regions.total_bounds[2:], bx[1])]))
