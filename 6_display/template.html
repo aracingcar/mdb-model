@@ -186,15 +186,24 @@ const polys = D.units.flatMap(u => u.rings.map(r => ({ r, u, id: u.id })));
 const rivers = D.reaches.flatMap(x => x.rings.map(r => ({ r, id: x.unit, name: x.name, kind: x.kind })));
 const flowOf = d => BF[d.id][day];
 const riverBox = rivers.map(d => { let a = 1e9, b = 1e9, c = -1e9, e = -1e9; for (const p of d.r) { a = Math.min(a, p[0]); c = Math.max(c, p[0]); b = Math.min(b, p[1]); e = Math.max(e, p[1]); } return [a, b, c, e]; });
-function riverWetAt(lon, lat) {  // is this spot inside a river that is currently flowing?
+function inRing(r, lon, lat) {
+  let inside = false;
+  for (let k = 0, j = r.length - 1; k < r.length; j = k++) if ((r[k][1] > lat) !== (r[j][1] > lat) && lon < (r[j][0] - r[k][0]) * (lat - r[k][1]) / (r[j][1] - r[k][1]) + r[k][0]) inside = !inside;
+  return inside;
+}
+function riverWetAt(lon, lat) {  // how wet the ground is here, 0-1: flowing rivers soak the tyres, dry channels and rain clouds only partly
+  let wet = 0;
   for (let i = 0; i < rivers.length; i++) {
     const [a, b, c, e] = riverBox[i];
-    if (lon < a || lon > c || lat < b || lat > e || flowOf(rivers[i]) <= 0) continue;
-    const r = rivers[i].r; let inside = false;
-    for (let k = 0, j = r.length - 1; k < r.length; j = k++) if ((r[k][1] > lat) !== (r[j][1] > lat) && lon < (r[j][0] - r[k][0]) * (lat - r[k][1]) / (r[j][1] - r[k][1]) + r[k][0]) inside = !inside;
-    if (inside) return true;
+    if (lon < a || lon > c || lat < b || lat > e) continue;
+    const level = flowOf(rivers[i]) > 0 ? 1 : .5;
+    if (level > wet && inRing(rivers[i].r, lon, lat)) wet = level;
   }
-  return false;
+  if (wet < 1 && cache.discs) for (const d of cache.discs) {
+    const level = Math.min(.6, .25 + .35 * d.t);
+    if (level > wet && d.t > .1 && inRing(d.ring, lon, lat)) wet = level;
+  }
+  return wet;
 }
 const T = D.terrain;
 // ---- smooth terrain: one triangle mesh per subcatchment, shared vertices and per-vertex normals

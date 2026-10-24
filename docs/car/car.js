@@ -1,6 +1,6 @@
 /* MDB Model's selectable terrain car. This file is copied into docs/car for GitHub Pages. */
 window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief, pausePlayback, refresh, pickTerrain, isWet }) {
-  const playerCar = { kind:'playerCar', pos:[0,0], placed:false, heading:0, speed:0, selected:false, jump:0, jumpV:0, pitch:0, roll:0, pitchV:0, rollV:0, accel:0, grade:0, stalled:false, wet:0, course:0, slip:0, skids:[], falling:false, fallZ:0, fallV:0, fallTime:0, fallGravity:0 };
+  const playerCar = { kind:'playerCar', pos:[0,0], placed:false, heading:0, speed:0, selected:false, jump:0, jumpV:0, pitch:0, roll:0, pitchV:0, rollV:0, accel:0, grade:0, stalled:false, wet:0, course:0, slip:0, skids:[], offEdge:false, airZ:0, airV:0, falling:false, fallZ:0, fallV:0, fallTime:0, fallGravity:0 };
   const driveKeys = new Set(), driveCodes = new Set(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','ShiftLeft','ShiftRight']);
   const hint = document.createElement('div');
   hint.id = 'driveHint';
@@ -29,7 +29,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function place(pos) {
     if (!pos || !onTerrain(pos[0],pos[1])) return false;
     exitChase();
-    Object.assign(playerCar,{pos:pos.slice(0,2),placed:true,selected:true,heading:0,speed:0,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,stalled:false,wet:0,course:0,slip:0,skids:[],lastSkid:null,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
+    Object.assign(playerCar,{pos:pos.slice(0,2),placed:true,selected:true,heading:0,speed:0,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,stalled:false,wet:0,course:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
     driveKeys.clear(); choosing = false; dock.classList.remove('choosing');
     dock.classList.add('placed'); dock.blur();
     pausePlayback(); enterChase();
@@ -39,7 +39,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   }
   function reset() {
     exitChase(true);
-    Object.assign(playerCar,{placed:false,selected:false,speed:0,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,stalled:false,wet:0,course:0,slip:0,skids:[],lastSkid:null,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
+    Object.assign(playerCar,{placed:false,selected:false,speed:0,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,stalled:false,wet:0,course:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
     driveKeys.clear(); choosing=false;
     dock.classList.remove('placed','choosing'); hint.classList.remove('active');
     setHint('Drag the car onto the map to drive again.'); refresh();
@@ -47,7 +47,23 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function dropPosition(e) {
     const box=map.getContainer().getBoundingClientRect(), x=e.clientX-box.left, y=e.clientY-box.top;
     if(x<0||y<0||x>=box.width||y>=box.height) return null;
-    return pickTerrain(x,y);
+    const hit=pickTerrain(x,y);
+    if(hit&&onTerrain(hit[0],hit[1])) return hit;
+    // Missed the surface (ridge in the way, valley rim, or the void just beyond it): snap to the nearest drivable
+    // ground nearest to where the cursor points on the map, so a drop near the valley still lands.
+    const g=map.unproject([x,y]);
+    return g?nearestTerrain(g.lng,g.lat):null;
+  }
+  function nearestTerrain(lon,lat) {
+    const {x0,y0,step}=terrain, c0=Math.round((lon-x0)/step), r0=Math.round((y0-lat)/step);
+    for(let k=0;k<=150;k++) for(let dr=-k;dr<=k;dr++) {
+      const step2=Math.abs(dr)===k?1:2*k||1; // only the ring's perimeter
+      for(let dc=-k;dc<=k;dc+=step2) {
+        const cl=x0+(c0+dc)*step, lt=y0-(r0+dr)*step;
+        if(onTerrain(cl,lt)) return [cl,lt];
+      }
+    }
+    return null;
   }
   dock.addEventListener('pointerdown',e=>{
     if(e.button!==0) return;
@@ -130,11 +146,11 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     const scale=Math.max(1,(saved?CHASE.carPx:34)*metresPerPixel()/4.5)*(playerCar.selected&&!saved?1.3:1);
     const car=new deck.SimpleMeshLayer({
       id:'player-car', data:playerCar.placed?[playerCar]:[], mesh:carMesh, sizeScale:scale,
-      getPosition:d=>[d.pos[0],d.pos[1],(d.falling?d.fallZ:terrainHeightAt(d.pos[0],d.pos[1])+d.jump)+scale*1.2],
+      getPosition:d=>[d.pos[0],d.pos[1],(d.falling?d.fallZ:d.offEdge?d.airZ:terrainHeightAt(d.pos[0],d.pos[1])+d.jump)+scale*1.2],
       getOrientation:d=>[-d.roll*180/Math.PI,-d.heading*180/Math.PI,d.pitch*180/Math.PI], // deck: [about forward axis, yaw, about side axis]
       getColor:[255,255,255,255], _useMeshColors:true, pickable:true,
       material:{ambient:.55,diffuse:.7,shininess:30,specularColor:[80,80,80]},
-      updateTriggers:{getPosition:[playerCar.pos[0],playerCar.pos[1],getRelief(),playerCar.jump,playerCar.falling,playerCar.fallZ],getOrientation:[playerCar.heading,playerCar.pitch,playerCar.roll]}
+      updateTriggers:{getPosition:[playerCar.pos[0],playerCar.pos[1],getRelief(),playerCar.jump,playerCar.falling,playerCar.fallZ,playerCar.airZ,playerCar.offEdge],getOrientation:[playerCar.heading,playerCar.pitch,playerCar.roll]}
     });
     return car;
   }
@@ -201,7 +217,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     if(!rig) rig={ h:wantH };
     rig.h+=(((wantH-rig.h+3*Math.PI)%(2*Math.PI))-Math.PI)*k(CHASE.turn);
     const sin=Math.sin(rig.h), cos=Math.cos(rig.h), back=d*Math.cos(CHASE.elevation), up=d*Math.sin(CHASE.elevation);
-    const carZ=terrainHeightAt(c.pos[0],lat)+c.jump*.2; // camera only partly follows a jump so the car visibly leaves the ground
+    const carZ=c.offEdge?c.airZ:terrainHeightAt(c.pos[0],lat)+c.jump*.2; // camera only partly follows a jump so the car visibly leaves the ground
     const tx=c.pos[0]+sin*d*.45*metresToLon(lat), ty=lat+cos*d*.45*metresToLat;
     let cx=c.pos[0]-sin*back*metresToLon(lat), cy=lat-cos*back*metresToLat;
     let alt=Math.max(carZ+up, terrainHeightAt(cx,cy)+.25*d);
@@ -243,7 +259,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   }
 
   function updateTilt(dt,mpp,vmax) {
-    const c=playerCar, t=groundTilt(mpp), airborne=c.jump>0;
+    const c=playerCar, t=groundTilt(mpp), airborne=c.jump>0||c.offEdge;
     const squat=airborne?0:Math.max(-.06,Math.min(.06,c.accel/(vmax/1.5)*.05)); // nose lifts when accelerating, dips when braking
     const target=airborne?{pitch:Math.max(-.35,Math.min(.35,c.jumpV/jumpSpeed(mpp)*.3)),roll:0}:{pitch:t.pitch+squat,roll:t.roll+Math.max(-.3,Math.min(.3,c.slip*.35))};
     const k=70, d=11;
@@ -254,7 +270,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
 
   // Speeds are tied to the view: top speed crosses the screen in ~5 s, so the car moves across the map at any zoom.
   // Jumps are sized in screen terms: peak ~JUMP_PX pixels high, ~JUMP_AIR seconds in the air, at any zoom.
-  const JUMP_PX=45, JUMP_AIR=.8;
+  const JUMP_PX=60, JUMP_AIR=.7;
   const jumpGravity=mpp=>8*JUMP_PX*mpp/(JUMP_AIR*JUMP_AIR), jumpSpeed=mpp=>4*JUMP_PX*mpp/JUMP_AIR;
   const MAX_CLIMB=Math.tan(32*Math.PI/180); // steepest slope (rise/run) the car can climb
 
@@ -272,6 +288,18 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     if(c.fallTime>=2.6) reset();
   }
 
+  // Lowest point of the platform: once an airborne car sinks below this it can no longer get back on.
+  let minGZ=Infinity;
+  for(let i=0;i<terrain.GZ.length;i++) { const z=terrain.GZ[i]; if(Number.isFinite(z)&&z<minGZ) minGZ=z; }
+  const minPlatformZ=()=>(Number.isFinite(minGZ)?minGZ:0)*terrain.getExaggeration();
+
+  function startFall(mpp) {
+    const c=playerCar;
+    c.falling=true; c.fallZ=c.airZ; c.fallV=c.airV; c.fallTime=0; c.fallGravity=Math.max(900,mpp*50);
+    c.offEdge=false; c.stalled=false; driveKeys.clear();
+    setHint('Off the edge! Returning the car to its dock…');
+  }
+
   function physicsStep(dt, input, mpp, vmax0) {
     if(playerCar.falling) { fallStep(dt); return; }
     const boost=input.boost&&input.throttle, vmax=vmax0*(boost?4:1); // Shift: higher top speed and a much harder push
@@ -282,7 +310,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     const span=Math.max(150,mpp*6), dLon=sin*span*metresToLon(c.pos[1]), dLat=cos*span*metresToLat;
     const raw=(terrainHeightAt(c.pos[0]+dLon,c.pos[1]+dLat)-terrainHeightAt(c.pos[0]-dLon,c.pos[1]-dLat))/(2*span);
     c.grade+=(raw-c.grade)*(1-Math.exp(-10*dt));
-    const grade=c.grade, airborne=c.jump>0;
+    const grade=c.grade, airborne=c.jump>0||c.offEdge;
     const climb=g=>Math.max(0,g)/MAX_CLIMB;                        // 0 flat/downhill → 1 at the limit
     const topSpeed=g=>vmax*Math.max(0,1-climb(g));                 // the steeper the climb, the lower the speed the engine can hold
     let a=0;
@@ -301,31 +329,37 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     if(!input.throttle&&!input.brake&&Math.abs(v)<.01*vmax&&Math.abs(grade)<MAX_CLIMB*.6) v=0; // parked on a hill it can hold
     c.speed=Math.max(-.3*vmax,Math.min(vmax*1.15,v));
     // Steering: yaw rate follows speed (no turning on the spot), limited by lateral grip; reversing flips it like a real car.
-    const radius=60*mpp, grip=Math.PI*.55, rate=Math.max(-1.6,Math.min(1.6,c.speed/radius))*input.steer*(1+1.6*c.wet);
+    const radius=60*mpp, grip=Math.PI*.55, rate=Math.max(-1.6,Math.min(1.6,c.speed/radius))*input.steer*(1+2*c.wet);
     c.heading=((c.heading+Math.max(-grip,Math.min(grip,rate))*dt)%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
     // Carry momentum over the edge and fall before returning to the dock.
     // Wet tyres (in a flowing river, drying over a few seconds) lose grip: the car keeps travelling along its old course
     // while the nose swings round, so it drifts. Dry, the course follows the heading exactly.
-    c.wet=isWet&&isWet(c.pos[0],c.pos[1])&&c.jump===0 ? Math.min(1,c.wet+dt*4) : Math.max(0,c.wet-dt/14);
-    const gripRate=c.wet>.02 ? (.45+Math.pow(1-c.wet,2)*14)+Math.max(0,1-Math.abs(c.speed)/(.12*vmax))*30 : Infinity;
+    const soak=isWet&&c.jump===0 ? Math.max(0,Math.min(1,+isWet(c.pos[0],c.pos[1])||0)) : 0; // 0 dry … 1 flowing river
+    c.wet=soak>c.wet ? Math.min(soak,c.wet+dt*4) : Math.max(0,c.wet-dt/2.5);
+    const gripRate=c.wet>.02 ? (.3+Math.pow(1-c.wet,2)*14)+Math.max(0,1-Math.abs(c.speed)/(.12*vmax))*30 : Infinity;
     if(gripRate===Infinity) { c.course=c.heading; c.slip=0; }
     else {
       const slip=((c.heading-c.course+3*Math.PI)%(2*Math.PI))-Math.PI;
       c.course+=slip*(1-Math.exp(-gripRate*dt));
       c.speed*=Math.exp(-dt*.35*Math.min(1,Math.abs(slip)));
-      const s2=Math.max(-1,Math.min(1,((c.heading-c.course+3*Math.PI)%(2*Math.PI))-Math.PI)); c.course=c.heading-s2; c.slip=s2; // slide angle capped near 57°
+      const s2=Math.max(-1.15,Math.min(1.15,((c.heading-c.course+3*Math.PI)%(2*Math.PI))-Math.PI)); c.course=c.heading-s2; c.slip=s2; // slide angle capped near 57°
     }
     const dist=c.speed*dt, nLon=Math.sin(c.course)*dist*metresToLon(c.pos[1]), nLat=Math.cos(c.course)*dist*metresToLat;
-    if(!onTerrain(c.pos[0]+nLon,c.pos[1]+nLat)) {
-      c.falling=true; c.fallZ=terrainHeightAt(c.pos[0],c.pos[1])+c.jump;
-      c.fallV=c.jumpV; c.fallTime=0; c.fallGravity=Math.max(900,mpp*50);
-      c.stalled=false; driveKeys.clear();
-      setHint('Off the edge! Returning the car to its dock…');
-      fallStep(dt); return;
+    const nextOn=onTerrain(c.pos[0]+nLon,c.pos[1]+nLat);
+    if(!nextOn&&!c.offEdge) { // leaving the platform: carry on as a projectile from the current altitude
+      c.offEdge=true; c.airZ=terrainHeightAt(c.pos[0],c.pos[1])+c.jump; c.airV=c.jumpV; c.jump=0; c.jumpV=0; c.lastSkid=null;
+    }
+    if(c.offEdge) {
+      c.airV-=jumpGravity(mpp)*dt; c.airZ+=c.airV*dt;
+      if(nextOn) {
+        const ground=terrainHeightAt(c.pos[0]+nLon,c.pos[1]+nLat);
+        if(c.airZ>=ground) { c.offEdge=false; c.jump=c.airZ-ground; c.jumpV=c.airV; } // back over the platform: land or keep flying
+        else { startFall(mpp); fallStep(dt); return; }                                  // came back in below the surface: hit the cliff
+      } else if(c.airZ<minPlatformZ()) { startFall(mpp); fallStep(dt); return; }        // dropped below the platform's lowest point
     }
     c.pos[0]+=nLon; c.pos[1]+=nLat;
     // Skid marks: two rear-wheel tracks laid down while the car is visibly sliding.
-    if(Math.abs(c.slip)>.18&&c.jump===0&&Math.abs(c.speed)>.05*vmax) {
+    if(Math.abs(c.slip)>.18&&c.jump===0&&!c.offEdge&&Math.abs(c.speed)>.05*vmax) {
       const L=CHASE.carPx*mpp, lat=c.pos[1], hs=Math.sin(c.heading), hc=Math.cos(c.heading), now=performance.now();
       const wheel=side=>{ const f=-.3*L, s2=side*.2*L;
         const lon2=c.pos[0]+(hs*f+hc*s2)*metresToLon(lat), lat2=lat+(hc*f-hs*s2)*metresToLat;
@@ -354,7 +388,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     if(!playerCar.selected) return false;
     dt=Math.min(.05,dt);
     const c=playerCar, old=[c.pos[0],c.pos[1],c.heading,c.speed,c.jump,c.pitch,c.roll];
-    const mpp=metresPerPixel(), vmax=map.getContainer().clientWidth*mpp/5;
+    const mpp=metresPerPixel(), vmax=map.getContainer().clientWidth*mpp/3.3;
     const input={throttle:driveKeys.has('KeyW'), brake:driveKeys.has('KeyS'), steer:(driveKeys.has('KeyD')?1:0)-(driveKeys.has('KeyA')?1:0), boost:driveKeys.has('ShiftLeft')||driveKeys.has('ShiftRight')};
     const n=Math.ceil(dt/(1/120)); // fixed small substeps keep the result independent of frame rate
     for(let i=0;i<n&&c.selected;i++) physicsStep(dt/n,input,mpp,vmax);
@@ -368,7 +402,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     if(!playerCar.selected||playerCar.falling||!driveCodes.has(e.code)||e.target.matches?.('input,button,a')) return;
     e.preventDefault();
     if(e.code==='KeyQ'||e.code==='KeyE') { if(!e.repeat) setRelief(e.code==='KeyE'?.1:-.1); }
-    else if(e.code==='Space') { if(!e.repeat&&playerCar.jump===0) playerCar.jumpV=jumpSpeed(metresPerPixel()); }
+    else if(e.code==='Space') { if(!e.repeat&&playerCar.jump===0&&!playerCar.offEdge) playerCar.jumpV=jumpSpeed(metresPerPixel()); }
     else driveKeys.add(e.code);
   }
   addEventListener('keydown',keydown);
