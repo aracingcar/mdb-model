@@ -21,6 +21,7 @@ SDL_UNITS = {
     "SS1": {"name": "ACT", "system": "murrumbidgee", "ecology": None},
     "SS16": {"name": "Lachlan", "system": "lachlan", "ecology": None},
     "SS18": {"name": "Lower Darling", "system": "lower_darling", "ecology": None},
+    "SS14": {"name": "NSW Murray", "system": "nsw_murray", "ecology": None},
 }
 
 # River systems: the units whose rivers form one network, routed together across unit borders (the upper
@@ -32,6 +33,8 @@ SDL_UNITS = {
 # splits: {basin: {to: fraction}} sends that share of a basin's routed outflow to another basin, or out of the river
 #   with to = '' (e.g. into a terminal wetland); the rest goes on to its downstream basin.
 # other_rivers (optional): rivers of other systems that run through this one; they are not given this system's flow.
+# min_network_km2 (optional): also give reaches to every other drainage network at least this big that leaves the
+#   system elsewhere (by default only the main network gets reaches and the rest joins the lowland).
 SYSTEMS = {
     "murrumbidgee": {
         "units": ("SS15", "SS1"), "n_subcatchments": 11, "mainstem": "Murrumbidgee River",
@@ -49,8 +52,16 @@ SYSTEMS = {
         "routing": {"loss_regions": None, "target_outlet_m3s": None},  # no calibration gauge chosen yet
         "splits": {},
     },
+    # Local runoff only: the Murray's own flow from upstream (Hume), Victoria's tributaries and the Murrumbidgee and
+    # Darling are not routed in. The Murray channel is the state border, so its basins mostly fall outside SS14; the
+    # NSW catchments that drain straight into it (the upper Murray, the Edward-Wakool) are separate networks.
+    "nsw_murray": {
+        "units": ("SS14",), "n_subcatchments": 11, "mainstem": "Murray River", "min_network_km2": 500, "other_rivers": ("Murrumbidgee River",),
+        "routing": {"loss_regions": None, "target_outlet_m3s": None},  # no calibration gauge chosen yet
+        "splits": {},
+    },
 }
-DISPLAY_SYSTEMS = ("murrumbidgee", "lachlan", "lower_darling")  # drawn together on docs/index.html
+DISPLAY_SYSTEMS = ("murrumbidgee", "lachlan", "lower_darling", "nsw_murray")  # drawn together on docs/index.html
 SYSTEM_ID = os.environ.get("SYSTEM", DISPLAY_SYSTEMS[0])  # the system this process models (main.py sets it per system)
 SYSTEM = SYSTEMS[SYSTEM_ID]
 UNITS = SYSTEM["units"]

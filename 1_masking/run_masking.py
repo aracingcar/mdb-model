@@ -3,7 +3,7 @@ import pandas as pd
 from average import areal_average, unit_averages
 from catchment import load_units
 from evap_grid import evap_anomaly_grids
-from config import HYBAS_FILE, KEEP_RAW, N_SUBCATCHMENTS, NARCLIM_DIR, RUN_KEY, SYSTEM_ID, UNITS, VARIABLES, YEARS
+from config import HYBAS_FILE, KEEP_RAW, N_SUBCATCHMENTS, NARCLIM_DIR, RUN_KEY, SYSTEM, SYSTEM_ID, UNITS, VARIABLES, YEARS
 from download import download
 from load import load_narclim
 from results_db import load_climate, save_climate
@@ -40,7 +40,7 @@ def run_masking():
     reaches (and lowlands) for display. Each unit's reduced climate is stored in the database under its SDL unit.
     """
     units = load_units()
-    subcatchments, basins = terrain_regions(units, HYBAS_FILE, n=N_SUBCATCHMENTS)
+    subcatchments, basins = terrain_regions(units, HYBAS_FILE, n=N_SUBCATCHMENTS, min_network_km2=SYSTEM.get("min_network_km2"))
     of = lambda frame, u: frame[frame["sdl_unit"] == u]
     if any(load_climate(u, RUN_KEY, of(subcatchments, u), of(basins, u)) is None for u in UNITS):
         print(f"1_masking: no stored climate for {SYSTEM_ID} {'/'.join(RUN_KEY)}, reducing NARCliM")

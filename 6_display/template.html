@@ -459,6 +459,21 @@ const PLACES = [
   ['Pooncarie',142.5700,-33.3860,'town',7.5],
   ['Euston',142.7440,-34.5770,'town',8.5],
   ['Dareton',142.0420,-34.0940,'town',9],
+  ['Albury',146.9160,-36.0800,'city',0],
+  ['Deniliquin',144.9580,-35.5320,'town',0],
+  ['Corowa',146.3880,-35.9940,'town',7],
+  ['Moama',144.7550,-36.1100,'town',7],
+  ['Tocumwal',145.5650,-35.8120,'town',7.5],
+  ['Barham',144.1300,-35.6300,'town',7.5],
+  ['Tumbarumba',148.0110,-35.7770,'town',7.5],
+  ['Finley',145.5750,-35.6460,'town',8],
+  ['Berrigan',145.8100,-35.6570,'town',8.5],
+  ['Mulwala',146.0060,-35.9850,'town',8.5],
+  ['Khancoban',148.1250,-36.2170,'town',8.5],
+  ['Howlong',146.6320,-35.9800,'town',9],
+  ['Mathoura',144.9010,-35.8120,'town',9],
+  ['Tooleybuc',143.3400,-35.0290,'town',9],
+  ['Wakool',144.3940,-35.4700,'town',9.5],
 ].map(([name,lon,lat,kind,minZoom]) => {
   const c = Math.round((lon - T.x0) / T.step), r = Math.round((T.y0 - lat) / T.step);
   const z = r >= 0 && r < NR && c >= 0 && c < NC ? GZ[r * NC + c] : NaN;

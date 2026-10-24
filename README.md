@@ -1,6 +1,6 @@
 # MDB model
 
-Daily climate-to-ecology chain for Murray–Darling Basin surface water SDL resource units, currently the Murrumbidgee (SS15), ACT (SS1), Lachlan (SS16) and Lower Darling (SS18), run with `python main.py`.
+Daily climate-to-ecology chain for Murray–Darling Basin surface water SDL resource units, currently the Murrumbidgee (SS15), ACT (SS1), Lachlan (SS16), Lower Darling (SS18) and NSW Murray (SS14), run with `python main.py`.
 
 1. `1_masking`: NARCliM2.0 4 km P and PET (ACCESS-ESM1-5, SSP2-4.5) area-weighted over terrain-derived reaches (HydroBASINS) inside the MDBA SDL unit outlines.
 2. `2_rainfall_runoff`: GR4J per basin (uncalibrated).
@@ -13,7 +13,7 @@ SDL units that share a river network are modelled together as a river system (`S
 
 The MDB Model driving controls live in `6_display/car/`. Their browser-ready files are copied to `docs/car/` by `python 6_display/car/build.py` and whenever the display build runs.
 
-The model is uncalibrated and indicative only. The Lachlan has no calibration gauge yet, so its routed flow carries no losses and is far too high for a terminal river. The Lower Darling carries only its own local runoff: the Darling's inflow from the Barwon–Darling and the northern Basin is not modelled.
+The model is uncalibrated and indicative only. The Lachlan has no calibration gauge yet, so its routed flow carries no losses and is far too high for a terminal river. The Lower Darling carries only its own local runoff: the Darling's inflow from the Barwon–Darling and the northern Basin is not modelled. The NSW Murray is local runoff only too: the Murray's flow from upstream, Victoria's tributaries and the Murrumbidgee and Darling are not routed in. Its main terrain network, and so its outlet, is the Edward–Wakool; the NSW catchments that drain straight into the Murray (such as the upper Murray) are reaches of their own (`min_network_km2`).
 
 Climate runs are stored once per SDL unit, reduced, in `data/results.db` (`climate` table: unit, reach and basin P/PET series plus the display's 4 km evaporation anomaly field). If a run is not in the database, `main.py` downloads its NARCliM subsets to `data/input/narclim/<system>/<global_model>/<scenario>/<regional_config>/`, reduces them, stores the result and deletes the raw `.nc` files (set `KEEP_RAW=1` to keep them). Choose the run with the `GLOBAL_MODEL`, `SCENARIO` and `REGIONAL_CONFIG` environment variables (defaults `ACCESS-ESM1-5`, `ssp245`, `WRF412R5`). Later runs read straight from the database, so a full run takes seconds.
 Inputs fetched by scripts: SDL unit outlines (`python 1_masking/download_sdl_units.py`), OpenStreetMap waterways per system (`SYSTEM=<system> python 3_routing/download_osm_waterways.py`) and display roads (`python 6_display/fetch_roads.py`).

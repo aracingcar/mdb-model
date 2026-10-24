@@ -7,7 +7,7 @@ MIN_OVERLAP = 0.5  # keep basins at least half inside the system
 MIN_LOWLAND = 0.01  # a unit's leftover area smaller than this share of the unit is dropped instead of becoming a lowland unit
 
 
-def terrain_regions(units, hybas_file, n=12):
+def terrain_regions(units, hybas_file, n=12, min_network_km2=None):
     """Aggregate the HydroBASINS watersheds of a river system into reaches, each inside one SDL unit, plus one lowland
     unit per SDL unit for the plains HydroBASINS has no drainage for. ``units`` are the system's SDL unit outlines,
     indexed by unit ID. Returns (regions, basins): the reaches and lowlands, and the individual watersheds with their
@@ -18,6 +18,8 @@ def terrain_regions(units, hybas_file, n=12):
     crosses k/n of the system total, plus every basin whose water flows on into another unit. Each reach is its outlet
     basin plus every basin draining to it, so tributaries stay with their reach and no reach crosses a unit border.
     from_outlet numbers the main-stem reaches from the system outlet (1 = the outlet reach); other basins get 0.
+    Other drainage networks (draining out of the system elsewhere) join the lowland, unless min_network_km2 is set:
+    then each one at least that big is kept as a reach of its own, ending where it leaves the system.
     """
     polys = units.to_crs(AREA_CRS).geometry
     system = polys.union_all()
@@ -57,7 +59,8 @@ def terrain_regions(units, hybas_file, n=12):
     if stem[-1] not in stem_outlets:
         stem_outlets.append(stem[-1])
     crossings = [i for i, d in nxt.items() if basins.at[i, "sdl_unit"] != basins.at[d, "sdl_unit"]]
-    outlets = sorted(set(stem_outlets) | set(crossings), key=up_area)  # roughly upstream to downstream
+    networks = [s for s in sinks if s != outlet and min_network_km2 is not None and up_area(s) >= min_network_km2 * 1e6]
+    outlets = sorted(set(stem_outlets) | set(crossings) | set(networks), key=up_area)  # roughly upstream to downstream
 
     def region_of(i):
         while i not in outlets:
@@ -87,7 +90,7 @@ def terrain_regions(units, hybas_file, n=12):
             "subcatchment": code[out], "sdl_unit": unit_of[out], "route_order": order,
             "region_name": f"Reach {code[out].split('-SC')[1].lstrip('0')} (outlet HYBAS {out})",
             "upstream_boundary": ", ".join(f"{o} outlet" for o in ups) or "Headwaters",
-            "downstream_boundary": f"{code[down]} (flows on)" if down else "System outlet",
+            "downstream_boundary": f"{code[down]} (flows on)" if down else ("System outlet" if out == outlet else "Leaves the system"),
             "area_km2": geom.area / 1e6, "outlet_basin": f"B{out}", "unit_outlet": f"B{unit_outlet[unit_of[out]]}", "geometry": geom,
         })
     covered = kept.geometry.union_all()
@@ -108,6 +111,8 @@ def terrain_regions(units, hybas_file, n=12):
                          "from_outlet": 0, "area_km2": rest.area / 1e6, "geometry": rest})
     regions = gpd.GeoDataFrame(rows, crs=AREA_CRS).to_crs(units.crs)
 
+    if networks:  # routing calibrates at the first basin with no downstream link, so keep the system outlet first
+        kept = kept.loc[[outlet] + [i for i in kept.index if i != outlet]]
     kept["subcatchment"] = [f"B{i}" for i in kept.index]
     kept["next_id"] = [f"B{nxt[i]}" if i in nxt else "" for i in kept.index]
     kept["from_outlet"] = kept["region"].map(lambda o: from_outlet.get(o, 0)).astype(int)
