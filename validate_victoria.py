@@ -17,7 +17,7 @@ from run_rainfall_runoff import run_rainfall_runoff
 from muskingum import M3S_TO_ML_DAY, PARAMS, delivery, route
 from terrain_regions import AREA_CRS, terrain_regions
 
-assert SYSTEM_ID in ('vic_murray', 'goulburn_broken')
+assert SYSTEM_ID in ('murray',)
 units = load_units()
 subs, basins = terrain_regions(units, HYBAS_FILE, SYSTEM['n_subcatchments'], SYSTEM.get('min_network_km2'))
 names = set(basins.subcatchment)

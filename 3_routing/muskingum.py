@@ -28,8 +28,10 @@ def delivery(p, n):
 def _network(runoff, basins, p):
     downstream = dict(zip(basins["subcatchment"], basins["next_id"]))
     lossy = dict(zip(basins["subcatchment"], basins["from_outlet"].between(1, p["loss_regions"] or 0)))
-    # reach length ~ 1.5 x sqrt(area); K = length / velocity, kept inside the 1-day Muskingum stability range
-    k = {n: float(np.clip(1.5 * np.sqrt(a) / p["velocity_km_day"], 0.7, 2.4)) for n, a in zip(basins["subcatchment"], basins["area_km2"])}
+    # K = channel length / velocity, kept inside the 1-day Muskingum stability range. The length is the river's run through
+    # the basin from HydroBASINS' distance-to-sink; where it has none (lowlands, a system outlet) 1.5 x sqrt(area) stands in.
+    length = basins["length_km"].where(basins["length_km"] > 0, 1.5 * np.sqrt(basins["area_km2"]))
+    k = {n: float(np.clip(l / p["velocity_km_day"], 0.7, 2.4)) for n, l in zip(basins["subcatchment"], length)}
     lateral = {n: runoff[n] * delivery(p, n) for n in runoff.columns}
     return downstream, lossy, k, lateral
 

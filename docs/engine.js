@@ -54,7 +54,7 @@ const ROUTING = {
     const feeds = basins.map(() => []);
     basins.forEach((b, i) => { if (b.next) feeds[idx[b.next]].push([i, 1 - Object.values(b.splits || {}).reduce((a, v) => a + v, 0)]); });
     basins.forEach((b, i) => { for (const [to, share] of Object.entries(b.splits || {})) if (to) feeds[idx[to]].push([i, share]); });
-    const k = basins.map(b => Math.min(2.4, Math.max(0.7, 1.5 * Math.sqrt(b.area) / p.velocity_km_day)));
+    const k = basins.map(b => Math.min(2.4, Math.max(0.7, (b.length > 0 ? b.length : 1.5 * Math.sqrt(b.area)) / p.velocity_km_day)));
     // upstream before downstream
     const order = [], state = new Array(basins.length).fill(0);
     const visit = i => {
