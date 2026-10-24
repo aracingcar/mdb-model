@@ -1,0 +1,12 @@
+{
+  "source": "OpenStreetMap contributors via Overpass API",
+  "endpoint": "https://overpass-api.de/api/interpreter",
+  "query": "way[waterway~\"^(river|stream|canal|drain|ditch)$\"] within catchment bounding box, clipped to MDBA SDL resource units SS6, SS5 grown by 3 km",
+  "downloaded_at_utc": "2026-10-24T22:06:53.443523+00:00",
+  "elements_in_response": 84558,
+  "features_after_clip": 55220,
+  "output": "data/input/routing/osm_goulburn_broken_waterways.geojson",
+  "attribution": "\u00a9 OpenStreetMap contributors",
+  "license": "Open Database License (ODbL) 1.0",
+  "license_url": "https://www.openstreetmap.org/copyright"
+}

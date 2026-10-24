@@ -135,4 +135,5 @@ def terrain_regions(units, hybas_file, n=12, min_network_km2=None):
     kept.index.name = "hybas_id"
     columns = ["subcatchment", "hybas_id", "next_id", "region", "sdl_unit", "from_outlet", "area_km2", "length_km", "geometry"]
     network = pd.concat([kept.reset_index()[columns], gpd.GeoDataFrame(lowlands, columns=columns, crs=AREA_CRS)], ignore_index=True)
+    network[["area_km2", "length_km"]] = network[["area_km2", "length_km"]].astype(float)  # object dtype when there are no lowlands
     return regions, _project_polygons(gpd.GeoDataFrame(network, crs=AREA_CRS), units.crs)

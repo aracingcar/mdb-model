@@ -7,5 +7,5 @@ ALGORITHM = "muskingum"
 PARAMS = {**muskingum.PARAMS, "x": 0.15, "velocity_km_day": 64.8, "delivery": {"LOWLAND": 0.08}, "target_scale": 24 / 27}
 
 
-def route(runoff, basins, subcatchments):
-    return muskingum.route(runoff, basins, subcatchments, PARAMS)
+def route(runoff, basins, subcatchments, *, basin_forcing=None):
+    return muskingum.route(runoff, basins, subcatchments, PARAMS, basin_forcing=basin_forcing)

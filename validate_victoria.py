@@ -55,14 +55,21 @@ for u in UNITS:
                  'rivers': len(rivers), 'mean_outlet_ML_d': float(stored[0].mean()),
                  'unit_outlet': subs.loc[subs.sdl_unit == u, 'unit_outlet'].iloc[0]}
 runoff = run_rainfall_runoff(pd.concat(forcing, axis=1), basins)
-unit_flow, _, flow, _, _ = route(runoff, basins, subs)
+unit_flow, _, flow, _, _ = route(runoff, basins, subs, basin_forcing=pd.concat(forcing, axis=1))
 for u, series in unit_flow.items():
     np.testing.assert_array_equal(series.to_numpy(), load_results(u, RUN_KEY, ('gr4j', 'muskingum'))[0].to_numpy())
 sinks = basins.loc[basins.next_id == '', 'subcatchment'].tolist()
-lateral = sum(float(runoff[n].sum()) * delivery(PARAMS, n) for n in runoff) * M3S_TO_ML_DAY
+from channel_fluxes import channel_inputs
+from nodes import build_nodes
+nodes = build_nodes(basins, SYSTEM.get('storages'))
+local, _ = channel_inputs(runoff, nodes, basins, pd.concat(forcing, axis=1), PARAMS, delivery)
+lateral = sum(float(v.sum()) for v in local.values()) * M3S_TO_ML_DAY
+budget = flow.attrs['channel_budget_ML'].sum()
+held = sum(float(df.stored_ML.iloc[-1]) for df in flow.attrs["storages"].values())
+expected_outflow = lateral + budget.rain_ML - budget.evap_ML - budget.seepage_ML - budget.misc_ML - held
 outflow = float(flow[sinks].sum().sum())
-error = abs(outflow - lateral) / lateral
-assert error < 0.001, error
+error = abs(outflow - expected_outflow) / max(lateral, 1.)
+assert error < 0.001, error  # small start/end channel routing storage difference
 owner = basins.set_index('subcatchment').sdl_unit.to_dict()
 crossings = [{'from': r.subcatchment, 'to': r.next_id, 'from_unit': r.sdl_unit, 'to_unit': owner[r.next_id]}
              for r in basins.itertuples() if r.next_id and owner[r.next_id] != r.sdl_unit]

@@ -29,8 +29,8 @@ SDL_UNITS = {
     "SS18": {"name": "Lower Darling", "system": "lower_darling", "ecology": None},
     "SS14": {"name": "NSW Murray", "system": "murray", "ecology": None},
     "SS2": {"name": "Victorian Murray", "system": "murray", "ecology": None},
-    "SS6": {"name": "Goulburn", "system": "murray", "ecology": None},
-    "SS5": {"name": "Broken", "system": "murray", "ecology": None},
+    "SS6": {"name": "Goulburn", "system": "goulburn_broken", "ecology": None},
+    "SS5": {"name": "Broken", "system": "goulburn_broken", "ecology": None},
     "SS3": {"name": "Kiewa", "system": "murray", "ecology": None},
     "SS4": {"name": "Ovens", "system": "murray", "ecology": None},
 }
@@ -39,10 +39,13 @@ SDL_UNITS = {
 # Murrumbidgee flows into the ACT, SS1, and the ACT drains back into SS15). Per system:
 # n_subcatchments: main-stem reaches asked for (large HydroBASINS basins can merge some); every place a river leaves
 #   a unit also ends a reach, so reaches never cross unit borders.
-# routing: one fractional loss at the outlet of every basin in the last loss_regions main-stem reaches, calibrated so
-#   the mean outlet flow matches target_outlet_m3s. Both None: no loss, the routed flow is left uncalibrated.
+# routing: miscellaneous loss/km at basin outlets in the last loss_regions main-stem reaches, calibrated so
+#   the mean outlet flow matches target_outlet_m3s after channel fluxes. Both None: provisional losses, no fitting.
 # splits: {basin: {to: fraction}} sends that share of a basin's routed outflow to another basin, or out of the river
 #   with to = '' (e.g. into a terminal wetland); the rest goes on to its downstream basin.
+# storages (optional): {name: {lon, lat, max_release_ML_d}} dams, each placed on the routing node containing it. A storage
+#   releases up to max_release_ML_d a day (less if it holds less), keeps the rest and never spills (no capacity limit).
+#   The release caps are indicative placeholders, not operating rules.
 # other_rivers (optional): rivers of other systems that run through this one; they are not given this system's flow.
 # min_network_km2 (optional): also give reaches to every other drainage network at least this big that leaves the
 #   system elsewhere (by default only the main network gets reaches and the rest joins the lowland).
@@ -51,11 +54,14 @@ SYSTEMS = {
         "units": ("SS15", "SS1"), "n_subcatchments": 11, "mainstem": "Murrumbidgee River",
         "routing": {"loss_regions": 3, "target_outlet_m3s": 27.0},  # recorded mean at Balranald, ~27 m3/s (Wikipedia, "Murrumbidgee River")
         "splits": {},
+        "storages": {"Burrinjuck Dam": {"lon": 148.58, "lat": -35.00, "max_release_ML_d": 8000},
+                     "Blowering Dam": {"lon": 148.26, "lat": -35.41, "max_release_ML_d": 12000}},
     },
     "lachlan": {
         "units": ("SS16",), "n_subcatchments": 11, "mainstem": "Lachlan River",
         "routing": {"loss_regions": None, "target_outlet_m3s": None},  # terminal river: no calibration gauge chosen yet
         "splits": {},
+        "storages": {"Wyangala Dam": {"lon": 148.97, "lat": -33.97, "max_release_ML_d": 6000}},
     },
     # Local runoff only: the Darling's inflow from the Barwon-Darling (SS19) and the northern Basin is not modelled.
     "lower_darling": {
@@ -63,18 +69,29 @@ SYSTEMS = {
         "routing": {"loss_regions": None, "target_outlet_m3s": None},  # no calibration gauge chosen yet
         "splits": {},
     },
-    # One connected Murray network: NSW Murray, Victorian Murray, Kiewa, Ovens, Goulburn and Broken. HydroBASINS' own
-    # downstream links route the Kiewa, Ovens, Goulburn and Broken into the Murray, and every place a river crosses a unit
-    # border ends a reach. Local runoff only: the Murrumbidgee and Darling, Snowy releases and regulation are not routed in,
-    # so the flows are uncalibrated.
+    # The Murray with its Victorian tributaries the Kiewa and Ovens, routed into it through HydroBASINS' downstream links.
+    # Local runoff only: the Murrumbidgee and Darling, Snowy releases and regulation are not routed in, so the flows are
+    # uncalibrated. The Goulburn-Broken is its own system (below) that drains into the Murray; its outflow is not added
+    # to the Murray's flow here.
     "murray": {
-        "units": ("SS14", "SS2", "SS3", "SS4", "SS5", "SS6"), "n_subcatchments": 14, "mainstem": "Murray River", "min_network_km2": 500,
-        "other_rivers": ("Murrumbidgee River", "Darling River"),
+        "units": ("SS14", "SS2", "SS3", "SS4"), "n_subcatchments": 14, "mainstem": "Murray River", "min_network_km2": 500,
+        "other_rivers": ("Murrumbidgee River", "Darling River", "Goulburn River"),
         "routing": {"loss_regions": None, "target_outlet_m3s": None},
         "splits": {},
+        "storages": {"Hume Dam": {"lon": 147.03, "lat": -36.10, "max_release_ML_d": 25000},
+                     "Dartmouth Dam": {"lon": 147.52, "lat": -36.55, "max_release_ML_d": 12000}},
+    },
+    # Goulburn (SS6) and Broken (SS5): the Broken flows into the Goulburn, and the Goulburn drains into the Murray.
+    "goulburn_broken": {
+        "units": ("SS6", "SS5"), "n_subcatchments": 12, "mainstem": "Goulburn River", "min_network_km2": 500,
+        "other_rivers": ("Murray River",),
+        "routing": {"loss_regions": None, "target_outlet_m3s": None},
+        "splits": {},
+        "storages": {"Eildon Dam": {"lon": 145.92, "lat": -37.22, "max_release_ML_d": 10000},
+                     "Lake Nillahcootie": {"lon": 146.01, "lat": -36.89, "max_release_ML_d": 1000}},
     },
 }
-DISPLAY_SYSTEMS = ("murrumbidgee", "lachlan", "lower_darling", "murray")  # drawn together on docs/index.html
+DISPLAY_SYSTEMS = ("murrumbidgee", "lachlan", "lower_darling", "murray", "goulburn_broken")  # drawn together on docs/index.html
 SYSTEM_ID = os.environ.get("SYSTEM", DISPLAY_SYSTEMS[0])  # the system this process models (main.py sets it per system)
 SYSTEM = SYSTEMS[SYSTEM_ID]
 UNITS = SYSTEM["units"]
@@ -100,7 +117,8 @@ RLON_CORRECTION_FILE = NARCLIM_ROOT / "rlon_correction.txt"  # one correction fo
 OUTPUT_FILE = OUTPUT / f"{SYSTEM_ID}_daily_P_PET.csv"
 SUBCATCHMENT_FORCING_FILE = OUTPUT / f"{SYSTEM_ID}_subcatchment_forcing.csv"
 SUBCATCHMENT_FILE = OUTPUT / f"{SYSTEM_ID}_subcatchments.gpkg"
-HYBAS_FILE = INPUT / "hydrobasins" / "hybas_au_lev08_v1c.shp"
+HYBAS_FILE = INPUT / "hydrobasins" / "hybas_au_lev08_v1c.shp"  # basins: rainfall-runoff runs on these
+HYBAS_NODE_FILE = INPUT / "hydrobasins" / "hybas_au_lev10_v1c.shp"  # routing nodes: the finer watersheds inside each basin
 
 # NARCliM2.0 4 km (SEAus-04), ACCESS-ESM1-5, SSP2-4.5, daily. Remote subsets come from NCI THREDDS (zz63).
 THREDDS_DODS = "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD"

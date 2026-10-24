@@ -1,8 +1,12 @@
-"""Muskingum routing down the basin network, with a lowland loss calibrated to the recorded outlet flow."""
+"""Muskingum network routing with explicit channel fluxes and residual miscellaneous loss."""
 import numpy as np
 import pandas as pd
+import warnings
+
+from channel_fluxes import channel_inputs
 
 from config import SYSTEM, SYSTEM_ID
+from nodes import build_nodes
 from river_flows import river_flows
 from routing import route_network
 
@@ -13,10 +17,16 @@ M3S_TO_ML_DAY = 86.4
 # x: Muskingum weighting. velocity_km_day: wave speed (~1 m/s), sets each reach's K from its length ~ 1.5 x sqrt(area).
 # delivery: share of a unit's runoff that reaches the river ("LOWLAND" applies to every lowland unit); the semi-arid
 # western plains deliver little. target_scale: share of the river system's target outlet flow the loss is calibrated to.
-# The system itself sets loss_regions, target_outlet_m3s and the flow splits (config.SYSTEMS, shipped to the browser
-# with the system's engine data): one fractional loss at the outlet of every basin in the last loss_regions main-stem
-# reaches stands in for what GR4J on its own cannot see (regulation, irrigation, seepage).
-PARAMS = {"x": 0.2, "velocity_km_day": 86.4, "delivery": {"LOWLAND": 0.05}, "target_scale": 1.0}
+# Provisional, uncalibrated channel assumptions: fixed 10 m surface width, open-water
+# evaporation = 1 x available PET, seepage 0.02 ML/day/km. No measured geometry or
+# groundwater heads are implied. Misc loss uses Q * (1-exp(-coefficient*length)).
+# The default coefficient is 0.001/km (~9.5% over 100 km). At selected basin outlet
+# nodes only, it is replaced by a coefficient fitted to the system's mean-flow target.
+# All other physical reaches retain the default coefficient; synthetic LOWLAND has
+# no channel footprint/fluxes. See README for limitations and future calibration.
+PARAMS = {"x": 0.2, "velocity_km_day": 86.4, "delivery": {"LOWLAND": 0.05}, "target_scale": 1.0,
+          "channel_width_m": 10.0, "pet_factor": 1.0, "seepage_ML_day_km": 0.02,
+          "misc_loss_per_km": 0.001}
 CALIBRATION = SYSTEM["routing"]
 SPLITS = SYSTEM["splits"]
 
@@ -25,55 +35,95 @@ def delivery(p, n):
     return p["delivery"].get("LOWLAND" if n.startswith("LOWLAND") else n, 1.0)
 
 
-def _network(runoff, basins, p):
-    downstream = dict(zip(basins["subcatchment"], basins["next_id"]))
-    lossy = dict(zip(basins["subcatchment"], basins["from_outlet"].between(1, p["loss_regions"] or 0)))
-    # K = channel length / velocity, kept inside the 1-day Muskingum stability range. The length is the river's run through
-    # the basin from HydroBASINS' distance-to-sink; where it has none (lowlands, a system outlet) 1.5 x sqrt(area) stands in.
-    length = basins["length_km"].where(basins["length_km"] > 0, 1.5 * np.sqrt(basins["area_km2"]))
-    k = {n: float(np.clip(l / p["velocity_km_day"], 0.7, 2.4)) for n, l in zip(basins["subcatchment"], length)}
-    lateral = {n: runoff[n] * delivery(p, n) for n in runoff.columns}
+def _network(runoff, nodes, p):
+    """Node inputs: each node takes its area share of its basin's delivered runoff (m3/s) at the point it joins the river.
+    K = channel length / wave speed (the length from HydroBASINS' distance-to-sink, else 1.5 x sqrt(area)), at most 2.4 days."""
+    downstream = dict(zip(nodes["id"], nodes["next"]))
+    lossy = dict(zip(nodes["id"], nodes["loss_rank"].between(1, p["loss_regions"] or 0)))
+    length = nodes["length_km"].fillna(1.5 * np.sqrt(nodes["area_km2"]))
+    k = {n: float(min(l / p["velocity_km_day"], 2.4)) for n, l in zip(nodes["id"], length)}
+    lateral = {n.id: runoff[n.basin] * delivery(p, n.basin) * n.share for n in nodes.itertuples()}
     return downstream, lossy, k, lateral
 
 
-def _route(runoff, basins, loss, p):
-    downstream, lossy, k, lateral = _network(runoff, basins, p)
-    reaches = {n: {"k_days": k[n], "x": p["x"], "loss": loss if lossy[n] else 0.0} for n in lateral}
-    return route_network(lateral, downstream, reaches, SPLITS)
+def _storage_caps(nodes):
+    """{node: max release (m3/s)} for the nodes holding a storage."""
+    caps = {s: v["max_release_ML_d"] / M3S_TO_ML_DAY for s, v in SYSTEM.get("storages", {}).items()}
+    return {n.id: caps[n.storage] for n in nodes.itertuples() if n.storage}
 
 
-def _calibrate_loss(runoff, basins, outlet, p):
-    """Bisect the per-reach loss fraction so mean outlet flow hits the target (more loss -> less flow); 0 if the system has no target."""
+def _splits(nodes):
+    """The system's basin splits as node splits: from a basin's outlet node to the target basin's outlet node ('' leaves the river)."""
+    outlet = dict(zip(nodes.loc[nodes["outlet"], "basin"], nodes.loc[nodes["outlet"], "id"]))
+    return {outlet[b]: {outlet[to] if to else "": f for to, f in targets.items()} for b, targets in SPLITS.items()}
+
+
+def _route(runoff, nodes, loss, p, channel, record_budget=False):
+    downstream, lossy, k, _ = _network(runoff, nodes, p)
+    lateral, fluxes = channel
+    caps = _storage_caps(nodes)
+    reaches = {n: {"k_days": k[n], "x": p["x"],
+                   "loss": -np.expm1(-(loss if lossy[n] else p["misc_loss_per_km"]) * fluxes[n]['length_km']),
+                   "max_release": caps.get(n), **fluxes[n]} for n in lateral}
+    return route_network(lateral, downstream, reaches, _splits(nodes), record_budget=record_budget)
+
+
+def _calibrate_loss(runoff, nodes, basins, outlet, p, channel):
+    """Fit residual miscellaneous loss per km, after explicit channel exchanges."""
     if p["target_outlet_m3s"] is None:
-        return 0.0
+        return p['misc_loss_per_km']
     if not basins["from_outlet"].between(1, p["loss_regions"] or 0).any():
-        raise ValueError(f"{SYSTEM_ID}: loss_regions = {p['loss_regions']} selects no basin, so the outlet flow could not be calibrated")
+        raise ValueError(f"{SYSTEM_ID}: loss_regions selects no basin")
     target = p["target_outlet_m3s"] * p["target_scale"]
-    lo, hi = 0.0, 0.99
+    mean = lambda loss: _route(runoff, nodes, loss, p, channel)[outlet].mean()
+    lo, hi = 0.0, 1.0
+    if mean(lo) <= target:
+        warnings.warn(f'{SYSTEM_ID}: outlet target is at/above flow with zero fitted misc loss; using zero. Losses cannot add water.')
+        return lo
+    if mean(hi) > target:
+        warnings.warn(f'{SYSTEM_ID}: outlet target unreachable within misc loss bounds [0, 1]/km; using upper bound.')
+        return hi
     for _ in range(25):
         mid = (lo + hi) / 2
-        if _route(runoff, basins, mid, p)[outlet].mean() > target:
+        if mean(mid) > target:
             lo = mid
         else:
             hi = mid
     return (lo + hi) / 2
 
 
-def route(runoff, basins, subcatchments, p=PARAMS):
-    """Route basin runoff (m3/s) down the watershed network; return (unit_flow, reach_flow, basin_flow, rivers, river_flow).
+def route(runoff, basins, subcatchments, p=PARAMS, *, basin_forcing=None):
+    """Route basin runoff (m3/s) down the node network; return (unit_flow, reach_flow, basin_flow, rivers, river_flow).
 
     unit_flow is {SDL unit: daily flow at the unit's outlet basin (ML/d)}, reach_flow the flow at each reach's outlet
-    basin (a lowland's is its unit's outlet), basin_flow the routed flow leaving every basin, and rivers / river_flow
-    the segments of every mapped river and creek with their daily flow (see river_flows.py).
+    basin (a lowland's is its unit's outlet), basin_flow the routed flow leaving every basin (its outlet node), and rivers /
+    river_flow the segments of every mapped river and creek with their daily flow (see river_flows.py). basin_flow.attrs
+    ["storages"] holds each storage's daily inflow-routed release and stored volume (ML/d, ML).
     """
     p = {**p, **CALIBRATION}
-    outlet = basins.loc[basins["next_id"] == "", "subcatchment"].iloc[0]
-    loss = _calibrate_loss(runoff, basins, outlet, p)
-    print(f"3_routing: {SYSTEM_ID}, {len(basins)} basins routed, " + (f"calibrated per-reach loss over the last {p['loss_regions']} reaches = {loss:.2f}"
-                                                                      if p["target_outlet_m3s"] is not None else "no outlet calibration"))
-    basin_flow = _route(runoff, basins, loss, p) * M3S_TO_ML_DAY
+    nodes = build_nodes(basins, SYSTEM.get("storages"))
+    outlet_node = dict(zip(nodes.loc[nodes["outlet"], "basin"], nodes.loc[nodes["outlet"], "id"]))
+    outlet = outlet_node[basins.loc[basins["next_id"] == "", "subcatchment"].iloc[0]]
+    channel = channel_inputs(runoff, nodes, basins, basin_forcing, p, delivery)
+    loss = _calibrate_loss(runoff, nodes, basins, outlet, p, channel)
+    print(f"3_routing: {SYSTEM_ID}, {len(basins)} basins as {len(nodes)} nodes routed, " + (f"calibrated misc loss /km over the last {p['loss_regions']} reaches = {loss:.6f}"
+                                                                                           if p["target_outlet_m3s"] is not None else "no outlet calibration"))
+    routed = _route(runoff, nodes, loss, p, channel, record_budget="totals")
+    basin_flow = pd.DataFrame({b: routed[outlet_node[b]] for b in basins["subcatchment"]}) * M3S_TO_ML_DAY
+    basin_flow.attrs['channel_budget_ML'] = pd.DataFrame(routed.attrs['channel_budget']).T.rename(
+        columns=lambda c: c.replace('_m3s', '_ML')) * M3S_TO_ML_DAY
+    basin_flow.attrs['misc_loss_per_km'] = loss
+    totals = basin_flow.attrs['channel_budget_ML'][['rain_ML', 'evap_ML', 'seepage_ML', 'misc_ML']].sum()
+    print('3_routing: channel totals ML: ' + ', '.join(f'{k}={v:,.0f}' for k, v in totals.items()))
+    names = dict(zip(nodes["id"], nodes["storage"]))
+    basin_flow.attrs["storages"] = {names[n]: (df * M3S_TO_ML_DAY).rename(columns={"release_m3s": "release_ML_d", "stored_m3s_days": "stored_ML"})
+                                    for n, df in routed.attrs["storages"].items()}
+    for name, df in basin_flow.attrs["storages"].items():
+        cap = SYSTEM["storages"][name]["max_release_ML_d"]
+        print(f"3_routing:   storage {name}: releases up to {cap:,.0f} ML/d, holds {df['stored_ML'].iloc[-1]:,.0f} ML at the end, at the cap {(df['release_ML_d'] >= cap - 1e-6).mean():.0%} of days")
     reach_flow = pd.DataFrame({r.subcatchment: basin_flow[r.outlet_basin] for r in subcatchments.itertuples()})
     unit_flow = {r.sdl_unit: basin_flow[r.unit_outlet].rename("flow_ML_d") for r in subcatchments.itertuples()}
-    lateral = runoff * M3S_TO_ML_DAY * pd.Series({n: delivery(p, n) for n in runoff.columns})
+    lateral = pd.DataFrame({b: sum(channel[0][n.id] for n in nodes.itertuples() if n.basin == b)
+                            for b in runoff.columns}) * M3S_TO_ML_DAY
     rivers, river_flow = river_flows(basins, lateral, basin_flow)
     return unit_flow, reach_flow, basin_flow, rivers, river_flow

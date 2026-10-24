@@ -1,6 +1,6 @@
 from importlib import import_module
 
-# Each method is a module in this folder exposing LABEL and route(runoff, basins, subcatchments), returning
+# Each method is a module in this folder exposing LABEL and route(runoff, basins, subcatchments, *, basin_forcing), returning
 # (unit_flow, reach_flow, basin_flow, rivers, river_flow) as documented on run_routing.
 # To offer another method, add its module name to AVAILABLE_MODELS; the display dropdown follows.
 AVAILABLE_MODELS = ["muskingum", "muskingum_2"]
@@ -16,7 +16,7 @@ def model_specs():
     return out
 
 
-def run_routing(runoff, basins, subcatchments, model=ROUTING_MODEL):
+def run_routing(runoff, basins, subcatchments, model=ROUTING_MODEL, *, basin_forcing=None):
     """Route basin runoff (m3/s) down the watershed network; return (unit_flow, reach_flow, basin_flow, rivers, river_flow).
 
     unit_flow is {SDL unit: daily flow at the unit's outlet (ML/d)}, reach_flow the flow at each reach's outlet
@@ -25,4 +25,4 @@ def run_routing(runoff, basins, subcatchments, model=ROUTING_MODEL):
     """
     if model not in AVAILABLE_MODELS:
         raise ValueError(f"Unknown routing model {model!r}; available: {AVAILABLE_MODELS}")
-    return import_module(model).route(runoff, basins, subcatchments)
+    return import_module(model).route(runoff, basins, subcatchments, basin_forcing=basin_forcing)

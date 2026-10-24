@@ -69,7 +69,7 @@ def check_system():
     ref = []
     for rr, routing in itertools.product(RR_MODELS, ROUTING_MODELS):
         runoff = run_rainfall_runoff(quantised, basins, rr)
-        unit_flow, reach_flow, _, rivers, river_flow = run_routing(runoff, basins, subs, routing)
+        unit_flow, reach_flow, _, rivers, river_flow = run_routing(runoff, basins, subs, routing, basin_forcing=quantised)
         sdl = {}
         for u in UNITS:
             fish, birds, gum = run_ecology(unit_flow[u], SDL_UNITS[u]["ecology"])

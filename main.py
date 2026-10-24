@@ -20,7 +20,7 @@ def run_system():
     """Model the river system named by SYSTEM and store each of its SDL units' geometry and results."""
     units, subcatchments, basins, basin_forcing = run_masking()
     runoff = run_rainfall_runoff(basin_forcing, basins)
-    unit_flow, reach_flow, basin_flow, rivers, river_flow = run_routing(runoff, basins, subcatchments)
+    unit_flow, reach_flow, basin_flow, rivers, river_flow = run_routing(runoff, basins, subcatchments, basin_forcing=basin_forcing)
     for u in UNITS:
         of = lambda frame: frame[frame["sdl_unit"] == u]
         regions, unit_rivers = of(subcatchments), of(rivers)

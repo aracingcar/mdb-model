@@ -44,62 +44,117 @@ const RAINFALL_RUNOFF = {
 
 // ---------- routing ----------
 const ROUTING = {
-  // Muskingum down the basin network with a calibrated lowland loss and optional flow splits, as in 3_routing/muskingum.py.
-  muskingum(runoffM3s, basins, p) {
-    const names = basins.map(b => b.id), idx = Object.fromEntries(names.map((n, i) => [n, i]));
+  // Muskingum down the node network (the finer watersheds inside each basin) with explicit channel fluxes, residual miscellaneous loss, optional flow
+  // splits and storages, as in 3_routing/muskingum.py. A node takes its share of its basin's delivered runoff; its K is
+  // channel length / wave speed, and a reach shorter than MIN_K days is a fractional-day lag instead of a Muskingum reach.
+  muskingum(runoffM3s, basins, p, nodes, climate, recordBudget = false) {
+    const MIN_K = 0.7;
+    const bidx = Object.fromEntries(basins.map((b, i) => [b.id, i])), idx = Object.fromEntries(nodes.map((n, i) => [n.id, i]));
     const nDays = runoffM3s[0].length;
     const delivery = n => p.delivery[n.startsWith('LOWLAND') ? 'LOWLAND' : n] ?? 1;
-    const lateral = basins.map((b, i) => runoffM3s[i].map(v => v * delivery(b.id)));
-    // feeds[i]: [upstream basin, share of its outflow]; a basin's splits send shares elsewhere ('' leaves the river)
-    const feeds = basins.map(() => []);
-    basins.forEach((b, i) => { if (b.next) feeds[idx[b.next]].push([i, 1 - Object.values(b.splits || {}).reduce((a, v) => a + v, 0)]); });
-    basins.forEach((b, i) => { for (const [to, share] of Object.entries(b.splits || {})) if (to) feeds[idx[to]].push([i, share]); });
-    const k = basins.map(b => Math.min(2.4, Math.max(0.7, (b.length > 0 ? b.length : 1.5 * Math.sqrt(b.area)) / p.velocity_km_day)));
+    for (const key of ['channel_width_m', 'pet_factor', 'seepage_ML_day_km', 'misc_loss_per_km']) {
+      if (!Number.isFinite(p[key]) || p[key] < 0) throw new Error(`Invalid ${key}`);
+    }
+    if (!climate) throw new Error('Channel fluxes require P/PET forcing');
+    const lengths = nodes.map(n => n.length > 0 ? n.length : 1.5 * Math.sqrt(n.area));
+    const channelLengths = nodes.map((n, i) => n.basin.startsWith('LOWLAND') ? 0 : lengths[i]);
+    const surface = nodes.map((n, i) => Math.min(channelLengths[i] * p.channel_width_m / 1000, basins[bidx[n.basin]].area * n.share));
+    const lateral = nodes.map((n, i) => runoffM3s[bidx[n.basin]].map(v =>
+      v * delivery(n.basin) * n.share * (1 - surface[i] / (basins[bidx[n.basin]].area * n.share))));
+    const lateralBasin = basins.map(() => new Float64Array(nDays));
+    nodes.forEach((n, i) => { for (let t = 0; t < nDays; t++) lateralBasin[bidx[n.basin]][t] += lateral[i][t]; });
+    for (const b of basins) for (const variable of ['P', 'PET']) {
+      const values = climate[b.id]?.[variable];
+      if (!values || values.length !== nDays || values.some(v => !Number.isFinite(v) || v < 0)) throw new Error('Invalid P/PET forcing');
+    }
+    // feeds[i]: [upstream node, share of its outflow]; a node's splits send shares elsewhere ('' leaves the river)
+    const feeds = nodes.map(() => []);
+    nodes.forEach((n, i) => { if (n.next) feeds[idx[n.next]].push([i, 1 - Object.values(n.splits || {}).reduce((a, v) => a + v, 0)]); });
+    nodes.forEach((n, i) => { for (const [to, share] of Object.entries(n.splits || {})) if (to) feeds[idx[to]].push([i, share]); });
+    const k = nodes.map((n, i) => Math.min(2.4, lengths[i] / p.velocity_km_day));
     // upstream before downstream
-    const order = [], state = new Array(basins.length).fill(0);
-    const visit = i => {
-      if (state[i] === 2) return;
-      if (state[i] === 1) throw new Error(`flow splits make a loop through ${basins[i].id}`);
-      state[i] = 1; feeds[i].forEach(([j]) => visit(j)); state[i] = 2; order.push(i);
+    const order = [], state = new Array(nodes.length).fill(0);
+    const visit = root => {
+      const stack = [[root, 0]];
+      while (stack.length) {
+        const top = stack[stack.length - 1], [i, c] = top;
+        if (c === 0) { if (state[i] === 2) { stack.pop(); continue; } if (state[i] === 1) throw new Error(`flow splits make a loop through ${nodes[i].id}`); state[i] = 1; }
+        if (c < feeds[i].length) { top[1]++; const j = feeds[i][c][0]; if (state[j] === 1) throw new Error(`flow splits make a loop through ${nodes[j].id}`); if (state[j] !== 2) stack.push([j, 0]); }
+        else { state[i] = 2; order.push(i); stack.pop(); }
+      }
     };
-    basins.forEach((_, i) => visit(i));
+    nodes.forEach((_, i) => visit(i));
 
-    const route = loss => {
-      const out = new Array(basins.length);
+    const route = (loss, recordBudget = false) => {
+      const out = new Array(nodes.length), budgets = {};
       for (const i of order) {
         const inflow = Float64Array.from(lateral[i]);
         for (const [c, share] of feeds[i]) { const o = out[c]; for (let t = 0; t < nDays; t++) inflow[t] += o[t] * share; }
         const x = p.x, kk = k[i], dt = 1;
-        if (!(2 * kk * x <= dt && dt <= 2 * kk * (1 - x))) throw new Error('Muskingum stability requires 2*K*X <= dt <= 2*K*(1-X)');
-        const d = 2 * kk * (1 - x) + dt;
-        const b0 = (dt - 2 * kk * x) / d, b1 = (dt + 2 * kk * x) / d, a1 = -(2 * kk * (1 - x) - dt) / d;
-        const keep = 1 - (loss && lossy(basins[i]) ? loss : 0);
-        // direct form II transposed, started at steady state (scipy lfilter_zi)
-        let z = (b1 - a1 * b0) / (1 + a1) * inflow[0];
         const y = new Float64Array(nDays);
-        for (let t = 0; t < nDays; t++) { const v = b0 * inflow[t] + z; z = b1 * inflow[t] - a1 * v; y[t] = v * keep; }
+        if (kk >= MIN_K) {
+          if (!(2 * kk * x <= dt && dt <= 2 * kk * (1 - x))) throw new Error('Muskingum stability requires 2*K*X <= dt <= 2*K*(1-X)');
+          const d = 2 * kk * (1 - x) + dt;
+          const b0 = (dt - 2 * kk * x) / d, b1 = (dt + 2 * kk * x) / d, a1 = -(2 * kk * (1 - x) - dt) / d;
+          // direct form II transposed, started at steady state (scipy lfilter_zi)
+          let z = (b1 - a1 * b0) / (1 + a1) * inflow[0];
+          for (let t = 0; t < nDays; t++) { const v = b0 * inflow[t] + z; z = b1 * inflow[t] - a1 * v; y[t] = v; }
+        } else {
+          for (let t = 0; t < nDays; t++) y[t] = (1 - kk) * inflow[t] + kk * inflow[Math.max(t - 1, 0)];
+        }
+        const rate = lossy(nodes[i]) ? loss : p.misc_loss_per_km;
+        const fraction = -Math.expm1(-rate * channelLengths[i]);
+        const c = climate[nodes[i].basin];
+        const budget = recordBudget ? {routed: [], rain: [], evaporation: [], seepage: [], misc: [], afterFluxes: []} : null;
+        for (let t = 0; t < nDays; t++) {
+          const before = y[t], rain = c.P[t] * surface[i] / ML_PER_M3S_DAY;
+          const ed = c.PET[t] * p.pet_factor * surface[i] / ML_PER_M3S_DAY;
+          const sd = channelLengths[i] * p.seepage_ML_day_km / ML_PER_M3S_DAY;
+          const available = before + rain, scale = ed + sd > 0 ? Math.min(1, available / (ed + sd)) : 1;
+          const evap = ed * scale, seep = sd * scale;
+          const afterPhysical = Math.max(0, available - (ed + sd)), misc = afterPhysical * fraction;
+          y[t] = afterPhysical - misc;
+          if (budget) for (const [key, v] of Object.entries({routed: before, rain, evaporation: evap, seepage: seep, misc, afterFluxes: y[t]})) budget[key].push(v * ML_PER_M3S_DAY);
+        }
+        if (budget) budgets[nodes[i].id] = budget;
+        if (nodes[i].maxRelease != null) {  // storage: release up to the cap, keep the rest, never spill
+          const cap = nodes[i].maxRelease / ML_PER_M3S_DAY;
+          let held = 0;
+          for (let t = 0; t < nDays; t++) { const avail = held + y[t]; y[t] = Math.min(cap, avail); held = avail - y[t]; }
+        }
         out[i] = y;
       }
+      out.budgets = budgets;
       return out;
     };
 
-    const lossy = b => b.lossRank >= 1 && b.lossRank <= (p.loss_regions || 0);
-    const outletIdx = basins.findIndex(b => b.next === '');
+    const lossy = n => n.lossRank >= 1 && n.lossRank <= (p.loss_regions || 0);
+    const outletOf = Object.fromEntries(nodes.filter(n => n.outlet).map(n => [n.basin, idx[n.id]]));
+    const outletIdx = outletOf[basins.find(b => b.next === '').id];
     const mean = a => { let s = 0; for (let t = 0; t < a.length; t++) s += a[t]; return s / a.length; };
-    let loss = 0;  // no target for this SDL unit: no loss
+    let loss = p.misc_loss_per_km;
+    let calibrationStatus = "provisional";
     if (p.target_outlet_m3s != null) {
-      if (!basins.some(lossy)) throw new Error(`loss_regions = ${p.loss_regions} selects no basin`);
+      if (!nodes.some(lossy)) throw new Error(`loss_regions = ${p.loss_regions} selects no basin`);
       const target = p.target_outlet_m3s * p.target_scale;
-      let lo = 0, hi = 0.99;
+      let lo = 0, hi = 1;
+      if (mean(route(lo)[outletIdx]) <= target) {
+        loss = lo; calibrationStatus = 'target at/above zero fitted misc loss flow';
+      } else if (mean(route(hi)[outletIdx]) > target) {
+        loss = hi; calibrationStatus = 'target below attainable flow';
+      } else {
       for (let it = 0; it < 25; it++) {
         const mid = (lo + hi) / 2;
         if (mean(route(mid)[outletIdx]) > target) lo = mid; else hi = mid;
       }
       loss = (lo + hi) / 2;
+      calibrationStatus = "fitted";
+      }
     }
-    const basinFlow = route(loss).map(a => a.map(v => v * ML_PER_M3S_DAY));
-    const lateralMLd = lateral.map(a => a.map(v => v * ML_PER_M3S_DAY));
-    return { basinFlow, lateralMLd, loss };
+    const routed = route(loss, recordBudget);
+    const basinFlow = basins.map(b => routed[outletOf[b.id]].map(v => v * ML_PER_M3S_DAY));
+    const lateralMLd = lateralBasin.map(a => a.map(v => v * ML_PER_M3S_DAY));
+    return { basinFlow, lateralMLd, loss, calibrationStatus, channelBudget: routed.budgets };
   },
 };
 
@@ -182,12 +237,14 @@ function run(engine, days, rr, routing) {
   const simulate = RAINFALL_RUNOFF[rr.algorithm], route = ROUTING[routing.algorithm];
   if (!simulate || !route) throw new Error(`Unknown algorithm ${rr.algorithm} / ${routing.algorithm}`);
 
+  const climate = {};
   const runoff = engine.basins.map((b, i) => {
     const p = Float64Array.from(P.subarray(i * n, (i + 1) * n), v => v / sc), e = Float64Array.from(PET.subarray(i * n, (i + 1) * n), v => v / sc);
+    climate[b.id] = {P: p, PET: e};
     const depth = simulate(p, e, rr.params);
     return depth.map(v => v * b.area * 1000 / 86400);  // mm/day over km2 -> m3/s
   });
-  const { basinFlow, lateralMLd } = route(runoff, engine.basins, { ...routing.params, ...engine.calibration });
+  const { basinFlow, lateralMLd } = route(runoff, engine.basins, { ...routing.params, ...engine.calibration }, engine.nodes, climate);
   const at = Object.fromEntries(engine.basins.map((b, i) => [b.id, i]));
 
   const reachFlow = {};

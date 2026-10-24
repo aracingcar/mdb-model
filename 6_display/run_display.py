@@ -22,6 +22,7 @@ for folder in ("1_masking", "2_rainfall_runoff", "3_routing", "5_outputs"):  # a
 from catchment import buffer_outline
 from config import DEFAULT_RUN, DISPLAY_SYSTEMS, SDL_UNITS, SYSTEMS, waterways_file
 from evap_grid import PIXEL_DEG
+from nodes import build_nodes
 from results_db import load_climate, load_geometry, load_results
 from run_rainfall_runoff import RAINFALL_RUNOFF_MODEL, model_specs as runoff_specs
 from run_routing import ROUTING_MODEL, model_specs as routing_specs
@@ -126,12 +127,20 @@ def _engine(system, basins, basin_forcing, regions, rivers):
     """Everything the browser needs to re-run one river system's rainfall-runoff, routing, river flows and ecology on another method pair."""
     names = list(basins["subcatchment"])
     splits = SYSTEMS[system]["splits"]
+    nodes = build_nodes(basins, SYSTEMS[system].get("storages"))
+    storages = SYSTEMS[system].get("storages", {})
+    outlet = dict(zip(nodes.loc[nodes["outlet"], "basin"], nodes.loc[nodes["outlet"], "id"]))
     return {
         "scale": 100,
-        "basins": [{"id": b.subcatchment, "area": float(b.area_km2), "length": None if pd.isna(b.length_km) else float(b.length_km), "next": b.next_id, "lossRank": int(b.from_outlet),
-                    "lon": round(b.geometry.representative_point().x, 4), "lat": round(b.geometry.representative_point().y, 4),  # where the routing editor draws the node
-                    **({"splits": splits[b.subcatchment]} if b.subcatchment in splits else {})}
+        "basins": [{"id": b.subcatchment, "area": float(b.area_km2), "next": b.next_id, "lossRank": int(b.from_outlet),
+                    "lon": round(b.geometry.representative_point().x, 4), "lat": round(b.geometry.representative_point().y, 4)}
                    for b in basins.itertuples()],
+        # routing nodes: where each basin's runoff (its area share) joins the river, linked downstream through the terrain
+        "nodes": [{"id": n.id, "basin": n.basin, "share": float(n.share), "area": float(n.area_km2), "length": None if pd.isna(n.length_km) else float(n.length_km),
+                   "next": n.next, "lon": n.lon, "lat": n.lat, "outlet": bool(n.outlet), "lossRank": int(n.loss_rank),
+                   **({"storage": n.storage, "maxRelease": storages[n.storage]["max_release_ML_d"]} if n.storage else {}),
+                   **({"splits": {(outlet[to] if to else ""): f for to, f in splits[n.basin].items()}} if n.outlet and n.basin in splits else {})}
+                  for n in nodes.itertuples()],
         "calibration": SYSTEMS[system]["routing"],
         "P": _quantised(basin_forcing, names, "P"),
         "PET": _quantised(basin_forcing, names, "PET"),
