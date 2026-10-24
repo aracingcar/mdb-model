@@ -12,7 +12,8 @@ from scipy.ndimage import binary_dilation
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "1_masking"))
 
 from config import INPUT, OUTPUT, GLOBAL_MODEL, SCENARIO, REGIONAL_CONFIG
-from run_rainfall_runoff import RAINFALL_RUNOFF_MODEL, model_options
+from run_rainfall_runoff import RAINFALL_RUNOFF_MODEL, model_options as runoff_options
+from run_routing import ROUTING_MODEL, model_options as routing_options
 from terrain import Dem
 from car.build import publish_assets
 
@@ -94,7 +95,8 @@ def run_display(forcing, subcatchments, subcatchment_forcing, evap_grid, flow, r
                     "regionalConfig": REGIONAL_CONFIG,
                     "period": f"{days[0][:4]}–{days[-1][:4]}",
                     "source": "NARCliM2.0", "resolution": "4 km", "frequency": "Daily"},
-        "runoff": {"selected": RAINFALL_RUNOFF_MODEL, "options": [{"id": i, "label": l} for i, l in model_options()]},
+        "runoff": {"selected": RAINFALL_RUNOFF_MODEL, "options": [{"id": i, "label": l} for i, l in runoff_options()]},
+        "routing": {"selected": ROUTING_MODEL, "options": [{"id": i, "label": l} for i, l in routing_options()]},
         "days": days,
         "units": [{"id": r.subcatchment, "name": r.region_name, "area": round(r.area_km2), "mid": [round(mids[r.subcatchment].x, 4), round(mids[r.subcatchment].y, 4), int(dem.at(mids[r.subcatchment].x, mids[r.subcatchment].y))],
                    "rings": _rings(r.geometry.simplify(0.004), dem), "elev": stats[i]} for i, r in enumerate(units.itertuples())],

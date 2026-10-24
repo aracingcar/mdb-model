@@ -74,6 +74,13 @@
   #runoff-fields label { display:grid; gap:3px; }
   #runoff-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
   #runoff-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
+  #routing-panel { position:absolute; left:940px; top:18px; z-index:8; width:200px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
+  #routing-panel summary { cursor:pointer; font-weight:600; color:var(--head); }
+  #routing-fields { display:grid; gap:8px; margin-top:12px; }
+  #routing-fields label { display:grid; gap:3px; }
+  #routing-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
+  #routing-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
+  @media (max-width:900px) { #routing-panel { left:12px; top:214px; width:240px; } }
   @media (max-width:900px) { #runoff-panel { left:12px; top:262px; width:240px; } }
   @media (max-width:900px) { #climate-panel { left:12px; top:310px; width:240px; max-height:calc(100% - 394px); overflow:auto; } }
   #err { position:absolute; inset:0; display:none; place-items:center; font:300 20px var(--sans); text-align:center; padding:40px; z-index:20; background:var(--bg); }
@@ -140,6 +147,12 @@
     <label for="runoff-model">Method<select id="runoff-model"></select></label>
   </div>
 </details>
+<details id="routing-panel">
+  <summary>Routing</summary>
+  <div id="routing-fields">
+    <label for="routing-model">Method<select id="routing-model"></select></label>
+  </div>
+</details>
 <div id="bar"><button id="play">&#9654;</button><div id="timeline"><canvas id="tl"></canvas></div><div id="clock"></div><button id="speed">30 d/s</button></div>
 <label id="towns-toggle" for="townsIn"><span>Towns</span><input id="townsIn" type="checkbox" role="switch"></label>
 <label id="detail-toggle" for="detailIn"><span>Roads</span><input id="detailIn" type="checkbox" role="switch"></label>
@@ -161,6 +174,8 @@ for (const [id, key] of [['climate-global', 'globalModel'], ['climate-scenario',
 // Same for rainfall-runoff: only methods run in this build are listed.
 for (const o of D.runoff.options) $('runoff-model').add(new Option(o.label, o.id));
 $('runoff-model').value = D.runoff.selected;
+for (const o of D.routing.options) $('routing-model').add(new Option(o.label, o.id));
+$('routing-model').value = D.routing.selected;
 $('climate-meta').textContent = `${D.climate.source} · ${D.climate.resolution} · ${D.climate.frequency}`;
 // The period is a start and end year within the embedded data; playback and the timeline cover only that window.
 const FIRST_YEAR = +D.days[0].slice(0, 4), LAST_YEAR = +D.days[N - 1].slice(0, 4);
