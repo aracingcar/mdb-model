@@ -23,10 +23,11 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from shapely.geometry import Point
+from config import SUBCATCHMENT_FILE
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REGIONS_FILE = ROOT / "data/output/murrumbidgee_subcatchments.gpkg"
+REGIONS_FILE = SUBCATCHMENT_FILE
 OUT_DIR = ROOT / "data/input/climate"
 OUT_CSV = OUT_DIR / "murrumbidgee_subcatchment_P_PET_2012_2026.csv"
 OUT_META = OUT_DIR / "murrumbidgee_subcatchment_P_PET_2012_2026_metadata.json"

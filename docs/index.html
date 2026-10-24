@@ -128,7 +128,7 @@
   <p id="climate-availability">Only the currently loaded dataset is available.</p>
 </details>
 <div id="bar"><button id="play">&#9654;</button><div id="timeline"><canvas id="tl"></canvas></div><div id="clock"></div><button id="speed">30 d/s</button></div>
-<label id="towns-toggle" for="townsIn"><span>Towns</span><input id="townsIn" type="checkbox" role="switch" checked></label>
+<label id="towns-toggle" for="townsIn"><span>Towns</span><input id="townsIn" type="checkbox" role="switch"></label>
 <label id="detail-toggle" for="detailIn"><span>Roads</span><input id="detailIn" type="checkbox" role="switch"></label>
 <div id="tip"></div>
 <div id="err">The map libraries could not load. Open this page with an internet connection.</div>
@@ -526,7 +526,7 @@ let cache = { day: -1 }, meshGen = 0;
 buildMeshes();
 const tint = {}; let tintDay = -1;
 let map, overlay, carMechanics;
-let showTowns = true, showDetail = false;
+let showTowns = false, showDetail = false;
 const roadSets = new Map();  // ribbon polygons memoised per (visible classes, width bucket) so the layer data keeps its identity between frames
 function roadsNow() {
   const z = map ? map.getZoom() : 6.5, n = ROAD_MIN_ZOOM.filter(m => z >= m).length, w = Math.max(.4, Math.min(3, 2 ** (9.5 - z))), key = n + ':' + w.toFixed(1);

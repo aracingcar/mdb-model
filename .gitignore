@@ -2,9 +2,9 @@
 __pycache__/
 .DS_Store
 # large, re-downloadable inputs
-data/input/narclim/*.nc
+data/input/narclim/**/*.nc
 data/input/hydrobasins/
 data/input/observed_flow/observed_flow_daily.csv
 data/input/dem/
-data/output/murrumbidgee_river_flow.csv
-data/output/murrumbidgee_river_pulse.html
+data/output/**/murrumbidgee_river_flow.csv
+data/output/**/murrumbidgee_river_pulse.html

@@ -20,14 +20,13 @@ SCALE = 2  # stored as int8 in half-mm steps
 def evap_anomaly_grid(ds, catchment):
     """Return a dict with the raster geometry, the stored 4 km anomaly fields and the pixel -> cell mapping."""
     n = ds.sizes["time"]
-    x = ds["PET"].transpose("time", "rlat", "rlon").values.astype("float32")
-    csum = np.cumsum(x, axis=0, dtype="float32")
-    del x
-    lag = np.zeros_like(csum)
-    lag[ROLL_DAYS:] = csum[:-ROLL_DAYS]
-    window = np.minimum(np.arange(n) + 1, ROLL_DAYS).astype("float32")[:, None, None]
-    roll = (csum - lag) / window * ROLL_DAYS  # mm / 30 days (partial windows scaled up)
-    del csum, lag
+    roll = ds["PET"].transpose("time", "rlat", "rlon").values.astype("float32", copy=False)
+    # In place (the full series is ~2 GB): running sum, then difference with the sum ROLL_DAYS earlier, scaled to mm / 30 days.
+    np.cumsum(roll, axis=0, dtype="float32", out=roll)
+    for t in range(n - 1, ROLL_DAYS - 1, -1):
+        roll[t] -= roll[t - ROLL_DAYS]
+    early = min(ROLL_DAYS, n)  # partial windows are scaled up
+    roll[:early] *= (ROLL_DAYS / (np.arange(early) + 1)).astype("float32")[:, None, None]
     keys = ds["time"].dt.strftime("%m-%d").values
     normal = {k: roll[keys == k].mean(axis=0) for k in np.unique(keys)}
 

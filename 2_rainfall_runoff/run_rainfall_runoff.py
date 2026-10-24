@@ -1,19 +1,32 @@
 import sys
+from importlib import import_module
 from pathlib import Path
 
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "3_routing"))
 
-from gr4j import gr4j
 from routing import runoff_depth_to_m3s
 
+# Each method is a module in this folder exposing LABEL and simulate(precip, pet) -> runoff depth (mm/day).
+# To offer another method, add its module name to AVAILABLE_MODELS; the display dropdown follows.
+AVAILABLE_MODELS = ["gr4j", "gr4j_2"]
+RAINFALL_RUNOFF_MODEL = "gr4j"
 
-def run_rainfall_runoff(basin_forcing, basins):
-    """GR4J on every basin: returns runoff as discharge (m3/s), one column per basin id (and LOWLAND)."""
+
+def model_options():
+    """(module name, label) for every selectable method."""
+    return [(name, import_module(name).LABEL) for name in AVAILABLE_MODELS]
+
+
+def run_rainfall_runoff(basin_forcing, basins, model=RAINFALL_RUNOFF_MODEL):
+    """Selected rainfall-runoff method on every basin: returns runoff as discharge (m3/s), one column per basin id (and LOWLAND)."""
+    if model not in AVAILABLE_MODELS:
+        raise ValueError(f"Unknown rainfall-runoff model {model!r}; available: {AVAILABLE_MODELS}")
+    simulate = import_module(model).simulate
     runoff = {}
     for _, unit in basins.iterrows():
         name = unit["subcatchment"]
-        depth = gr4j(basin_forcing[f"{name}_P"].to_numpy(), basin_forcing[f"{name}_PET"].to_numpy())
+        depth = simulate(basin_forcing[f"{name}_P"].to_numpy(), basin_forcing[f"{name}_PET"].to_numpy())
         runoff[name] = runoff_depth_to_m3s(pd.Series(depth, index=basin_forcing.index), unit["area_km2"])
     return pd.DataFrame(runoff)

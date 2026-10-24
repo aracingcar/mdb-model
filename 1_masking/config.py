@@ -1,10 +1,16 @@
+import os
 from pathlib import Path
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 INPUT = DATA / "input"
-OUTPUT = DATA / "output"
+OUTPUT_ROOT = DATA / "output"
 
-NARCLIM_DIR = INPUT / "narclim"
+GLOBAL_MODEL = "ACCESS-ESM1-5"
+SCENARIO = "ssp245"
+REGIONAL_CONFIG = os.environ.get("REGIONAL_CONFIG", "WRF412R5")
+OUTPUT = OUTPUT_ROOT / GLOBAL_MODEL / SCENARIO / REGIONAL_CONFIG
+NARCLIM_ROOT = INPUT / "narclim"
+NARCLIM_DIR = NARCLIM_ROOT / GLOBAL_MODEL / SCENARIO / REGIONAL_CONFIG
 NARCLIM_GLOB = str(NARCLIM_DIR / "*.nc")
 RLON_CORRECTION_FILE = NARCLIM_DIR / "rlon_correction.txt"
 CATCHMENT_FILE = INPUT / "catchment" / "CEWO_MDB_Valleys.shp"
@@ -17,9 +23,9 @@ VALLEY_NAME = "Murrumbidgee"
 
 # NARCliM2.0 4 km (SEAus-04), ACCESS-ESM1-5, SSP2-4.5, daily. Remote subsets come from NCI THREDDS (zz63).
 THREDDS_DODS = "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD"
-RUN = "NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R3/v1-r1/day"
-RUN_TAG = "NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R3_v1-r1_day"
-YEARS = range(2015, 2035)
+RUN = f"NARCliM2-0-SEAus-04/NSW-Government/{GLOBAL_MODEL}/{SCENARIO}/r6i1p1f1/NARCliM2-0-{REGIONAL_CONFIG}/v1-r1/day"
+RUN_TAG = f"NARCliM2-0-SEAus-04_{GLOBAL_MODEL}_{SCENARIO}_r6i1p1f1_NSW-Government_NARCliM2-0-{REGIONAL_CONFIG}_v1-r1_day"
+YEARS = range(2015, 2101)
 BBOX_MARGIN = 0.2  # degrees around the catchment
 
 # NARCliM variable names -> output names. Fluxes are kg m-2 s-1; x86400 gives mm/day.

@@ -90,5 +90,5 @@ reach. These are routing-informed model regions, **not** true terrain-derived
 watersheds; do not interpret their polygons as drainage divides.
 
 The output polygons are written to
-`data/output/murrumbidgee_subcatchments.gpkg`; one P/PET pair per unit is
-written to `data/output/murrumbidgee_subcatchment_forcing.csv`.
+`data/output/<global_model>/<scenario>/<regional_config>/murrumbidgee_subcatchments.gpkg`; one P/PET pair per unit is
+written to `murrumbidgee_subcatchment_forcing.csv` in that same directory.

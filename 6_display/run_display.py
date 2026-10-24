@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -10,13 +11,14 @@ from scipy.ndimage import binary_dilation
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "1_masking"))
 
-from config import INPUT
+from config import INPUT, OUTPUT, GLOBAL_MODEL, SCENARIO, REGIONAL_CONFIG
+from run_rainfall_runoff import RAINFALL_RUNOFF_MODEL, model_options
 from terrain import Dem
 from car.build import publish_assets
 
 HERE = Path(__file__).resolve().parent
 TEMPLATE = HERE / "template.html"
-DISPLAY_FILE = HERE.parent / "data" / "output" / "murrumbidgee_river_pulse.html"
+DISPLAY_FILE = OUTPUT / "murrumbidgee_river_pulse.html"
 WATERWAYS_FILE = INPUT / "routing" / "osm_murrumbidgee_waterways.geojson"
 MAINSTEM = "Murrumbidgee River"
 CONTEXT_RIVERS = 120  # longest other named rivers drawn as thin context lines
@@ -88,6 +90,11 @@ def run_display(forcing, subcatchments, subcatchment_forcing, evap_grid, flow, r
     terrain, stats = _terrain(units, dem)
     days = subcatchment_forcing.index.strftime("%Y-%m-%d").tolist()
     data = {
+        "climate": {"globalModel": GLOBAL_MODEL, "scenario": SCENARIO,
+                    "regionalConfig": REGIONAL_CONFIG,
+                    "period": f"{days[0][:4]}–{days[-1][:4]}",
+                    "source": "NARCliM2.0", "resolution": "4 km", "frequency": "Daily"},
+        "runoff": {"selected": RAINFALL_RUNOFF_MODEL, "options": [{"id": i, "label": l} for i, l in model_options()]},
         "days": days,
         "units": [{"id": r.subcatchment, "name": r.region_name, "area": round(r.area_km2), "mid": [round(mids[r.subcatchment].x, 4), round(mids[r.subcatchment].y, 4), int(dem.at(mids[r.subcatchment].x, mids[r.subcatchment].y))],
                    "rings": _rings(r.geometry.simplify(0.004), dem), "elev": stats[i]} for i, r in enumerate(units.itertuples())],
@@ -110,6 +117,10 @@ def run_display(forcing, subcatchments, subcatchment_forcing, evap_grid, flow, r
         "gum": river_red_gum.reset_index().round(3).to_dict("list"),
     }
     DISPLAY_FILE.parent.mkdir(parents=True, exist_ok=True)
-    DISPLAY_FILE.write_text(TEMPLATE.read_text().replace("__DATA__", json.dumps(data, separators=(",", ":"))))
+    html = TEMPLATE.read_text().replace("__DATA__", json.dumps(data, separators=(",", ":"))).replace("__ROADS__", (HERE / "roads.json").read_text())
+    car_path = Path(os.path.relpath(HERE / "car", DISPLAY_FILE.parent)).as_posix() + "/"
+    DISPLAY_FILE.write_text(html.replace("../../6_display/car/", car_path))
     publish_assets()
+    public_html = html.replace("../../6_display/car/", "car/")
+    (HERE.parent / "docs" / "index.html").write_text(public_html)
     print(f"Wrote river pulse page ({DISPLAY_FILE.stat().st_size / 1e6:.1f} MB): {DISPLAY_FILE}")

@@ -16,7 +16,7 @@ RED_GUM_FILE = OUTPUT / "river_red_gum_condition.csv"
 
 
 def write_data(forcing, subcatchments, subcatchment_forcing, basins, flow, reach_flow, rivers, river_flow, fish, waterbirds, river_red_gum):
-    """Write every available result to data/output/ and print what was written. None results are skipped."""
+    """Write results to the configured model/scenario/regional output directory. None results are skipped."""
     OUTPUT.mkdir(parents=True, exist_ok=True)
     forcing.to_csv(OUTPUT_FILE)
     subcatchments.to_file(SUBCATCHMENT_FILE, layer="subcatchments", driver="GPKG")

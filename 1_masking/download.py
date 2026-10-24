@@ -20,7 +20,7 @@ def index_box(ds, bounds):
 
 
 def download():
-    """Save a Murrumbidgee-sized subset of each variable-year to data/input/narclim/."""
+    """Save each variable-year subset in the configured model/scenario/regional directory."""
     NARCLIM_DIR.mkdir(parents=True, exist_ok=True)
     rlon = np.loadtxt(RLON_CORRECTION_FILE)
     bounds = load_catchment().to_crs("EPSG:4326").total_bounds

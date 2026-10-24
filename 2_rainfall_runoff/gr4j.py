@@ -4,6 +4,7 @@ import numpy as np
 # Median parameter set from Perrin et al. (2003): x1 production store (mm), x2 exchange (mm/d),
 # x3 routing store (mm), x4 unit hydrograph time base (days). Not calibrated to the Murrumbidgee.
 DEFAULT_PARAMS = (350.0, 0.0, 90.0, 1.7)
+LABEL = "GR4J"
 
 
 def _unit_hydrographs(x4):
@@ -56,3 +57,8 @@ def gr4j(precip, pet, params=DEFAULT_PARAMS):
         r -= qr
         out[t] = qr + max(q1_buf[0] + f, 0.0)
     return out
+
+
+def simulate(precip, pet):
+    """Rainfall-runoff model interface: runoff depth (mm/day) with this model's parameters."""
+    return gr4j(precip, pet, DEFAULT_PARAMS)

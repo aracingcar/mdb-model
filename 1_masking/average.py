@@ -33,7 +33,7 @@ def unit_averages(ds, units):
     weights = (weights / weights.sum(axis=1, keepdims=True)).astype("float32")
     cols = {}
     for var in ds.data_vars:
-        x = ds[var].transpose("time", "rlat", "rlon").values.astype("float32").reshape(ds.sizes["time"], -1)
+        x = ds[var].transpose("time", "rlat", "rlon").values.astype("float32", copy=False).reshape(ds.sizes["time"], -1)
         avg = x @ weights.T
         for i, name in enumerate(names):
             cols[f"{name}_{var}"] = avg[:, i]
