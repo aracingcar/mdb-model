@@ -4,9 +4,11 @@ from pathlib import Path
 DATA = Path(__file__).resolve().parent.parent / "data"
 INPUT = DATA / "input"
 OUTPUT_ROOT = DATA / "output"
+DB_FILE = DATA / "results.db"  # reduced climate series and model results, one row per run
 
-GLOBAL_MODEL = "ACCESS-ESM1-5"
-SCENARIO = "ssp245"
+GLOBAL_MODEL = os.environ.get("GLOBAL_MODEL", "ACCESS-ESM1-5")
+SCENARIO = os.environ.get("SCENARIO", "ssp245")
+KEEP_RAW = bool(os.environ.get("KEEP_RAW"))  # keep the raw NARCliM files after they are reduced into the database
 REGIONAL_CONFIG = os.environ.get("REGIONAL_CONFIG", "WRF412R5")
 OUTPUT = OUTPUT_ROOT / GLOBAL_MODEL / SCENARIO / REGIONAL_CONFIG
 NARCLIM_ROOT = INPUT / "narclim"

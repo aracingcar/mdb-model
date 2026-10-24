@@ -1,6 +1,5 @@
 import base64
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -11,7 +10,7 @@ from scipy.ndimage import binary_dilation
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "1_masking"))
 
-from config import INPUT, OUTPUT, GLOBAL_MODEL, SCENARIO, REGIONAL_CONFIG
+from config import INPUT, GLOBAL_MODEL, SCENARIO, REGIONAL_CONFIG
 from run_rainfall_runoff import RAINFALL_RUNOFF_MODEL, model_options as runoff_options
 from run_routing import ROUTING_MODEL, model_options as routing_options
 from terrain import Dem
@@ -19,7 +18,7 @@ from car.build import publish_assets
 
 HERE = Path(__file__).resolve().parent
 TEMPLATE = HERE / "template.html"
-DISPLAY_FILE = OUTPUT / "murrumbidgee_river_pulse.html"
+DISPLAY_FILE = HERE.parent / "docs" / "index.html"
 WATERWAYS_FILE = INPUT / "routing" / "osm_murrumbidgee_waterways.geojson"
 MAINSTEM = "Murrumbidgee River"
 CONTEXT_RIVERS = 120  # longest other named rivers drawn as thin context lines
@@ -120,9 +119,6 @@ def run_display(forcing, subcatchments, subcatchment_forcing, evap_grid, flow, r
     }
     DISPLAY_FILE.parent.mkdir(parents=True, exist_ok=True)
     html = TEMPLATE.read_text().replace("__DATA__", json.dumps(data, separators=(",", ":"))).replace("__ROADS__", (HERE / "roads.json").read_text())
-    car_path = Path(os.path.relpath(HERE / "car", DISPLAY_FILE.parent)).as_posix() + "/"
-    DISPLAY_FILE.write_text(html.replace("../../6_display/car/", car_path))
+    DISPLAY_FILE.write_text(html.replace("../../6_display/car/", "car/"))
     publish_assets()
-    public_html = html.replace("../../6_display/car/", "car/")
-    (HERE.parent / "docs" / "index.html").write_text(public_html)
     print(f"Wrote river pulse page ({DISPLAY_FILE.stat().st_size / 1e6:.1f} MB): {DISPLAY_FILE}")

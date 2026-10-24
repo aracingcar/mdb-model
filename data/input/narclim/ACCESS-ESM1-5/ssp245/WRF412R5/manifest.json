@@ -1,0 +1,299 @@
+{
+  "global_model": "ACCESS-ESM1-5",
+  "scenario": "ssp245",
+  "regional_config": "WRF412R5",
+  "member": "r6i1p1f1",
+  "domain": "NARCliM2-0-SEAus-04",
+  "period": [
+    "2015-01-01",
+    "2034-12-31"
+  ],
+  "frequency": "daily",
+  "variables": [
+    "pr",
+    "evspsblpot"
+  ],
+  "grid_correction": "Same SEAus-04 rotated-longitude correction as R3; subset lat/lon and rotated grid checked against R3.",
+  "files": [
+    {
+      "file": "evspsblpot_2015.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20150101-20151231.nc",
+      "bytes": 24121346,
+      "sha256": "9eb3e7aded2658639a2635fd31a52f1a414234f27b550776fb43d95804ce87a1",
+      "days": 365
+    },
+    {
+      "file": "evspsblpot_2016.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20160101-20161231.nc",
+      "bytes": 24186634,
+      "sha256": "8b088f3813f822b7e9afdb252b2c68684d56aff356a7c763d5c89f4c063f6c4e",
+      "days": 366
+    },
+    {
+      "file": "evspsblpot_2017.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20170101-20171231.nc",
+      "bytes": 24121346,
+      "sha256": "0a035dcb187e0815d6e58dcf89c67aa14d0fbb95610a7a6cffd472daa993e425",
+      "days": 365
+    },
+    {
+      "file": "evspsblpot_2018.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20180101-20181231.nc",
+      "bytes": 24121346,
+      "sha256": "882d02b5a0a589fbb5923a60f1f36a9aef0c59f08705e8b5142d24200ddab54c",
+      "days": 365
+    },
+    {
+      "file": "evspsblpot_2019.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20190101-20191231.nc",
+      "bytes": 24121346,
+      "sha256": "d94fdb2221eb6c6a1c46cd6ced8b3a5e144d706d2ecb407367675d4d0e9815f7",
+      "days": 365
+    },
+    {
+      "file": "evspsblpot_2020.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20200101-20201231.nc",
+      "bytes": 24186634,
+      "sha256": "b618b8a764192762c85c054ee397b895fecabf1d38c9ac9277da53addded9c39",
+      "days": 366
+    },
+    {
+      "file": "evspsblpot_2021.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20210101-20211231.nc",
+      "bytes": 24121346,
+      "sha256": "99d01444f7e1f6459baebd30132edd35a76fc8c37abcfaccdb7f8b65ee3b0730",
+      "days": 365
+    },
+    {
+      "file": "evspsblpot_2022.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20220101-20221231.nc",
+      "bytes": 24121346,
+      "sha256": "b2ee87cdfd5fe1a2cab3603d4926060978bbecb088dc740d057cd6da5306ed11",
+      "days": 365
+    },
+    {
+      "file": "evspsblpot_2023.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20230101-20231231.nc",
+      "bytes": 24121346,
+      "sha256": "e9942c1a87a3291276642bfdfce4cb73efe7cec11c4eb7108aa31ea2d7868423",
+      "days": 365
+    },
+    {
+      "file": "evspsblpot_2024.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20240101-20241231.nc",
+      "bytes": 24186634,
+      "sha256": "1c6658855d6253526f43bea85dcf2079c6da90e101ad91e5043659777c2f252e",
+      "days": 366
+    },
+    {
+      "file": "evspsblpot_2025.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20250101-20251231.nc",
+      "bytes": 24121346,
+      "sha256": "1d0af12ed78ddd9f7e9abeea25861030f1e93134307feb3e31c4128270a996ec",
+      "days": 365
+    },
+    {
+      "file": "evspsblpot_2026.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20260101-20261231.nc",
+      "bytes": 24121346,
+      "sha256": "05efe42cfeb7c4da9a7e93f88a544f75991ee08f3415f88111a342e13b7d687f",
+      "days": 365
+    },
+    {
+      "file": "evspsblpot_2027.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20270101-20271231.nc",
+      "bytes": 24121346,
+      "sha256": "e21bd85eae1a8a9cda0a95ca0ba344411eaaec5bec4cd9a6de3ffc270a1b42a2",
+      "days": 365
+    },
+    {
+      "file": "evspsblpot_2028.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20280101-20281231.nc",
+      "bytes": 24186634,
+      "sha256": "376266d53829f11c54d924836cf2c0751f0c6c40d905b48755667d8df5d914c9",
+      "days": 366
+    },
+    {
+      "file": "evspsblpot_2029.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20290101-20291231.nc",
+      "bytes": 24121346,
+      "sha256": "2adb3b84d069a9f5ff326fc759c66bafec2718aac15591e6312bdacaccd4ae0a",
+      "days": 365
+    },
+    {
+      "file": "evspsblpot_2030.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20300101-20301231.nc",
+      "bytes": 24121346,
+      "sha256": "0b02c1658108ad03d39cf6b38af203080a7778556764d9d15dbfd08c184f7d34",
+      "days": 365
+    },
+    {
+      "file": "evspsblpot_2031.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20310101-20311231.nc",
+      "bytes": 24121346,
+      "sha256": "cc425a66849bb5963a55a4b9643f91da6c02fe437f5d723e45bf195abbe3a200",
+      "days": 365
+    },
+    {
+      "file": "evspsblpot_2032.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20320101-20321231.nc",
+      "bytes": 24186634,
+      "sha256": "18afecd27f5cf61fdf45df5c9a77234a275e12108eee6c47c587fa04b2415af5",
+      "days": 366
+    },
+    {
+      "file": "evspsblpot_2033.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20330101-20331231.nc",
+      "bytes": 24121346,
+      "sha256": "9a6e5f09c07f6381de3b1fb6aaa632e2fd8e60668f866bae55696411d6369686",
+      "days": 365
+    },
+    {
+      "file": "evspsblpot_2034.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/evspsblpot/latest/evspsblpot_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20340101-20341231.nc",
+      "bytes": 24121346,
+      "sha256": "4aa639847793331ee914854b6682c58e9b91e68c6e4896c86c606f9fa5e72ea1",
+      "days": 365
+    },
+    {
+      "file": "pr_2015.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20150101-20151231.nc",
+      "bytes": 24125141,
+      "sha256": "113f318f3abc7398e1ed1cbfdca93d1d86879201292562d400de9cdbf0baa7d2",
+      "days": 365
+    },
+    {
+      "file": "pr_2016.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20160101-20161231.nc",
+      "bytes": 24190429,
+      "sha256": "f911c1873a1385cd0b248142da21a9e1b676c43e273546550d0544f9e7c34743",
+      "days": 366
+    },
+    {
+      "file": "pr_2017.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20170101-20171231.nc",
+      "bytes": 24125141,
+      "sha256": "e8d602c3e13600b8a50daae598182ba2c83154dcef67a0450b0553d40628092c",
+      "days": 365
+    },
+    {
+      "file": "pr_2018.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20180101-20181231.nc",
+      "bytes": 24125141,
+      "sha256": "45ba35d838682a2563f7af926c69334d8e61871e3a37f71369520252028843a8",
+      "days": 365
+    },
+    {
+      "file": "pr_2019.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20190101-20191231.nc",
+      "bytes": 24125141,
+      "sha256": "1b53579d169bd477312596e5e6f8eabd7eae296dfca03d579df588aea3b1ff63",
+      "days": 365
+    },
+    {
+      "file": "pr_2020.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20200101-20201231.nc",
+      "bytes": 24190429,
+      "sha256": "3b4c4a1d20b663319611bb8b1f15c1e9eec0ad008beed4807e1f4a7cbf9a0cc7",
+      "days": 366
+    },
+    {
+      "file": "pr_2021.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20210101-20211231.nc",
+      "bytes": 24125141,
+      "sha256": "cf4a0d12b6ab0b8ab3f934e0460635415e777002392f02009b89022385d56327",
+      "days": 365
+    },
+    {
+      "file": "pr_2022.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20220101-20221231.nc",
+      "bytes": 24125141,
+      "sha256": "24b00f0f54518538304a0bbc71925537badca972984a4b4b5f0977f2f688af60",
+      "days": 365
+    },
+    {
+      "file": "pr_2023.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20230101-20231231.nc",
+      "bytes": 24125141,
+      "sha256": "97851900641bf617e9a9d941f05e6f0e8d6b77e936b1b343d97a1546eeafb399",
+      "days": 365
+    },
+    {
+      "file": "pr_2024.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20240101-20241231.nc",
+      "bytes": 24190429,
+      "sha256": "d35f0945f52c25cec30f8595337be004d13801b9cc2446c7d2714350f9602453",
+      "days": 366
+    },
+    {
+      "file": "pr_2025.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20250101-20251231.nc",
+      "bytes": 24125141,
+      "sha256": "e58fb9f3854c0baca9de13b7b51d0f388ebf3723fb924a2bf9ace05cc32ff58d",
+      "days": 365
+    },
+    {
+      "file": "pr_2026.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20260101-20261231.nc",
+      "bytes": 24125141,
+      "sha256": "f5c296a0a5484673fa8b588aa4ef4a8f6c59d321f902b9af2ff45e84c43964e3",
+      "days": 365
+    },
+    {
+      "file": "pr_2027.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20270101-20271231.nc",
+      "bytes": 24125141,
+      "sha256": "b326d13223ea79beb377d700ad6c5a95b42c556df0682638ee4186ba5692daef",
+      "days": 365
+    },
+    {
+      "file": "pr_2028.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20280101-20281231.nc",
+      "bytes": 24190429,
+      "sha256": "f429f35048ccc724ebcf1bdb21e22fed11fefe8ef74cc496d844eea1c79d6a35",
+      "days": 366
+    },
+    {
+      "file": "pr_2029.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20290101-20291231.nc",
+      "bytes": 24125141,
+      "sha256": "308b9946cf46c68099a6156be38c4b0b322ce1e74e852e0fd528b63f1fe5d145",
+      "days": 365
+    },
+    {
+      "file": "pr_2030.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20300101-20301231.nc",
+      "bytes": 24125141,
+      "sha256": "2dfa4836123805e58e009bb3d31037659e5efa693399945b63ffc9405c33e5ee",
+      "days": 365
+    },
+    {
+      "file": "pr_2031.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20310101-20311231.nc",
+      "bytes": 24125141,
+      "sha256": "96430a28ccb05ecdf38b0cce6b7b3e0e2fe09d59f25fd179b505359366f94671",
+      "days": 365
+    },
+    {
+      "file": "pr_2032.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20320101-20321231.nc",
+      "bytes": 24190429,
+      "sha256": "a222c8417e8fb9fd8f138fd6d94180d29c11ef59ff856a516845160da3b7d328",
+      "days": 366
+    },
+    {
+      "file": "pr_2033.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20330101-20331231.nc",
+      "bytes": 24125141,
+      "sha256": "ec5ea9a6f7d6af0b6b8135bd2a2549604db536ce0679948f3199c1ae78e311a7",
+      "days": 365
+    },
+    {
+      "file": "pr_2034.nc",
+      "source_url": "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD/NARCliM2-0-SEAus-04/NSW-Government/ACCESS-ESM1-5/ssp245/r6i1p1f1/NARCliM2-0-WRF412R5/v1-r1/day/pr/latest/pr_NARCliM2-0-SEAus-04_ACCESS-ESM1-5_ssp245_r6i1p1f1_NSW-Government_NARCliM2-0-WRF412R5_v1-r1_day_20340101-20341231.nc",
+      "bytes": 24125141,
+      "sha256": "a64a46d35c26dea782598e7df720a2ac7e45b21cbc360dce4a30d121dd6a550c",
+      "days": 365
+    }
+  ]
+}

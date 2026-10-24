@@ -9,14 +9,14 @@ from outputs_io import write_data
 from run_display import run_display
 from run_ecology import run_ecology
 from run_masking import read_data, run_masking
-from run_rainfall_runoff import run_rainfall_runoff
-from run_routing import run_routing
+from run_rainfall_runoff import RAINFALL_RUNOFF_MODEL, run_rainfall_runoff
+from run_routing import ROUTING_MODEL, run_routing
 
 if __name__ == "__main__":
-    narclim, catchment = read_data()
-    forcing, subcatchments, subcatchment_forcing, basins, basin_forcing, evap_grid = run_masking(narclim, catchment)
+    catchment = read_data()
+    forcing, subcatchments, subcatchment_forcing, basins, basin_forcing, evap_grid = run_masking(catchment)
     runoff = run_rainfall_runoff(basin_forcing, basins)
     flow, reach_flow, basin_flow, rivers, river_flow = run_routing(runoff, basins, subcatchments)
     fish, waterbirds, river_red_gum = run_ecology(flow)
-    write_data(forcing, subcatchments, subcatchment_forcing, basins, flow, reach_flow, rivers, river_flow, fish, waterbirds, river_red_gum)
+    write_data(subcatchments, basins, flow, reach_flow, rivers, river_flow, fish, waterbirds, river_red_gum, (RAINFALL_RUNOFF_MODEL, ROUTING_MODEL))
     run_display(forcing, subcatchments, subcatchment_forcing, evap_grid, flow, reach_flow, rivers, river_flow, fish, waterbirds, river_red_gum)
