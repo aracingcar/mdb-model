@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "1_masking"))
 
 from config import INPUT
 from terrain import Dem
+from car.build import publish_assets
 
 HERE = Path(__file__).resolve().parent
 TEMPLATE = HERE / "template.html"
@@ -110,4 +111,5 @@ def run_display(forcing, subcatchments, subcatchment_forcing, evap_grid, flow, r
     }
     DISPLAY_FILE.parent.mkdir(parents=True, exist_ok=True)
     DISPLAY_FILE.write_text(TEMPLATE.read_text().replace("__DATA__", json.dumps(data, separators=(",", ":"))))
+    publish_assets()
     print(f"Wrote river pulse page ({DISPLAY_FILE.stat().st_size / 1e6:.1f} MB): {DISPLAY_FILE}")
