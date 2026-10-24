@@ -183,13 +183,18 @@ def _evap_normals(sub, names, keys):
     return out
 
 
-def _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, terrain_step, window, normals):
+def _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, terrain_step, window, demo):
     """The page's data files for one time window (a slice of the run's days): geometry, the shared evaporation index,
-    and per river system its climate series and flow results. ``normals`` adds the full-run evaporation normals."""
+    and per river system its climate series and flow results.
+
+    ``demo`` makes the small bundle the page opens on: it adds the full-run evaporation normals and draws only each
+    basin's main channel, and per river system a detail file (1 km terrain cells, its other rivers and their flows)
+    that the page fetches when it zooms in on that system."""
     first = next(iter(geo))
     all_days = climate[first][1].index
     days = all_days[window]
     reaches, context = _rivers(rivers, river_flow.mean(), dem)
+    shown = {r["unit"] for r in reaches if r["kind"] == "channel" or not demo}
     mids = {r.subcatchment: (r.geometry.centroid if r.geometry.contains(r.geometry.centroid) else r.geometry.representative_point()) for r in regions.itertuples()}
     terrain, stats = _terrain(regions, dem, terrain_step)
     lo, hi = days[0].strftime("%Y-%m-%d"), days[-1].strftime("%Y-%m-%d")
@@ -203,7 +208,7 @@ def _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, te
     wy = lambda df: None if df is None else df[df.index.isin(years)]
     names = {u: SDL_UNITS[u]["name"] for u in geo}
     common = {"days": days.strftime("%Y-%m-%d").tolist(), "evap": evap_index}
-    if normals:
+    if demo:
         common["normalKeys"] = sorted(set(all_days.strftime("%m-%d")))
     files = {"geometry.json": {
         "units": [{"id": r.subcatchment, "sdl": r.sdl_unit, "name": r.region_name, "area": round(r.area_km2),
@@ -214,7 +219,7 @@ def _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, te
         "sdlBounds": [{"id": u, "name": names[u], "fullName": geo[u]["outline"]["sdl_name"].iloc[0], "system": s,
                        "mid": _label_point(geo[u]["outline"].geometry.iloc[0], dem),
                        "rings": _rings(geo[u]["outline"].geometry.iloc[0].simplify(0.003), dem)} for s, us in units.items() for u in us],
-        "reaches": reaches,
+        "reaches": [r for r in reaches if r["unit"] in shown],
         "context": context,
     }, "climate.json": common}
     for s, us in units.items():
@@ -225,15 +230,27 @@ def _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, te
             "P": {n: sub[f"{n}_P"].round(1).tolist() for n in ids},
             "PET": {n: sub[f"{n}_PET"].round(1).tolist() for n in ids},
             "evapParts": {u: evap_values[u] for u in us},
-            **({"petNormal": _evap_normals(full_sub, ids, all_days.strftime("%m-%d"))} if normals else {}),
+            **({"petNormal": _evap_normals(full_sub, ids, all_days.strftime("%m-%d"))} if demo else {}),
         }
         files[f"flow_{s}.json"] = {
             "reachFlow": {n: v.iloc[window].round(0).astype(int).tolist() for u in us for n, v in results[u][1].items()},
             "riverFlow": {n: base64.b64encode(np.clip(v.iloc[window].round(0).to_numpy(), 0, 65535).astype("<u2").tobytes()).decode()
-                          for u in us for n, v in results[u][2].items()},
+                          for u in us for n, v in results[u][2].items() if n in shown},
             "sdl": {u: {"flow": results[u][0].iloc[window].round(0).astype(int).tolist(), "fish": _table(wy(results[u][3])),
                         "birds": _birds(wy(results[u][4])), "gum": _table(wy(results[u][5]))} for u in us},
         }
+    if demo:
+        fine, _ = _terrain(regions, dem, GRID_STEP)  # on the same origin as the demo terrain, every second node shared
+        system_of = [SDL_UNITS[u]["system"] for u in regions["sdl_unit"]]
+        for s in units:
+            keep = [i for i, o in enumerate(fine["unit"]) if o >= 0 and system_of[o] == s]
+            rest = [r for r in reaches if r["unit"] not in shown and SDL_UNITS[r["unit"].split("-R")[0]]["system"] == s]
+            files[f"detail_{s}.json"] = {
+                "terrain": {k: [fine[k][i] for i in keep] for k in ("col", "row", "elev", "unit")},
+                "reaches": rest,
+                "riverFlow": {r["unit"]: base64.b64encode(np.clip(river_flow[r["unit"]].iloc[window].round(0).to_numpy(), 0, 65535).astype("<u2").tobytes()).decode()
+                              for r in rest},
+            }
     return files
 
 
@@ -296,7 +313,9 @@ def run_display(run=DEFAULT_RUN, methods=(RAINFALL_RUNOFF_MODEL, ROUTING_MODEL))
         "maxQ": round(float(max(max(results[u][0].max(), results[u][1].max().max()) for u in geo))),
         "engines": {s: f"data/{f}" for s, f in engines.items()},  # fetched only when a non-default method is chosen
         "engineHash": hashlib.sha1(b"".join((DATA_DIR / f).read_bytes() for f in engines.values())).hexdigest()[:10],  # saved results are keyed by it
-        "demoFiles": [f"data/{n}" for n in files if n.startswith("demo/")],
+        "demoFiles": [f"data/{n}" for n in files if n.startswith("demo/") and not n.startswith("demo/detail_")],
+        "details": {s: f"data/demo/detail_{s}.json" for s in units},  # fetched when the demo page zooms in on a system
+        "detailStep": GRID_STEP,
         "files": [f"data/{n}" for n in files if n.startswith("full/")],
     }
     DISPLAY_FILE.parent.mkdir(parents=True, exist_ok=True)

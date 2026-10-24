@@ -174,7 +174,7 @@
 <script>
 (async () => {
 // Geometry, climate series and the flow results are separate files (see run_display.py), so editing the page does not rewrite them.
-const META = {"title":"Murrumbidgee, ACT, Lachlan, Lower Darling and NSW Murray","focus":"SS15","climate":{"globalModel":"ACCESS-ESM1-5","scenario":"ssp245","regionalConfig":"WRF412R5","period":"2015\u20132100","source":"NARCliM2.0","resolution":"4 km","frequency":"Daily"},"runoff":{"selected":"gr4j","specs":{"gr4j":{"label":"GR4J","algorithm":"gr4j","params":[350.0,0.0,90.0,1.7]},"gr4j_2":{"label":"GR4J (alt. parameters)","algorithm":"gr4j","params":[300.0,-0.5,80.0,2.2]}}},"routing":{"selected":"muskingum","specs":{"muskingum":{"label":"Muskingum","algorithm":"muskingum","params":{"x":0.2,"velocity_km_day":86.4,"delivery":{"LOWLAND":0.05},"target_scale":1.0}},"muskingum_2":{"label":"Muskingum (alt. parameters)","algorithm":"muskingum","params":{"x":0.15,"velocity_km_day":64.8,"delivery":{"LOWLAND":0.08},"target_scale":0.8888888888888888}}}},"run":"ACCESS-ESM1-5_ssp245_WRF412R5","years":[2015,2100],"demoYears":[2027,2036],"maxQ":212986,"engines":{"murrumbidgee":"data/engine_murrumbidgee_ACCESS-ESM1-5_ssp245_WRF412R5.json","lachlan":"data/engine_lachlan_ACCESS-ESM1-5_ssp245_WRF412R5.json","lower_darling":"data/engine_lower_darling_ACCESS-ESM1-5_ssp245_WRF412R5.json","nsw_murray":"data/engine_nsw_murray_ACCESS-ESM1-5_ssp245_WRF412R5.json"},"engineHash":"f08d3097a2","demoFiles":["data/demo/geometry.json","data/demo/climate.json","data/demo/climate_murrumbidgee.json","data/demo/flow_murrumbidgee.json","data/demo/climate_lachlan.json","data/demo/flow_lachlan.json","data/demo/climate_lower_darling.json","data/demo/flow_lower_darling.json","data/demo/climate_nsw_murray.json","data/demo/flow_nsw_murray.json"],"files":["data/full/geometry.json","data/full/climate.json","data/full/climate_murrumbidgee.json","data/full/flow_murrumbidgee.json","data/full/climate_lachlan.json","data/full/flow_lachlan.json","data/full/climate_lower_darling.json","data/full/flow_lower_darling.json","data/full/climate_nsw_murray.json","data/full/flow_nsw_murray.json"]};
+const META = {"title":"Murrumbidgee, ACT, Lachlan, Lower Darling and NSW Murray","focus":"SS15","climate":{"globalModel":"ACCESS-ESM1-5","scenario":"ssp245","regionalConfig":"WRF412R5","period":"2015\u20132100","source":"NARCliM2.0","resolution":"4 km","frequency":"Daily"},"runoff":{"selected":"gr4j","specs":{"gr4j":{"label":"GR4J","algorithm":"gr4j","params":[350.0,0.0,90.0,1.7]},"gr4j_2":{"label":"GR4J (alt. parameters)","algorithm":"gr4j","params":[300.0,-0.5,80.0,2.2]}}},"routing":{"selected":"muskingum","specs":{"muskingum":{"label":"Muskingum","algorithm":"muskingum","params":{"x":0.2,"velocity_km_day":86.4,"delivery":{"LOWLAND":0.05},"target_scale":1.0}},"muskingum_2":{"label":"Muskingum (alt. parameters)","algorithm":"muskingum","params":{"x":0.15,"velocity_km_day":64.8,"delivery":{"LOWLAND":0.08},"target_scale":0.8888888888888888}}}},"run":"ACCESS-ESM1-5_ssp245_WRF412R5","years":[2015,2100],"demoYears":[2027,2036],"maxQ":212986,"engines":{"murrumbidgee":"data/engine_murrumbidgee_ACCESS-ESM1-5_ssp245_WRF412R5.json","lachlan":"data/engine_lachlan_ACCESS-ESM1-5_ssp245_WRF412R5.json","lower_darling":"data/engine_lower_darling_ACCESS-ESM1-5_ssp245_WRF412R5.json","nsw_murray":"data/engine_nsw_murray_ACCESS-ESM1-5_ssp245_WRF412R5.json"},"engineHash":"f08d3097a2","demoFiles":["data/demo/geometry.json","data/demo/climate.json","data/demo/climate_murrumbidgee.json","data/demo/flow_murrumbidgee.json","data/demo/climate_lachlan.json","data/demo/flow_lachlan.json","data/demo/climate_lower_darling.json","data/demo/flow_lower_darling.json","data/demo/climate_nsw_murray.json","data/demo/flow_nsw_murray.json"],"details":{"murrumbidgee":"data/demo/detail_murrumbidgee.json","lachlan":"data/demo/detail_lachlan.json","lower_darling":"data/demo/detail_lower_darling.json","nsw_murray":"data/demo/detail_nsw_murray.json"},"detailStep":0.01,"files":["data/full/geometry.json","data/full/climate.json","data/full/climate_murrumbidgee.json","data/full/flow_murrumbidgee.json","data/full/climate_lachlan.json","data/full/flow_lachlan.json","data/full/climate_lower_darling.json","data/full/flow_lower_darling.json","data/full/climate_nsw_murray.json","data/full/flow_nsw_murray.json"]};
 const D = { ...META };
 // The page opens on the small demo bundle (META.demoYears, coarser terrain). Other years or methods reload it with
 // ?data=full and the choices in the URL, on the full series.
@@ -218,7 +218,7 @@ setFocus(focus);
 const UNIT_NAME = Object.fromEntries(D.sdlBounds.map(b => [b.id, b.name]));
 for (const b of D.sdlBounds) $('focus').add(new Option(`${b.name} (${b.id})`, b.id));
 $('focus').value = focus;
-$('focus').onchange = e => { setFocus(e.target.value); update(); };
+$('focus').onchange = e => { setFocus(e.target.value); update(); if (!FULL) loadDetail(SYSTEM_OF[e.target.value]); };
 function maxQ() { return (!FULL && D.maxQ) || Math.max(...Object.values(D.sdl).map(s => Math.max(...s.flow)), ...Object.values(D.reachFlow).map(a => Math.max(...a))); }
 
 // ---- Method choice: the defaults are precomputed; any other pair is recalculated here (engine.js in a worker) and saved in IndexedDB ----
@@ -369,7 +369,8 @@ const mistCol = t => lerp([214,224,238], [58,70,96], Math.pow(Math.max(0, (Math.
 const polys = D.units.flatMap(u => u.rings.map(r => ({ r, u, id: u.id })));
 const rivers = D.reaches.flatMap(x => x.rings.map(r => ({ r, id: x.unit, name: x.name, kind: x.kind })));
 const flowOf = d => BF[d.id][day];
-const riverBox = rivers.map(d => { let a = 1e9, b = 1e9, c = -1e9, e = -1e9; for (const p of d.r) { a = Math.min(a, p[0]); c = Math.max(c, p[0]); b = Math.min(b, p[1]); e = Math.max(e, p[1]); } return [a, b, c, e]; });
+const boxOf = d => { let a = 1e9, b = 1e9, c = -1e9, e = -1e9; for (const p of d.r) { a = Math.min(a, p[0]); c = Math.max(c, p[0]); b = Math.min(b, p[1]); e = Math.max(e, p[1]); } return [a, b, c, e]; };
+const riverBox = rivers.map(boxOf);  // rivers and riverBox grow when a system's detail arrives
 function inRing(r, lon, lat) {
   let inside = false;
   for (let k = 0, j = r.length - 1; k < r.length; j = k++) if ((r[k][1] > lat) !== (r[j][1] > lat) && lon < (r[j][0] - r[k][0]) * (lat - r[k][1]) / (r[j][1] - r[k][1]) + r[k][0]) inside = !inside;
@@ -389,12 +390,17 @@ function riverWetAt(lon, lat) {  // how wet the ground is here, 0-1: flowing riv
   }
   return wet;
 }
-const T = D.terrain;
-// ---- smooth terrain: one triangle mesh per subcatchment, shared vertices and per-vertex normals
+// ---- smooth terrain: one triangle mesh over the whole grid, shared vertices and per-vertex normals. T, GZ (height) and GO
+// (owning subcatchment) are replaced by a finer grid when a system's detail arrives (see loadDetail).
 const largest = a => a.reduce((m, v) => v > m ? v : m, -Infinity);  // no spread: the grid has too many cells for argument lists
-const NC = largest(T.col) + 1, NR = largest(T.row) + 1;
-const GZ = new Float32Array(NR * NC).fill(NaN), GO = new Int16Array(NR * NC).fill(-1);
-T.col.forEach((c, i) => { GZ[T.row[i] * NC + c] = Math.max(0, T.elev[i]); GO[T.row[i] * NC + c] = T.unit[i]; });
+let T, NC, NR, GZ, GO;
+function setGrid(t, gz, go) { T = t; NC = t.NC; NR = t.NR; GZ = gz; GO = go; }
+{
+  const t = D.terrain, nc = largest(t.col) + 1, nr = largest(t.row) + 1, gz = new Float32Array(nr * nc).fill(NaN), go = new Int16Array(nr * nc).fill(-1);
+  t.col.forEach((c, i) => { gz[t.row[i] * nc + c] = Math.max(0, t.elev[i]); go[t.row[i] * nc + c] = t.unit[i]; });
+  setGrid({ x0: t.x0, y0: t.y0, step: t.step, NC: nc, NR: nr }, gz, go);
+}
+const COARSE = { T, GZ, GO };
 // Selected settlement centres (approximate WGS84 lon/lat), for geographic orientation.
 // Smaller towns appear on closer views; elevations follow the existing terrain grid.
 const PLACES = [
@@ -523,7 +529,7 @@ function earClip(P) {  // P counter-clockwise, returns index triples
   if (ids.length === 3) out.push([...ids]);
   return out;
 }
-const CLIP = (() => {
+function computeClip() {
   const toUV = p => [(p[0] - T.x0) / T.step, (p[1] - T.y0) / T.step];
   const inRing = (P, ring) => { let ins = false; for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) { const A = ring[i], B = ring[j]; if ((A[1] > P[1]) !== (B[1] > P[1]) && P[0] < A[0] + (P[1] - A[1]) / (B[1] - A[1]) * (B[0] - A[0])) ins = !ins; } return ins; };
   const rings = D.outline.map(r => r.slice(0, -1).map(toUV));
@@ -599,7 +605,8 @@ const CLIP = (() => {
     }
   }
   return { tris, wall };
-})();
+}
+let CLIP = computeClip();
 
 function buildMeshes() {
   const dx = T.step * MX, dy = T.step * MY, zs = (r, c) => { const v = GZ[Math.max(0, Math.min(NR - 1, r)) * NC + Math.max(0, Math.min(NC - 1, c))]; return isNaN(v) ? 0 : v; };
@@ -713,6 +720,44 @@ function buildZ() {  // ground-following geometry depends on the relief setting
 buildZ();
 let cache = { day: -1 }, meshGen = 0;
 buildMeshes();
+const carTerrain = { outline: D.outline, getExaggeration: () => TERR };  // the car reads the current grid through this
+function syncCarTerrain() { Object.assign(carTerrain, { x0: T.x0, y0: T.y0, step: T.step, GZ, NR, NC }); }
+
+// ---- per-system detail (demo bundle only): its 1 km terrain and its other rivers, fetched when the map zooms in on one
+// of its units or one is picked. Loaded systems keep their 1 km heights; the rest of the grid is interpolated from 2 km.
+const DETAIL_ZOOM = 7, SYSTEM_OF = Object.fromEntries(D.sdlBounds.map(b => [b.id, b.system])), details = {};
+function fineGrid() {
+  const C = COARSE, k = Math.round(C.T.step / D.detailStep), nr = (C.T.NR - 1) * k + 1, nc = (C.T.NC - 1) * k + 1;
+  const gz = new Float32Array(nr * nc).fill(NaN), go = new Int16Array(nr * nc).fill(-1);
+  for (let r = 0; r < nr; r++) for (let c = 0; c < nc; c++) {  // bilinear on the coarse nodes that exist
+    const R = r / k, Q = c / k, r0 = Math.min(Math.floor(R), C.T.NR - 1), c0 = Math.min(Math.floor(Q), C.T.NC - 1), fr = R - r0, fc = Q - c0;
+    let s = 0, w = 0;
+    for (const [dr, dc, wt] of [[0, 0, (1 - fr) * (1 - fc)], [0, 1, (1 - fr) * fc], [1, 0, fr * (1 - fc)], [1, 1, fr * fc]]) {
+      const rr = Math.min(r0 + dr, C.T.NR - 1), cc = Math.min(c0 + dc, C.T.NC - 1), z = C.GZ[rr * C.T.NC + cc];
+      if (wt > 0 && !isNaN(z)) { s += wt * z; w += wt; }
+    }
+    if (w > 0) gz[r * nc + c] = s / w;
+    go[r * nc + c] = C.GO[Math.min(Math.round(R), C.T.NR - 1) * C.T.NC + Math.min(Math.round(Q), C.T.NC - 1)];
+  }
+  for (const det of Object.values(details)) if (det.terrain) {
+    const t = det.terrain;
+    for (let i = 0; i < t.col.length; i++) if (t.row[i] < nr && t.col[i] < nc) { gz[t.row[i] * nc + t.col[i]] = Math.max(0, t.elev[i]); go[t.row[i] * nc + t.col[i]] = t.unit[i]; }
+  }
+  setGrid({ x0: C.T.x0, y0: C.T.y0, step: D.detailStep, NC: nc, NR: nr }, gz, go);
+}
+async function loadDetail(system) {
+  if (FULL || !system || details[system]) return;
+  details[system] = {};  // loading
+  say(`Loading detail for the ${system.replace('_', ' ')} system\u2026`);
+  try {
+    const det = await fetch(D.details[system]).then(r => { if (!r.ok) throw new Error(D.details[system]); return r.json(); });
+    for (const [id, v] of Object.entries(det.riverFlow)) BF[id] = new Uint16Array(b64(v).buffer);
+    for (const x of det.reaches) for (const r of x.rings) { const d = { r, id: x.unit, name: x.name, kind: x.kind }; rivers.push(d); riverBox.push(boxOf(d)); }
+    details[system] = det;
+    fineGrid(); CLIP = computeClip(); buildZ(); buildMeshes(); meshGen++; syncCarTerrain();
+    cache = { day: -1 }; update(); say('');
+  } catch (e) { delete details[system]; say('Could not load the detail: ' + e.message); }
+}
 const tint = {}; let tintDay = -1;
 let map, overlay, carMechanics;
 let showTowns = false, showDetail = false, showSdl = false;
@@ -805,7 +850,8 @@ function initMap() {
   const fitZoom = Math.log2($('map').clientWidth * 360 / 512 / (NC * T.step)) - 0.45;  // the whole terrain grid across the map, allowing for the tilt
   map = new maplibregl.Map({ container:'map', center:[LON0, LAT0], zoom:fitZoom, pitch:52, bearing:-8, attributionControl:false,
     style:{ version:8, sources:{}, layers:[{ id:'bg', type:'background', paint:{'background-color':'#ffffff'} }] } });
-  carMechanics=window.createCarMechanics({deck,map,terrain:{x0:T.x0,y0:T.y0,step:T.step,GZ,NR,NC,outline:D.outline,getExaggeration:()=>TERR},getRelief:()=>relief,
+  syncCarTerrain();
+  carMechanics=window.createCarMechanics({deck,map,terrain:carTerrain,getRelief:()=>relief,
     setRelief:delta=>{const input=$('reliefIn');input.value=Math.max(+input.min,Math.min(+input.max,relief+delta));input.dispatchEvent(new Event('input',{bubbles:true}));},
     pausePlayback:()=>{playing=false;$('play').innerHTML='&#9654;';},refresh:update,
     isWet:riverWetAt,pickTerrain:(x,y)=>overlay?.pickObject({x,y,layerIds:['terrain-'+meshGen],unproject3D:true})?.coordinate});
@@ -813,6 +859,11 @@ function initMap() {
   overlay = new deck.MapboxOverlay({ interleaved:false, layers:layers(), effects:[lighting], getTooltip:null, onHover:hover, onClick:info=>carMechanics.click(info) });
   map.addControl(overlay);
   map.on('zoomend', () => overlay.setProps({layers:layers()}));
+  map.on('moveend', () => {  // zoomed in on a system: fetch its detail (demo bundle only)
+    if (FULL || map.getZoom() < DETAIL_ZOOM) return;
+    const { lng, lat } = map.getCenter(), u = D.units.find(x => x.rings.some(r => inRing(r, lng, lat)));
+    if (u) loadDetail(SYSTEM_OF[u.sdl]);
+  });
   carMechanics.start(()=>overlay.setProps({layers:layers()}));
 }
 function hover(info) {
