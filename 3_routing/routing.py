@@ -102,29 +102,44 @@ def route_lateral_units(lateral_inflows, reaches):
     return pd.DataFrame(outputs, index=index)
 
 
-def route_network(lateral_inflows, downstream, reaches):
-    """Route lateral inflows down a branching river network of Muskingum reaches.
+def route_network(lateral_inflows, downstream, reaches, splits=None):
+    """Route lateral inflows down a river network of Muskingum reaches that can join and split.
 
     ``lateral_inflows`` maps node IDs to daily discharge Series (m3/s) on a shared index. ``downstream`` maps each
     node to the node it drains into ('' for the outlet). ``reaches`` maps each node to ``{"k_days", "x"}`` and an
-    optional ``loss`` fraction removed at that reach's outlet. A node's inflow is its own lateral flow plus the
-    routed outflow of every node draining into it. Returns a DataFrame of each node's routed outflow.
+    optional ``loss`` fraction removed at that reach's outlet. ``splits`` maps a node to ``{to: fraction}``: that
+    share of its routed outflow goes to node ``to`` (or leaves the network if ``to`` is ''), and the rest goes
+    downstream. A node's inflow is its own lateral flow plus its share of the routed outflow of every node feeding
+    it. Returns a DataFrame of each node's routed outflow (before any split).
     """
     from scipy.signal import lfilter, lfilter_zi
 
+    splits = splits or {}
+    for node, targets in splits.items():
+        if node not in lateral_inflows or any(to and to not in lateral_inflows for to in targets):
+            raise ValueError(f"split {node} -> {list(targets)} names a node that is not in the network")
+        if any(f < 0 for f in targets.values()) or sum(targets.values()) > 1:
+            raise ValueError(f"split fractions from {node} must be non-negative and sum to at most 1")
     index = next(iter(lateral_inflows.values())).index
-    children = {n: [] for n in lateral_inflows}
+    feeds = {n: [] for n in lateral_inflows}  # node -> [(upstream node, share of its outflow)]
     for node, down in downstream.items():
         if down:
-            children[down].append(node)
-    out = {}
+            feeds[down].append((node, 1 - sum(splits.get(node, {}).values())))
+    for node, targets in splits.items():
+        for to, share in targets.items():
+            if to:
+                feeds[to].append((node, share))
+    out, active = {}, set()
 
     def outflow(node):
         if node in out:
             return out[node]
+        if node in active:
+            raise ValueError(f"flow splits make a loop through {node}")
+        active.add(node)
         inflow = np.asarray(lateral_inflows[node], dtype=float).copy()
-        for child in children[node]:
-            inflow += outflow(child)
+        for up, share in feeds[node]:
+            inflow += outflow(up) * share
         _validate_flow(inflow)
         k, x, dt = reaches[node]["k_days"], reaches[node]["x"], 1.0
         if not 2 * k * x <= dt <= 2 * k * (1 - x):

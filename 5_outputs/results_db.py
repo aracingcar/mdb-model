@@ -1,10 +1,11 @@
-"""SQLite store for reduced climate series (and, later, model results): one row per run, looked up by key.
+"""SQLite store for reduced climate series, geometry and model results, keyed by SDL unit and run.
 
 Large arrays are saved as compressed .npz blobs. The raw NARCliM files are only needed to fill a row and can be
 deleted once it exists.
 """
 import io
 import json
+import shutil
 import sqlite3
 import sys
 import zlib
@@ -18,21 +19,44 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "1_masking"))
 from config import DB_FILE
 
 CLIMATE_BLOBS = ("forcing", "subcatchment_forcing", "basin_forcing", "evap_grid")
-RESULT_BLOBS = ("flow", "reach_flow", "river_flow", "fish", "birds", "gum")
+RESULT_BLOBS = ("flow", "reach_flow", "river_flow", "fish", "birds", "gum")  # an ecology table is NULL when the unit has no thresholds for it
+TABLES = {
+    "climate": f"""sdl_unit TEXT NOT NULL, global_model TEXT, scenario TEXT, regional_config TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP,
+        {", ".join(f"{b} BLOB" for b in CLIMATE_BLOBS)},
+        PRIMARY KEY (sdl_unit, global_model, scenario, regional_config)""",
+    "geometry": "sdl_unit TEXT NOT NULL, name TEXT, geojson BLOB, PRIMARY KEY (sdl_unit, name)",
+    "results": f"""sdl_unit TEXT NOT NULL, global_model TEXT, scenario TEXT, regional_config TEXT, rainfall_runoff TEXT, routing TEXT,
+        created TEXT DEFAULT CURRENT_TIMESTAMP, {", ".join(f"{b} BLOB" for b in RESULT_BLOBS)},
+        PRIMARY KEY (sdl_unit, global_model, scenario, regional_config, rainfall_runoff, routing)""",
+}
+UNKEYED_UNIT = "CEWO-MBG"  # databases from before the SDL unit key held only the Murrumbidgee, on its CEWO valley outline
+
+
+def _add_unit_key(db):
+    """Move rows from tables without an sdl_unit column under UNKEYED_UNIT, after backing the file up beside it."""
+    old = [t for t in TABLES if (cols := [r[1] for r in db.execute(f"PRAGMA table_info({t})")]) and "sdl_unit" not in cols]
+    if not old:
+        return
+    backup = DB_FILE.with_name(f"{DB_FILE.stem}_before_sdl_unit{DB_FILE.suffix}")
+    if not backup.exists():
+        shutil.copy2(DB_FILE, backup)
+    db.execute("BEGIN")
+    for t in old:
+        cols = ", ".join(r[1] for r in db.execute(f"PRAGMA table_info({t})"))
+        db.execute(f"ALTER TABLE {t} RENAME TO {t}_unkeyed")
+        db.execute(f"CREATE TABLE {t} ({TABLES[t]})")
+        db.execute(f"INSERT INTO {t} (sdl_unit, {cols}) SELECT ?, {cols} FROM {t}_unkeyed", (UNKEYED_UNIT,))
+        db.execute(f"DROP TABLE {t}_unkeyed")
+    db.commit()
+    print(f"5_outputs: keyed {', '.join(old)} in {DB_FILE.name} by SDL unit (existing rows are {UNKEYED_UNIT}; backup {backup.name})")
 
 
 def _connect():
     DB_FILE.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(DB_FILE)
-    db.execute(f"""CREATE TABLE IF NOT EXISTS climate (
-        global_model TEXT, scenario TEXT, regional_config TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP,
-        {", ".join(f"{b} BLOB" for b in CLIMATE_BLOBS)},
-        PRIMARY KEY (global_model, scenario, regional_config))""")
-    db.execute("""CREATE TABLE IF NOT EXISTS geometry (name TEXT PRIMARY KEY, geojson BLOB)""")
-    db.execute(f"""CREATE TABLE IF NOT EXISTS results (
-        global_model TEXT, scenario TEXT, regional_config TEXT, rainfall_runoff TEXT, routing TEXT,
-        created TEXT DEFAULT CURRENT_TIMESTAMP, {", ".join(f"{b} BLOB" for b in RESULT_BLOBS)},
-        PRIMARY KEY (global_model, scenario, regional_config, rainfall_runoff, routing))""")
+    _add_unit_key(db)
+    for name, columns in TABLES.items():
+        db.execute(f"CREATE TABLE IF NOT EXISTS {name} ({columns})")
     return db
 
 
@@ -68,59 +92,70 @@ def _unpack_grid(blob):
     return {**meta, **arrays}
 
 
-def save_climate(run, forcing, subcatchment_forcing, basin_forcing, evap_grid):
-    """Store one climate run's reduced series; ``run`` is (global_model, scenario, regional_config)."""
+def stored_runs(units):
+    """(global_model, scenario, regional_config) of every climate run stored for all of these SDL units."""
+    with _connect() as db:
+        runs = [set(db.execute("SELECT global_model, scenario, regional_config FROM climate WHERE sdl_unit=?", (u,))) for u in units]
+    return set.intersection(*runs)
+
+
+def save_climate(unit, run, forcing, subcatchment_forcing, basin_forcing, evap_grid):
+    """Store one climate run's reduced series for an SDL unit; ``run`` is (global_model, scenario, regional_config)."""
     blobs = (_pack_frame(forcing), _pack_frame(subcatchment_forcing), _pack_frame(basin_forcing), _pack_grid(evap_grid))
     with _connect() as db:
-        db.execute(f"INSERT OR REPLACE INTO climate (global_model, scenario, regional_config, {', '.join(CLIMATE_BLOBS)}) VALUES (?,?,?,?,?,?,?)",
-                   (*run, *blobs))
+        db.execute(f"INSERT OR REPLACE INTO climate (sdl_unit, global_model, scenario, regional_config, {', '.join(CLIMATE_BLOBS)}) VALUES (?,?,?,?,?,?,?,?)",
+                   (unit, *run, *blobs))
 
 
-def load_climate(run, subcatchments, basins):
-    """(forcing, subcatchment_forcing, basin_forcing, evap_grid) for a run, or None if absent or built for other units."""
+def load_climate(unit, run, subcatchments=None, basins=None):
+    """(forcing, subcatchment_forcing, basin_forcing, evap_grid) for an SDL unit and run, or None if absent or, when
+    the unit's reaches and basins are given, built for others."""
     with _connect() as db:
-        row = db.execute(f"SELECT {', '.join(CLIMATE_BLOBS)} FROM climate WHERE global_model=? AND scenario=? AND regional_config=?", run).fetchone()
+        row = db.execute(f"SELECT {', '.join(CLIMATE_BLOBS)} FROM climate WHERE sdl_unit=? AND global_model=? AND scenario=? AND regional_config=?",
+                         (unit, *run)).fetchone()
     if row is None:
         return None
     forcing, sub, basin, grid = _unpack_frame(row[0]), _unpack_frame(row[1]), _unpack_frame(row[2]), _unpack_grid(row[3])
-    expected = {"sub": {f"{n}_{v}" for n in subcatchments["subcatchment"] for v in ("P", "PET")},
-                "basin": {f"{n}_{v}" for n in basins["subcatchment"] for v in ("P", "PET")}}
-    if set(sub.columns) != expected["sub"] or set(basin.columns) != expected["basin"]:
-        return None
+    if subcatchments is not None:
+        expected = {"sub": {f"{n}_{v}" for n in subcatchments["subcatchment"] for v in ("P", "PET")},
+                    "basin": {f"{n}_{v}" for n in basins["subcatchment"] for v in ("P", "PET")}}
+        if set(sub.columns) != expected["sub"] or set(basin.columns) != expected["basin"]:
+            return None
     return forcing, sub, basin, grid
 
 
-def save_geometry(**layers):
-    """Store GeoDataFrames (subcatchments, basins, rivers) as compressed GeoJSON, replacing any earlier copy."""
+def save_geometry(unit, **layers):
+    """Store GeoDataFrames (outline, subcatchments, basins, rivers) as compressed GeoJSON, replacing the SDL unit's earlier copy."""
     with _connect() as db:
         for name, gdf in layers.items():
-            db.execute("INSERT OR REPLACE INTO geometry (name, geojson) VALUES (?, ?)", (name, zlib.compress(gdf.to_crs("EPSG:4326").to_json().encode())))
+            db.execute("INSERT OR REPLACE INTO geometry (sdl_unit, name, geojson) VALUES (?, ?, ?)",
+                       (unit, name, zlib.compress(gdf.to_crs("EPSG:4326").to_json().encode())))
 
 
-def load_geometry(name):
+def load_geometry(unit, name):
     import geopandas as gpd
     with _connect() as db:
-        row = db.execute("SELECT geojson FROM geometry WHERE name=?", (name,)).fetchone()
+        row = db.execute("SELECT geojson FROM geometry WHERE sdl_unit=? AND name=?", (unit, name)).fetchone()
     return None if row is None else gpd.read_file(io.StringIO(zlib.decompress(row[0]).decode()))
 
 
-def save_results(run, methods, flow, reach_flow, river_flow, fish, birds, gum):
-    """Store one run's model results; ``methods`` is (rainfall_runoff, routing). None results are skipped."""
+def save_results(unit, run, methods, flow, reach_flow, river_flow, fish, birds, gum):
+    """Store one run's model results for an SDL unit; ``methods`` is (rainfall_runoff, routing). No flow: nothing is stored."""
     if flow is None:
         return
     blobs = (_pack_frame(flow.rename("flow_ML_d").to_frame()), _pack_frame(reach_flow), _pack_frame(river_flow.astype("float32")),
-             _pack_frame(fish), _pack_frame(birds), _pack_frame(gum))
+             *(None if t is None else _pack_frame(t) for t in (fish, birds, gum)))
     with _connect() as db:
-        db.execute(f"INSERT OR REPLACE INTO results (global_model, scenario, regional_config, rainfall_runoff, routing, {', '.join(RESULT_BLOBS)}) "
-                   f"VALUES (?,?,?,?,?,?,?,?,?,?,?)", (*run, *methods, *blobs))
+        db.execute(f"INSERT OR REPLACE INTO results (sdl_unit, global_model, scenario, regional_config, rainfall_runoff, routing, {', '.join(RESULT_BLOBS)}) "
+                   f"VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (unit, *run, *methods, *blobs))
 
 
-def load_results(run, methods):
+def load_results(unit, run, methods):
     """(flow, reach_flow, river_flow, fish, birds, gum) for a run and method pair, or None."""
     with _connect() as db:
-        row = db.execute(f"SELECT {', '.join(RESULT_BLOBS)} FROM results WHERE global_model=? AND scenario=? AND regional_config=? "
-                         "AND rainfall_runoff=? AND routing=?", (*run, *methods)).fetchone()
+        row = db.execute(f"SELECT {', '.join(RESULT_BLOBS)} FROM results WHERE sdl_unit=? AND global_model=? AND scenario=? AND regional_config=? "
+                         "AND rainfall_runoff=? AND routing=?", (unit, *run, *methods)).fetchone()
     if row is None:
         return None
-    flow, *rest = [_unpack_frame(b) for b in row]
+    flow, *rest = [None if b is None else _unpack_frame(b) for b in row]
     return (flow["flow_ML_d"], *rest)

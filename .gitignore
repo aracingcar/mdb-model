@@ -7,4 +7,5 @@ data/input/hydrobasins/
 data/input/observed_flow/observed_flow_daily.csv
 data/input/dem/
 data/output/
-data/results.db
+data/*.db
+data/input/sdl/

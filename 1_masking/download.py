@@ -1,8 +1,11 @@
+import time
+from concurrent.futures import ProcessPoolExecutor
+
 import numpy as np
 import xarray as xr
 
 from catchment import load_catchment
-from config import (BBOX_MARGIN, NARCLIM_DIR, RLON_CORRECTION_FILE, RUN, RUN_TAG,
+from config import (BBOX_MARGIN, DOWNLOAD_WORKERS, NARCLIM_DIR, RLON_CORRECTION_FILE, RUN, RUN_TAG,
                     THREDDS_DODS, VARIABLES, YEARS)
 
 
@@ -19,20 +22,32 @@ def index_box(ds, bounds):
     return slice(rows.min(), rows.max() + 1), slice(cols.min(), cols.max() + 1)
 
 
+def _fetch(job):
+    """Save one variable-year subset (a worker process; the netCDF library is not thread-safe)."""
+    var, year, out, window, rlon = job
+    for attempt in range(4):
+        try:
+            ds = xr.open_dataset(url(var, year)).assign_coords(rlon=("rlon", rlon))
+            part = out.with_suffix(".part")
+            ds[[var]].isel(rlat=window[0], rlon=window[1]).load().to_netcdf(part)
+            part.replace(out)  # a finished file only ever appears whole
+            return out.name
+        except OSError:
+            time.sleep(5 * (attempt + 1))
+    raise RuntimeError(f"could not download {out.name} after 4 attempts")
+
+
 def download():
-    """Save each variable-year subset in the configured model/scenario/regional directory."""
+    """Save each variable-year subset in the configured model/scenario/regional directory, in parallel."""
     NARCLIM_DIR.mkdir(parents=True, exist_ok=True)
     rlon = np.loadtxt(RLON_CORRECTION_FILE)
-    bounds = load_catchment().to_crs("EPSG:4326").total_bounds
-    window = None
-    for var in VARIABLES:
-        for year in YEARS:
-            out = NARCLIM_DIR / f"{var}_{year}.nc"
-            if out.exists():
-                continue
-            ds = xr.open_dataset(url(var, year))
-            ds = ds.assign_coords(rlon=("rlon", rlon))
-            window = window or index_box(ds, bounds)
-            sub = ds[[var]].isel(rlat=window[0], rlon=window[1])
-            sub.load().to_netcdf(out)
-            print("saved", out.name)
+    todo = [(var, year, NARCLIM_DIR / f"{var}_{year}.nc") for var in VARIABLES for year in YEARS]
+    todo = [job for job in todo if not job[2].exists()]
+    if not todo:
+        return
+    first = xr.open_dataset(url(todo[0][0], todo[0][1])).assign_coords(rlon=("rlon", rlon))
+    window = index_box(first, load_catchment().to_crs("EPSG:4326").total_bounds)
+    first.close()
+    with ProcessPoolExecutor(DOWNLOAD_WORKERS) as pool:
+        for i, name in enumerate(pool.map(_fetch, [(*job, window, rlon) for job in todo]), 1):
+            print(f"saved {name} ({i}/{len(todo)})", flush=True)

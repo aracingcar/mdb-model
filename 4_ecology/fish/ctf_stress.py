@@ -1,7 +1,7 @@
 """Fish cease-to-flow stress (Murray cod, golden perch): refuge / survival model.
 
-Cease-to-flow (CTF) is flow <= CTF_THRESHOLD ML/d (EWR 'CF1' in the Murrumbidgee LTWP, MDBA py-ewr
-parameter sheet: threshold 0-1 ML/d, target frequency 0%). During CTF the river breaks into pools; fish
+Cease-to-flow (CTF) is flow <= ctf_flow ML/d, set per SDL unit in config.SDL_UNITS (Murrumbidgee: EWR 'CF1' in
+the LTWP, MDBA py-ewr parameter sheet: threshold 0-1 ML/d, target frequency 0%). During CTF the river breaks into pools; fish
 survive in refuge pools with a constant daily mortality hazard, so survival over a spell is exp(-h * days).
 HAZARD_PER_DAY is an assumed value, not a published one.
 """
@@ -10,13 +10,12 @@ import pandas as pd
 
 from flow import spells, water_year
 
-CTF_THRESHOLD = 1.0
 HAZARD_PER_DAY = 0.02
 
 
-def ctf_stress(flow):
+def ctf_stress(flow, ctf_flow):
     """Per water year: CTF days, spell count, longest spell, and fraction of the population surviving."""
-    ctf = flow <= CTF_THRESHOLD
+    ctf = flow <= ctf_flow
     rows = {}
     for wy, mask in ctf.groupby(water_year(ctf.index)):
         lengths = [n for _, n in spells(mask)]

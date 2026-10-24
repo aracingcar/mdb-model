@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-BBOX = (-36.55, 143.275, -33.6, 149.6)  # south, west, north, east
+BBOX = (-36.6, 143.15, -32.15, 150.05)  # south, west, north, east: the Murrumbidgee, ACT and Lachlan SDL units
 CLASS = {"motorway": 0, "trunk": 0, "primary": 1, "secondary": 2, "tertiary": 3}
 TOL = {0: 0.0002, 1: 0.0003, 2: 0.0004, 3: 0.0005}  # Douglas-Peucker tolerance in degrees
 OUT = Path(__file__).with_name("roads.json")

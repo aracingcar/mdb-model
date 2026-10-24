@@ -1,6 +1,7 @@
 // Browser twin of the Python hydrology: rainfall-runoff (GR4J), routing (Muskingum), river flows and the ecology scores.
-// Runs in a Web Worker (see the bottom) and in Node for the parity test. Methods are chosen by `algorithm`; their
-// parameters come from the Python modules (2_rainfall_runoff, 3_routing) through the page's META.
+// Runs in a Web Worker (see the bottom) and in Node for the parity test, one river system at a time. Methods are chosen
+// by `algorithm`; their parameters come from the Python modules (2_rainfall_runoff, 3_routing) through the page's META,
+// and the system's own calibration and splits from its engine data file.
 'use strict';
 
 const ML_PER_M3S_DAY = 86.4;
@@ -43,30 +44,36 @@ const RAINFALL_RUNOFF = {
 
 // ---------- routing ----------
 const ROUTING = {
-  // Muskingum down the basin network with a calibrated lowland loss, as in 3_routing/muskingum.py.
+  // Muskingum down the basin network with a calibrated lowland loss and optional flow splits, as in 3_routing/muskingum.py.
   muskingum(runoffM3s, basins, p) {
     const names = basins.map(b => b.id), idx = Object.fromEntries(names.map((n, i) => [n, i]));
     const nDays = runoffM3s[0].length;
-    const delivery = n => p.delivery[n] ?? 1;
+    const delivery = n => p.delivery[n.startsWith('LOWLAND') ? 'LOWLAND' : n] ?? 1;
     const lateral = basins.map((b, i) => runoffM3s[i].map(v => v * delivery(b.id)));
-    const children = basins.map(() => []);
-    basins.forEach((b, i) => { if (b.next) children[idx[b.next]].push(i); });
+    // feeds[i]: [upstream basin, share of its outflow]; a basin's splits send shares elsewhere ('' leaves the river)
+    const feeds = basins.map(() => []);
+    basins.forEach((b, i) => { if (b.next) feeds[idx[b.next]].push([i, 1 - Object.values(b.splits || {}).reduce((a, v) => a + v, 0)]); });
+    basins.forEach((b, i) => { for (const [to, share] of Object.entries(b.splits || {})) if (to) feeds[idx[to]].push([i, share]); });
     const k = basins.map(b => Math.min(2.4, Math.max(0.7, 1.5 * Math.sqrt(b.area) / p.velocity_km_day)));
-    // parents after children
-    const order = [], seen = new Array(basins.length).fill(false);
-    const visit = i => { if (seen[i]) return; seen[i] = true; children[i].forEach(visit); order.push(i); };
+    // upstream before downstream
+    const order = [], state = new Array(basins.length).fill(0);
+    const visit = i => {
+      if (state[i] === 2) return;
+      if (state[i] === 1) throw new Error(`flow splits make a loop through ${basins[i].id}`);
+      state[i] = 1; feeds[i].forEach(([j]) => visit(j)); state[i] = 2; order.push(i);
+    };
     basins.forEach((_, i) => visit(i));
 
     const route = loss => {
       const out = new Array(basins.length);
       for (const i of order) {
         const inflow = Float64Array.from(lateral[i]);
-        for (const c of children[i]) { const o = out[c]; for (let t = 0; t < nDays; t++) inflow[t] += o[t]; }
+        for (const [c, share] of feeds[i]) { const o = out[c]; for (let t = 0; t < nDays; t++) inflow[t] += o[t] * share; }
         const x = p.x, kk = k[i], dt = 1;
         if (!(2 * kk * x <= dt && dt <= 2 * kk * (1 - x))) throw new Error('Muskingum stability requires 2*K*X <= dt <= 2*K*(1-X)');
         const d = 2 * kk * (1 - x) + dt;
         const b0 = (dt - 2 * kk * x) / d, b1 = (dt + 2 * kk * x) / d, a1 = -(2 * kk * (1 - x) - dt) / d;
-        const keep = 1 - (basins[i].id !== 'LOWLAND' && basins[i].region >= p.loss_from ? loss : 0);
+        const keep = 1 - (loss && lossy(basins[i]) ? loss : 0);
         // direct form II transposed, started at steady state (scipy lfilter_zi)
         let z = (b1 - a1 * b0) / (1 + a1) * inflow[0];
         const y = new Float64Array(nDays);
@@ -76,14 +83,20 @@ const ROUTING = {
       return out;
     };
 
+    const lossy = b => b.lossRank >= 1 && b.lossRank <= (p.loss_regions || 0);
     const outletIdx = basins.findIndex(b => b.next === '');
     const mean = a => { let s = 0; for (let t = 0; t < a.length; t++) s += a[t]; return s / a.length; };
-    let lo = 0, hi = 0.99;
-    for (let it = 0; it < 25; it++) {
-      const mid = (lo + hi) / 2;
-      if (mean(route(mid)[outletIdx]) > p.target_outlet_m3s) lo = mid; else hi = mid;
+    let loss = 0;  // no target for this SDL unit: no loss
+    if (p.target_outlet_m3s != null) {
+      if (!basins.some(lossy)) throw new Error(`loss_regions = ${p.loss_regions} selects no basin`);
+      const target = p.target_outlet_m3s * p.target_scale;
+      let lo = 0, hi = 0.99;
+      for (let it = 0; it < 25; it++) {
+        const mid = (lo + hi) / 2;
+        if (mean(route(mid)[outletIdx]) > target) lo = mid; else hi = mid;
+      }
+      loss = (lo + hi) / 2;
     }
-    const loss = (lo + hi) / 2;
     const basinFlow = route(loss).map(a => a.map(v => v * ML_PER_M3S_DAY));
     const lateralMLd = lateral.map(a => a.map(v => v * ML_PER_M3S_DAY));
     return { basinFlow, lateralMLd, loss };
@@ -113,16 +126,18 @@ function waterYears(days) {
 const round = (v, n) => { const f = 10 ** n; return Math.round(v * f) / f; };
 const isoDay = (days, i) => days[i] + ' 00:00:00';
 
-function ecology(flow, days) {
+// thresholds: the SDL unit's {fish, waterbirds, river_red_gum} flow thresholds (ML/d); an indicator without them is null.
+function ecology(flow, days, thresholds) {
+  const th = thresholds || {};
   const years = waterYears(days);
   const fish = { water_year: [], ctf_days: [], ctf_spells: [], longest_ctf_days: [], survival: [], CF1_met: [] };
   const birds = { water_year: [], triggered: [], sustained: [], trigger_date: [] };
   const gum = { water_year: [], flood_days: [], flooded: [], years_since_flood: [], condition: [] };
 
-  const ctf = Array.from(flow, v => v <= 1.0);
-  const TRIGGER_FLOW = 15500, TRIGGER_DAYS = 9, SUSTAIN_FLOW = TRIGGER_FLOW / 2, SUSTAIN_DAYS = 90;
+  const ctf = Array.from(flow, v => v <= th.fish?.ctf_flow);
+  const TRIGGER_FLOW = th.waterbirds?.trigger_flow, TRIGGER_DAYS = th.waterbirds?.trigger_days, SUSTAIN_FLOW = TRIGGER_FLOW / 2, SUSTAIN_DAYS = 90;
   const high = Array.from(flow, v => v >= TRIGGER_FLOW);
-  const FLOOD_FLOW = 15000, FLOOD_DAYS = 11, MAX_DRY = 4, MAX_WET = 3, GAIN = 0.25, LOSS = 0.15;
+  const FLOOD_FLOW = th.river_red_gum?.flood_flow, FLOOD_DAYS = th.river_red_gum?.flood_days, MAX_DRY = 4, MAX_WET = 3, GAIN = 0.25, LOSS = 0.15;
   const inSeason = days.map(d => [8, 9, 10, 11, 12, 1, 2].includes(monthOf(d)));
   let condition = 0.7, dry = 0, wet = 0;
 
@@ -150,7 +165,7 @@ function ecology(flow, days) {
     condition = Math.min(1, Math.max(0, condition));
     gum.water_year.push(wy); gum.flood_days.push(fd); gum.flooded.push(flooded); gum.years_since_flood.push(dry); gum.condition.push(round(condition, 3));
   }
-  return { fish, birds, gum };
+  return { fish: th.fish ? fish : null, birds: th.waterbirds ? birds : null, gum: th.river_red_gum ? gum : null };
 }
 
 // ---------- the whole chain ----------
@@ -159,7 +174,8 @@ function b64ToU16(b64) {
   const buf = Buffer.from(b64, 'base64'); return new Uint16Array(buf.buffer, buf.byteOffset, buf.length / 2).slice();
 }
 
-/** engine: the page's engine data file; days: the date strings; rr / routing: {algorithm, params}. */
+/** engine: one river system's engine data file; days: the date strings; rr / routing: {algorithm, params}. Returns the
+ * reach and river flows plus, per SDL unit, the flow at its outlet and its ecology scores. */
 function run(engine, days, rr, routing) {
   const nb = engine.basins.length, n = days.length;
   const P = b64ToU16(engine.P), PET = b64ToU16(engine.PET), sc = engine.scale;
@@ -171,10 +187,9 @@ function run(engine, days, rr, routing) {
     const depth = simulate(p, e, rr.params);
     return depth.map(v => v * b.area * 1000 / 86400);  // mm/day over km2 -> m3/s
   });
-  const { basinFlow, lateralMLd } = route(runoff, engine.basins, routing.params);
+  const { basinFlow, lateralMLd } = route(runoff, engine.basins, { ...routing.params, ...engine.calibration });
   const at = Object.fromEntries(engine.basins.map((b, i) => [b.id, i]));
 
-  const flow = basinFlow[at[engine.outlet]];
   const reachFlow = {};
   for (const [unit, basin] of Object.entries(engine.reachOutlet)) reachFlow[unit] = Array.from(basinFlow[at[basin]], v => Math.round(v));
   const riverFlow = {};
@@ -186,7 +201,12 @@ function run(engine, days, rr, routing) {
     }
     riverFlow[id] = out;
   }
-  return { reachFlow, riverFlow, flow: Array.from(flow, v => Math.round(v)), ...ecology(flow, days) };
+  const sdl = {};
+  for (const [unit, { outlet, ecology: thresholds }] of Object.entries(engine.units)) {
+    const flow = basinFlow[at[outlet]];
+    sdl[unit] = { flow: Array.from(flow, v => Math.round(v)), ...ecology(flow, days, thresholds) };
+  }
+  return { reachFlow, riverFlow, sdl };
 }
 
 if (typeof module !== 'undefined') module.exports = { run, ecology, RAINFALL_RUNOFF, ROUTING };

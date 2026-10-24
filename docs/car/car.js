@@ -21,6 +21,8 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   if (towns) tools.append(towns);
   const detailToggle = document.getElementById('detail-toggle');
   if (detailToggle) tools.append(detailToggle);
+  const sdlToggle = document.getElementById('sdl-toggle');
+  if (sdlToggle) tools.append(sdlToggle);
   document.body.append(tools);
   const ghost = document.createElement('div');
   ghost.className = 'car-drag-ghost'; ghost.textContent = '🚗'; ghost.hidden = true;

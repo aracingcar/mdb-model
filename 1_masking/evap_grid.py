@@ -17,8 +17,10 @@ BUFFER_DEG = 0.12  # keep pixels this close to the valley
 SCALE = 2  # stored as int8 in half-mm steps
 
 
-def evap_anomaly_grid(ds, catchment):
-    """Return a dict with the raster geometry, the stored 4 km anomaly fields and the pixel -> cell mapping."""
+def evap_anomaly_grids(ds, outlines):
+    """Return {key: grid} for every outline in ``outlines`` ({key: GeoDataFrame}), each grid a dict with the raster
+    geometry, the stored 4 km anomaly fields and the pixel -> cell mapping. Rasters of different outlines sit on one
+    shared PIXEL_DEG lattice, so the display can merge them."""
     n = ds.sizes["time"]
     roll = ds["PET"].transpose("time", "rlat", "rlon").values.astype("float32", copy=False)
     # In place (the full series is ~2 GB): running sum, then difference with the sum ROLL_DAYS earlier, scaled to mm / 30 days.
@@ -35,8 +37,12 @@ def evap_anomaly_grid(ds, catchment):
         times.append(n - 1)
     anomaly = np.stack([roll[t] - normal[keys[t]] for t in times])  # (steps, rlat, rlon)
     del roll
+    dates = [str(ds["time"].values[t])[:10] for t in times]
+    return {key: _raster(ds, anomaly, dates, outline) for key, outline in outlines.items()}
 
-    valley = catchment.to_crs("EPSG:4326").geometry.union_all()
+
+def _raster(ds, anomaly, dates, outline):
+    valley = outline.to_crs("EPSG:4326").geometry.union_all()
     minx, miny, maxx, maxy = valley.bounds
     minx, miny = np.floor(minx / PIXEL_DEG) * PIXEL_DEG, np.floor(miny / PIXEL_DEG) * PIXEL_DEG
     nx, ny = int(np.ceil((maxx - minx) / PIXEL_DEG)), int(np.ceil((maxy - miny) / PIXEL_DEG))
@@ -60,10 +66,10 @@ def evap_anomaly_grid(ds, catchment):
     idx = np.where(near[..., None], remap[corners], -1).reshape(-1, 4)
     weights = np.stack([np.nan_to_num(fj) - j0, np.nan_to_num(fi) - i0], axis=-1).reshape(-1, 2)
 
-    fields = anomaly.reshape(len(times), -1)[:, used]
+    fields = anomaly.reshape(len(dates), -1)[:, used]
     return {
         "bbox": [minx, miny, minx + nx * PIXEL_DEG, maxy], "nx": nx, "ny": ny,
-        "dates": [str(ds["time"].values[t])[:10] for t in times],
+        "dates": dates,
         "values": np.clip(np.round(fields * SCALE), -127, 127).astype("int8"), "scale": SCALE,
         "idx": idx.astype("int32"), "weights": weights.astype("float32"),
     }

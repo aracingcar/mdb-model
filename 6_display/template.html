@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Murrumbidgee, day by day</title>
+<title>__TITLE__, day by day</title>
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../6_display/car/car.css">
@@ -29,7 +29,9 @@
   #legend .ticks { position:relative; height:16px; margin-top:3px; font-size:11.5px; color:var(--ink); font-weight:400; }
   #legend .ticks span { position:absolute; transform:translateX(-50%); white-space:nowrap; }
   #legend .ticks span:first-child { transform:none; } #legend .ticks span:last-child { transform:none; left:auto !important; right:0; }
-  #eco { margin-top:12px; width:330px; }
+  #focus-row { margin-top:12px; width:330px; display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:13px; font-weight:600; color:var(--head); }
+  #focus-row select { font:inherit; font-weight:400; color:var(--ink); border:1px solid var(--rule); border-radius:4px; padding:2px 4px; background:#fff; }
+  #eco { margin-top:8px; width:330px; }
   .row { margin-bottom:5px; }
   .row .top { display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:400; color:var(--head); }
   .row .top b { font-weight:600; font-size:14px; }
@@ -51,13 +53,14 @@
   #relief { position:absolute; right:22px; top:18px; font-size:12px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
   #relief label { display:flex; align-items:center; gap:8px; }
   #relief input { width:110px; accent-color:#8a8e94; }
-  #towns-toggle, #detail-toggle { position:absolute; right:22px; bottom:90px; z-index:6; display:flex; align-items:center; gap:9px; padding:9px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); color:var(--head); font-size:12px; font-weight:600; cursor:pointer; }
+  #towns-toggle, #detail-toggle, #sdl-toggle { position:absolute; right:22px; bottom:90px; z-index:6; display:flex; align-items:center; gap:9px; padding:9px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); color:var(--head); font-size:12px; font-weight:600; cursor:pointer; }
   #detail-toggle { bottom:138px; }
-  #townsIn, #detailIn { appearance:none; width:30px; height:18px; margin:0; border-radius:10px; background:#b8bdc2; position:relative; cursor:pointer; transition:background .15s; }
-  #townsIn::before, #detailIn::before { content:''; position:absolute; top:3px; left:3px; width:12px; height:12px; border-radius:50%; background:#fff; transition:transform .15s; }
-  #townsIn:checked, #detailIn:checked { background:#4a78a0; }
-  #townsIn:checked::before, #detailIn:checked::before { transform:translateX(12px); }
-  #townsIn:focus-visible, #detailIn:focus-visible { outline:2px solid #2d6aa8; outline-offset:3px; }
+  #sdl-toggle { bottom:186px; }
+  #townsIn, #detailIn, #sdlIn { appearance:none; width:30px; height:18px; margin:0; border-radius:10px; background:#b8bdc2; position:relative; cursor:pointer; transition:background .15s; }
+  #townsIn::before, #detailIn::before, #sdlIn::before { content:''; position:absolute; top:3px; left:3px; width:12px; height:12px; border-radius:50%; background:#fff; transition:transform .15s; }
+  #townsIn:checked, #detailIn:checked, #sdlIn:checked { background:#4a78a0; }
+  #townsIn:checked::before, #detailIn:checked::before, #sdlIn:checked::before { transform:translateX(12px); }
+  #townsIn:focus-visible, #detailIn:focus-visible, #sdlIn:focus-visible { outline:2px solid #2d6aa8; outline-offset:3px; }
   #tip { position:absolute; pointer-events:none; padding:9px 12px; display:none; z-index:5; font-size:13px; line-height:1.45; background:#fff; border:1px solid var(--rule); box-shadow:0 2px 10px rgba(0,0,0,.08); color:var(--ink); font-weight:400; }
   #tip b { font-weight:700; display:block; color:var(--head); }
   #model-panels { position:absolute; left:420px; top:18px; right:300px; z-index:8; display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start; pointer-events:none; }
@@ -86,7 +89,7 @@
   #routing-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
   @media (max-width:900px) { #model-panels { left:12px; right:12px; top:214px; flex-direction:column; max-height:calc(100% - 298px); overflow:auto; } #model-panels > details { width:240px; } }
   #err { position:absolute; inset:0; display:none; place-items:center; font:300 20px var(--sans); text-align:center; padding:40px; z-index:20; background:var(--bg); }
-  @media (max-width:900px) { #map { left:0; top:300px; } #side { width:100%; bottom:auto; height:300px; padding:18px 20px; background:#fff; z-index:2; } h1 { font-size:24px; margin-top:8px; } #desc,#legend,#eco,#credit,#note2,#chartT,#bars { display:none; } #date { font-size:36px; } #wd { margin-top:8px; } }
+  @media (max-width:900px) { #map { left:0; top:300px; } #side { width:100%; bottom:auto; height:300px; padding:18px 20px; background:#fff; z-index:2; } h1 { font-size:24px; margin-top:8px; } #desc,#legend,#focus-row,#eco,#credit,#note2,#chartT,#bars { display:none; } #date { font-size:36px; } #wd { margin-top:8px; } }
   #site-menu { position:fixed; z-index:30; top:16px; right:210px; font-size:11px; font-weight:400; color:#888d92; }
   #site-menu summary { list-style:none; cursor:pointer; padding:5px 7px; color:inherit; background:transparent; border:1px solid transparent; border-radius:5px; }
   #site-menu summary:hover, #site-menu[open] summary { color:var(--head); background:rgba(255,255,255,.72); border-color:var(--rule); }
@@ -111,23 +114,24 @@
 </details>
 <div id="map"></div>
 <div id="side">
-  <div id="kicker">Murrumbidgee / 2015&ndash;2034</div>
+  <div id="kicker">__TITLE__ / 2015&ndash;2034</div>
   <h1>Water on the land,<br>day by day</h1>
-  <div id="desc">Rolling 30-day potential evaporation on the native 4 km grid, minus its normal for that day of the year, smoothed over the valley&rsquo;s own terrain, with rivers at their routed flow.</div>
+  <div id="desc">Rolling 30-day potential evaporation on the native 4 km grid, minus its normal for that day of the year, smoothed over the land&rsquo;s own terrain, with rivers at their routed flow.</div>
   <div id="wd"></div>
   <div id="date"></div>
   <div id="yr"></div>
-  <div id="chartT">Daily valley mean</div>
+  <div id="chartT">Daily mean</div>
   <canvas id="bars"></canvas>
   <div id="note">Colour shows the evaporation anomaly.</div>
   <div id="note2">Warm is above normal; cool is below. Height is terrain. Clouds are rolling 60-day rainfall.</div>
   <div id="legend"><div class="ramp" id="legE"></div><div class="ticks" id="legEK"></div></div>
+  <label id="focus-row" for="focus"><span>Outlet flow and ecology</span><select id="focus"></select></label>
   <div id="eco">
     <div class="row" data-k="fish"><div class="top"><span>Native fish</span><b id="fishV"></b></div><div class="bar"><i id="fishB"></i></div><small id="fishS"></small></div>
     <div class="row" data-k="bird"><div class="top"><span>Colonial waterbirds</span><b id="birdV"></b></div><div class="bar"><i id="birdB"></i></div><small id="birdS"></small></div>
     <div class="row" data-k="gum"><div class="top"><span>River red gum</span><b id="gumV"></b></div><div class="bar"><i id="gumB"></i></div><small id="gumS"></small></div>
   </div>
-  <div id="credit"><b>NARCliM2.0 &middot; NCI / NSW DCCEEW</b><br>GR4J + Muskingum, uncalibrated, indicative only<br>HydroBASINS &middot; AWS Terrain Tiles &middot; OSM</div>
+  <div id="credit"><b>NARCliM2.0 &middot; NCI / NSW DCCEEW</b><br>GR4J + Muskingum, uncalibrated, indicative only<br>MDBA SDL resource units &middot; HydroBASINS &middot; AWS Terrain Tiles &middot; OSM</div>
 </div>
 <div id="relief"><label><span>Rivers</span><input id="riverReliefIn" type="range" min="0" max="2" step="0.05" value="1"></label><label><span>Terrain</span><input id="reliefIn" type="range" min="0" max="2" step="0.05" value="1"></label></div>
 <div id="model-panels">
@@ -161,6 +165,7 @@
 <div id="bar"><button id="play">&#9654;</button><div id="timeline"><canvas id="tl"></canvas></div><div id="clock"></div><button id="speed">30 d/s</button></div>
 <label id="towns-toggle" for="townsIn"><span>Towns</span><input id="townsIn" type="checkbox" role="switch"></label>
 <label id="detail-toggle" for="detailIn"><span>Roads</span><input id="detailIn" type="checkbox" role="switch"></label>
+<label id="sdl-toggle" for="sdlIn"><span>SDL units</span><input id="sdlIn" type="checkbox" role="switch"></label>
 <div id="tip"></div>
 <div id="err">The map libraries could not load. Open this page with an internet connection.</div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -172,7 +177,10 @@
 const META = __META__;
 const D = { ...META };
 try {
-  for (const f of await Promise.all(META.files.map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); })))) Object.assign(D, f);
+  // each river system's files add to the same objects (P, PET, evapParts, reachFlow, riverFlow, sdl)
+  const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+  for (const f of await Promise.all(META.files.map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); }))))
+    for (const [k, v] of Object.entries(f)) D[k] = isObj(D[k]) && isObj(v) ? { ...D[k], ...v } : v;
 } catch (e) {
   const err = document.getElementById('err'); err.textContent = 'The model data could not be loaded. Serve this folder over http (for example python -m http.server in docs).'; err.style.display = 'grid'; return;
 }
@@ -189,16 +197,29 @@ for (const [id, s] of Object.entries(D.runoff.specs)) $('runoff-model').add(new 
 $('runoff-model').value = D.runoff.selected;
 for (const [id, s] of Object.entries(D.routing.specs)) $('routing-model').add(new Option(s.label, id));
 $('routing-model').value = D.routing.selected;
+// The outlet flow (date line and timeline) and the ecology rows follow one SDL unit at a time; the map shows them all.
+let focus = D.focus, FQ = 1;
+function setFocus(u) {
+  focus = u;
+  ({ flow: D.flow, fish: D.fish, birds: D.birds, gum: D.gum } = D.sdl[u]);
+  FQ = Math.max(1, ...D.flow);
+}
+setFocus(focus);
+const UNIT_NAME = Object.fromEntries(D.sdlBounds.map(b => [b.id, b.name]));
+for (const b of D.sdlBounds) $('focus').add(new Option(`${b.name} (${b.id})`, b.id));
+$('focus').value = focus;
+$('focus').onchange = e => { setFocus(e.target.value); update(); };
+function maxQ() { return Math.max(...Object.values(D.sdl).map(s => Math.max(...s.flow)), ...Object.values(D.reachFlow).map(a => Math.max(...a))); }
 
 // ---- Method choice: the defaults are precomputed; any other pair is recalculated here (engine.js in a worker) and saved in IndexedDB ----
-const ENGINE_VERSION = 1;  // bump when docs/engine.js changes what it computes, so saved results are not reused
+const ENGINE_VERSION = 2;  // bump when docs/engine.js changes what it computes, so saved results are not reused
 const DEFAULT_RR = D.runoff.selected, DEFAULT_RT = D.routing.selected;
-const DEFAULT_RESULTS = { reachFlow: D.reachFlow, flow: D.flow, fish: D.fish, birds: D.birds, gum: D.gum, riverFlow: { ...BF } };
+const DEFAULT_RESULTS = { reachFlow: D.reachFlow, sdl: D.sdl, riverFlow: { ...BF } };
 function applyResults(r) {
-  D.reachFlow = r.reachFlow; D.flow = r.flow; D.fish = r.fish; D.birds = r.birds; D.gum = r.gum;
+  D.reachFlow = r.reachFlow; D.sdl = r.sdl; setFocus(focus);
   for (const id in BF) delete BF[id];
   Object.assign(BF, r.riverFlow);
-  MAXQ = Math.max(...D.flow, ...Object.values(D.reachFlow).map(a => Math.max(...a)));
+  MAXQ = maxQ();
   cache = { day: -1 }; update();
 }
 const idb = (() => {
@@ -211,14 +232,22 @@ const idb = (() => {
 })();
 const calc = $('calc-status'), calcText = calc.firstElementChild;
 const say = (msg, clearable) => { calc.hidden = !msg; calcText.textContent = msg || ''; $('cache-clear').hidden = !clearable; };
-let enginePromise, worker, selToken = 0;
-const getEngine = () => enginePromise ||= fetch(D.engine).then(r => { if (!r.ok) throw new Error(D.engine); return r.json(); });
+let enginePromise, worker, selToken = 0, calcId = 0;
+const getEngines = () => enginePromise ||= Promise.all(Object.values(D.engines).map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); })));
 function recalc(rr, rt) {
   return new Promise((res, rej) => {
     worker ||= new Worker('engine.js');
-    worker.onmessage = ({ data }) => data.error ? rej(new Error(data.error)) : res(data.result);
-    worker.onerror = e => rej(new Error(e.message));
-    getEngine().then(engine => worker.postMessage({ engine, days: D.days, rr: D.runoff.specs[rr], routing: D.routing.specs[rt] }), rej);
+    const one = engine => new Promise((ok, fail) => {
+      const id = ++calcId;
+      worker.onmessage = ({ data }) => { if (data.id === id) data.error ? fail(new Error(data.error)) : ok(data.result); };
+      worker.onerror = e => fail(new Error(e.message));
+      worker.postMessage({ id, engine, days: D.days, rr: D.runoff.specs[rr], routing: D.routing.specs[rt] });
+    });
+    getEngines().then(async engines => {  // one river system after another, merged into one result
+      const merged = { reachFlow: {}, riverFlow: {}, sdl: {} };
+      for (const engine of engines) { const r = await one(engine); for (const k in merged) Object.assign(merged[k], r[k]); }
+      return merged;
+    }).then(res, rej);
   });
 }
 async function chooseMethods() {
@@ -256,7 +285,7 @@ function setPeriod() {
   fillYears('climate-start', FIRST_YEAR, b - 1, a);
   fillYears('climate-end', a + 1, LAST_YEAR, b);
   W0 = D.days.indexOf(`${a}-01-01`); W1 = D.days.indexOf(`${b}-12-31`);
-  $('kicker').textContent = `Murrumbidgee / ${a}\u2013${b}`;
+  $('kicker').textContent = `${D.title} / ${a}\u2013${b}`;
   if (day < W0 || day > W1) day = W0;
   update();
 }
@@ -268,7 +297,7 @@ const totalArea = D.units.reduce((a,u) => a + u.area, 0);
 const valleyMean = (series, i) => D.units.reduce((a,u) => a + series[u.id][i] * u.area, 0) / totalArea;
 const lerp = (a,b,t) => a.map((v,i) => Math.round(v + (b[i]-v)*t));
 let day = 0, playing = false, speeds = [10,30,90,365], si = 1, relief = 1, riverRelief = 1, last = performance.now(), acc = 0;
-let MAXQ = Math.max(...D.flow, ...Object.values(D.reachFlow).map(a => Math.max(...a)));
+let MAXQ = maxQ();
 const flowCol = q => [...lerp([28,111,176],[140,225,250],Math.min(1,Math.sqrt(q / MAXQ))), 245];
 const elev = q => (800 + 24 * Math.sqrt(q)) * riverRelief;  // river rises a little above the ground, deliberately unrealistic
 
@@ -345,7 +374,8 @@ function riverWetAt(lon, lat) {  // how wet the ground is here, 0-1: flowing riv
 }
 const T = D.terrain;
 // ---- smooth terrain: one triangle mesh per subcatchment, shared vertices and per-vertex normals
-const NC = Math.max(...T.col) + 1, NR = Math.max(...T.row) + 1;
+const largest = a => a.reduce((m, v) => v > m ? v : m, -Infinity);  // no spread: the grid has too many cells for argument lists
+const NC = largest(T.col) + 1, NR = largest(T.row) + 1;
 const GZ = new Float32Array(NR * NC).fill(NaN), GO = new Int16Array(NR * NC).fill(-1);
 T.col.forEach((c, i) => { GZ[T.row[i] * NC + c] = Math.max(0, T.elev[i]); GO[T.row[i] * NC + c] = T.unit[i]; });
 // Selected settlement centres (approximate WGS84 lon/lat), for geographic orientation.
@@ -406,6 +436,21 @@ const PLACES = [
   ['Urana',146.2670,-35.3330,'town',9],
   ['Carrathool',145.4280,-34.4120,'town',9],
   ['Maude',144.2990,-34.4750,'town',9],
+  ['Forbes',148.0110,-33.3840,'town',0],
+  ['Parkes',148.1750,-33.1370,'town',0],
+  ['Cowra',148.6920,-33.8340,'town',0],
+  ['Condobolin',147.1500,-33.0880,'town',7],
+  ['Hillston',145.5340,-33.4830,'town',7],
+  ['Lake Cargelligo',146.3720,-33.2990,'town',7.5],
+  ['West Wyalong',147.2050,-33.9240,'town',7.5],
+  ['Grenfell',148.1640,-33.8950,'town',8],
+  ['Canowindra',148.6640,-33.5640,'town',8.5],
+  ['Crookwell',149.4700,-34.4590,'town',8],
+  ['Booligal',144.8850,-33.8690,'town',8.5],
+  ['Eugowra',148.3730,-33.4270,'town',9],
+  ['Trundle',147.7100,-32.9230,'town',9],
+  ['Gunning',149.2650,-34.7820,'town',9],
+  ['Euabalong',146.4720,-33.1160,'town',9.5],
 ].map(([name,lon,lat,kind,minZoom]) => {
   const c = Math.round((lon - T.x0) / T.step), r = Math.round((T.y0 - lat) / T.step);
   const z = r >= 0 && r < NR && c >= 0 && c < NC ? GZ[r * NC + c] : NaN;
@@ -560,7 +605,9 @@ function buildMeshes() {
 
 // ---- 4 km evaporation anomaly field, interpolated smoothly onto a raster and used as the terrain texture
 const b64 = t => { const bin = atob(t), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); return u8; };
-const EV = new Int8Array(b64(E.values).buffer), EI = new Uint16Array(b64(E.idx).buffer), EWT = b64(E.weights);
+const EV = new Int8Array(E.dates.length * E.cells);  // each unit's 4 km cells, numbered one unit after another (E.parts)
+{ let off = 0; for (const [u, n] of E.parts) { const v = new Int8Array(b64(D.evapParts[u]).buffer); for (let s = 0; s < E.dates.length; s++) EV.set(v.subarray(s * n, (s + 1) * n), s * E.cells + off); off += n; } }
+const EI = new Uint16Array(b64(E.idx).buffer), EWT = b64(E.weights);
 const evT = E.dates.map(d => D.days.indexOf(d)), cellsN = E.cells;
 const MW = E.nx * 4, MH = E.ny * 4;
 let evCanvas = null, evDay = -1;
@@ -586,8 +633,8 @@ function paintEvap(d) {
   bg.drawImage(cv, 0, 0, MW, MH);
   evCanvas = big; return big;  // opaque: the terrain mesh is clipped to the outline, so the wall shares this texture
 }
-// interior subcatchment borders only: cut at the simplified valley outline, and pieces that run along it (the exterior border) are dropped
-const BSEG = (() => {
+// interior borders only: cut at the simplified outline of the modelled land, and pieces that run along it (the exterior border) are dropped
+function interiorBorders(rings) {
   const rg = D.outline, inside = P => rg.reduce((n, ring) => { for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) { const A = ring[i], B = ring[j]; if ((A[1] > P[1]) !== (B[1] > P[1]) && P[0] < A[0] + (P[1] - A[1]) / (B[1] - A[1]) * (B[0] - A[0])) n++; } return n; }, 0) % 2 === 1;
   const edges = rg.flatMap(ring => ring.slice(1).map((B, i) => [ring[i], B]));
   const cutTs = (P, Q) => {
@@ -602,7 +649,7 @@ const BSEG = (() => {
   };
   const dist = P => { let best = Infinity; for (const [A, B] of edges) { const dx = B[0] - A[0], dy = B[1] - A[1], t = Math.max(0, Math.min(1, ((P[0] - A[0]) * dx + (P[1] - A[1]) * dy) / (dx * dx + dy * dy || 1))); best = Math.min(best, Math.hypot(P[0] - A[0] - t * dx, P[1] - A[1] - t * dy)); } return best; };
   const out = [];
-  for (const u of D.units) for (const r of u.rings) {
+  for (const r of rings) {
     let cur = [];
     for (let i = 1; i < r.length; i++) {
       const P = r[i - 1], Q = r[i], at = t => [P[0] + (Q[0] - P[0]) * t, P[1] + (Q[1] - P[1]) * t, P[2] + (Q[2] - P[2]) * t], ts = cutTs(P, Q);
@@ -614,10 +661,12 @@ const BSEG = (() => {
     if (cur.length) out.push(cur);
   }
   return out;
-})();
-let bounds, ctxZ, riverZ;
+}
+const BSEG = interiorBorders(D.units.flatMap(u => u.rings)), SSEG = interiorBorders(D.sdlBounds.flatMap(b => b.rings));
+let bounds, sdlZ, ctxZ, riverZ;
 function buildZ() {  // ground-following geometry depends on the relief setting
   bounds = BSEG.map(sg => ({ path: sg.map(p => [p[0], p[1], p[2] * TERR + 200]) }));
+  sdlZ = SSEG.map(sg => ({ path: sg.map(p => [p[0], p[1], p[2] * TERR + 260]) }));
   ctxZ = D.context.map(r => ({ r: r.map(p => [p[0], p[1], p[2] * TERR + 250]) }));
   riverZ = rivers.map(d => ({ ...d, r: d.r.map(p => [p[0], p[1], p[2] * TERR]) }));
 }
@@ -626,7 +675,7 @@ let cache = { day: -1 }, meshGen = 0;
 buildMeshes();
 const tint = {}; let tintDay = -1;
 let map, overlay, carMechanics;
-let showTowns = false, showDetail = false;
+let showTowns = false, showDetail = false, showSdl = false;
 const roadSets = new Map();  // ribbon polygons memoised per (visible classes, width bucket) so the layer data keeps its identity between frames
 function roadsNow() {
   const z = map ? map.getZoom() : 6.5, n = ROAD_MIN_ZOOM.filter(m => z >= m).length, w = Math.max(.4, Math.min(3, 2 ** (9.5 - z))), key = n + ':' + w.toFixed(1);
@@ -689,6 +738,12 @@ function layers() {
       getFillColor:d => [...ROAD_FILL[d.cls], 245], material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:false, updateTriggers:{getPolygon:relief, getElevation:relief} })] : []),
     new deck.PolygonLayer({ id:'units', data:polys, getPolygon:d => d.r.map(p => [p[0], p[1], 0]), getFillColor:[0,0,0,2], stroked:false, pickable:true }),
     new deck.PathLayer({ id:'bounds', data:bounds, getPath:d => d.path, getColor:[70,76,86,90], getWidth:0.9, widthUnits:'pixels', pickable:false }),
+    // SDL resource unit borders: a dark line on a white halo, so they read apart from the thin reach borders
+    new deck.PathLayer({ id:'sdl-halo', visible:showSdl, data:sdlZ, getPath:d => d.path, getColor:[255,255,255,190], getWidth:7, widthUnits:'pixels', jointRounded:true, capRounded:true, pickable:false }),
+    new deck.PathLayer({ id:'sdl-bounds', visible:showSdl, data:sdlZ, getPath:d => d.path, getColor:[24,26,32,240], getWidth:3, widthUnits:'pixels', jointRounded:true, capRounded:true, pickable:false }),
+    new deck.TextLayer({ id:'sdl-labels', visible:showSdl, data:D.sdlBounds, getPosition:d => [d.mid[0], d.mid[1], d.mid[2] * TERR + 900], getText:d => `${d.name.toUpperCase()} \u00b7 ${d.id}`,
+      getSize:12, sizeUnits:'pixels', fontFamily:'Arial, sans-serif', fontWeight:700, characterSet:'auto', getColor:[38,42,50,230],
+      background:true, getBackgroundColor:[255,255,255,190], backgroundPadding:[4,2], billboard:true, pickable:false, parameters:blend, updateTriggers:{getPosition:relief} }),
     new deck.SolidPolygonLayer({ id:'context', data:ctxZ, getPolygon:d => d.r, getFillColor:[150,192,220,120], extruded:false, pickable:false }),
     new deck.SolidPolygonLayer({ id:'rivers', data:riverZ, getPolygon:d => d.r, extruded:true, getElevation:d => elev(flowOf(d)), getFillColor:d => flowCol(flowOf(d)), material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:true, autoHighlight:true, highlightColor:[255,247,224,100], updateTriggers:{getElevation:[day,riverRelief], getFillColor:day} }),
     ...mist,
@@ -705,7 +760,7 @@ function layers() {
   ];
 }
 function initMap() {
-  map = new maplibregl.Map({ container:'map', center:[146.35,-35.2], zoom:6.5, pitch:52, bearing:-8, attributionControl:false,
+  map = new maplibregl.Map({ container:'map', center:[146.6,-34.45], zoom:6.2, pitch:52, bearing:-8, attributionControl:false,
     style:{ version:8, sources:{}, layers:[{ id:'bg', type:'background', paint:{'background-color':'#ffffff'} }] } });
   carMechanics=window.createCarMechanics({deck,map,terrain:{x0:T.x0,y0:T.y0,step:T.step,GZ,NR,NC,outline:D.outline,getExaggeration:()=>TERR},getRelief:()=>relief,
     setRelief:delta=>{const input=$('reliefIn');input.value=Math.max(+input.min,Math.min(+input.max,relief+delta));input.dispatchEvent(new Event('input',{bubbles:true}));},
@@ -728,23 +783,31 @@ function hover(info) {
     return;
   }
   const id = info.object.id || info.object.u.id, u = D.units.find(x => x.id === id);
-  tip.innerHTML = `<b>${u.name}</b>${u.area.toLocaleString('en-AU')} km²<br>Reach flow ${fmt(D.reachFlow[id][day])} ML/d<br>Rain ${fmt(RP[id][day])} mm in 60 d<br>Evaporation ${fmt(RE[id][day])} mm in 30 d (${ANOM[id][day] >= 0 ? '+' : ''}${fmt(ANOM[id][day])} mm vs normal)<br>Elevation ${fmt(u.elev.mean)} m mean (${fmt(u.elev.min)}–${fmt(u.elev.max)} m)`;
+  tip.innerHTML = `<b>${u.name}</b>${UNIT_NAME[u.sdl]} SDL unit (${u.sdl}) · ${u.area.toLocaleString('en-AU')} km²<br>Reach flow ${fmt(D.reachFlow[id][day])} ML/d<br>Rain ${fmt(RP[id][day])} mm in 60 d<br>Evaporation ${fmt(RE[id][day])} mm in 30 d (${ANOM[id][day] >= 0 ? '+' : ''}${fmt(ANOM[id][day])} mm vs normal)<br>Elevation ${fmt(u.elev.mean)} m mean (${fmt(u.elev.min)}–${fmt(u.elev.max)} m)`;
   tip.style.display = 'block'; tip.style.left = Math.min(info.x + 14, innerWidth - 230) + 'px'; tip.style.top = (info.y + 14) + 'px';
 }
+// An indicator the SDL unit has no thresholds for is null and its row is hidden.
 function eco() {
-  const wy = wyOf(D.days[day]), i = D.fish.water_year.indexOf(wy);
+  for (const [k, t] of [['fish', D.fish], ['bird', D.birds], ['gum', D.gum]]) document.querySelector(`#eco .row[data-k=${k}]`).style.display = t ? '' : 'none';
+  const wy = wyOf(D.days[day]), i = (D.fish || D.birds || D.gum)?.water_year.indexOf(wy) ?? -1;
   if (i < 0) return;
-  const s = D.fish.survival[i];
-  $('fishV').textContent = Math.round(s * 100) + '%';
-  $('fishB').style.width = s * 100 + '%';
-  $('fishS').textContent = D.fish.ctf_days[i] ? `${D.fish.ctf_days[i]} cease-to-flow days · longest ${D.fish.longest_ctf_days[i]} d · refuge survival` : 'No cease-to-flow days · refuge survival';
-  const t = D.birds.triggered[i], sus = D.birds.sustained[i];
-  $('birdV').textContent = t ? (sus ? 'Breeding' : 'Triggered') : 'No trigger';
-  $('birdB').style.width = (t ? (sus ? 100 : 55) : 6) + '%';
-  $('birdS').textContent = t ? `Trigger flows ${D.birds.trigger_date[i]}${sus ? ', sustained 90 days' : ', not sustained'}` : 'No wetland-inundating flow in Aug–Dec';
-  $('gumV').textContent = D.gum.condition[i].toFixed(2);
-  $('gumB').style.width = D.gum.condition[i] * 100 + '%';
-  $('gumS').textContent = `${D.gum.flooded[i] ? 'Flooded' : 'Not flooded'} (${D.gum.flood_days[i]} d overbank) · ${D.gum.years_since_flood[i]} yr since flood`;
+  if (D.fish) {
+    const s = D.fish.survival[i];
+    $('fishV').textContent = Math.round(s * 100) + '%';
+    $('fishB').style.width = s * 100 + '%';
+    $('fishS').textContent = D.fish.ctf_days[i] ? `${D.fish.ctf_days[i]} cease-to-flow days · longest ${D.fish.longest_ctf_days[i]} d · refuge survival` : 'No cease-to-flow days · refuge survival';
+  }
+  if (D.birds) {
+    const t = D.birds.triggered[i], sus = D.birds.sustained[i];
+    $('birdV').textContent = t ? (sus ? 'Breeding' : 'Triggered') : 'No trigger';
+    $('birdB').style.width = (t ? (sus ? 100 : 55) : 6) + '%';
+    $('birdS').textContent = t ? `Trigger flows ${D.birds.trigger_date[i]}${sus ? ', sustained 90 days' : ', not sustained'}` : 'No wetland-inundating flow in Aug–Dec';
+  }
+  if (D.gum) {
+    $('gumV').textContent = D.gum.condition[i].toFixed(2);
+    $('gumB').style.width = D.gum.condition[i] * 100 + '%';
+    $('gumS').textContent = `${D.gum.flooded[i] ? 'Flooded' : 'Not flooded'} (${D.gum.flood_days[i]} d overbank) · ${D.gum.years_since_flood[i]} yr since flood`;
+  }
 }
 function legend() {
   $('legE').style.background = `linear-gradient(90deg, ${DIV.map((c, i) => `rgb(${c}) ${i / (DIV.length - 1) * 100}%`).join(', ')})`;
@@ -772,8 +835,8 @@ function update() {
   const d = Math.min(N - 1, Math.floor(day)), [y, m, dd] = D.days[d].split('-'), dt = new Date(+y, +m - 1, +dd);
   $('wd').textContent = WD[dt.getDay()];
   $('date').textContent = `${+dd} ${MONTHS[+m - 1]}`;
-  $('yr').textContent = `${y} \u00b7 valley outlet ${fmt(D.flow[d])} ML/d`;
-  $('chartT').textContent = `Daily valley mean ${ANOMV[d] >= 0 ? '+' : '\u2212'}${Math.abs(ANOMV[d]).toFixed(0)} mm`;
+  $('yr').textContent = `${y} \u00b7 ${UNIT_NAME[focus]} outlet ${fmt(D.flow[d])} ML/d`;
+  $('chartT').textContent = `Daily mean ${ANOMV[d] >= 0 ? '+' : '\u2212'}${Math.abs(ANOMV[d]).toFixed(0)} mm`;
   $('clock').textContent = nice(D.days[d]);
   eco(); drawBars(d); drawTimeline();
   if (overlay) overlay.setProps({ layers: layers() });
@@ -783,7 +846,7 @@ function drawTimeline() {
   const dpr = devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
   if (cv.width !== w * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
   cx.setTransform(dpr,0,0,dpr,0,0); cx.clearRect(0,0,w,h);
-  const base = h - 16, top = 6, X = i => (i - W0) / Math.max(1, W1 - W0) * w, Y = q => base - Math.sqrt(q / MAXQ) * (base - top);
+  const base = h - 16, top = 6, X = i => (i - W0) / Math.max(1, W1 - W0) * w, Y = q => base - Math.sqrt(q / FQ) * (base - top);
   cx.fillStyle = 'rgba(138,142,148,.16)'; cx.strokeStyle = '#a9adb3'; cx.lineWidth = 1;
   cx.beginPath(); cx.moveTo(0, base);
   const stride = Math.max(2, Math.floor((W1 - W0) / w / 2)); for (let i = W0; i <= W1; i += stride) cx.lineTo(X(i), Y(D.flow[i]));
@@ -800,6 +863,7 @@ $('play').onclick = () => { playing = !playing; $('play').innerHTML = playing ? 
 $('speed').onclick = () => { si = (si + 1) % speeds.length; $('speed').textContent = speeds[si] + ' d/s'; };
 $('detailIn').onchange = e => { showDetail = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 $('townsIn').onchange = e => { showTowns = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
+$('sdlIn').onchange = e => { showSdl = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 $('riverReliefIn').oninput = e => { riverRelief = +e.target.value; cache = { day: -1 }; update(); };
 $('reliefIn').oninput = e => { relief = +e.target.value; TERR = TERR0 * relief; buildZ(); buildMeshes(); meshGen++; cache = { day: -1 }; update(); };
 function tick(now) {

@@ -4,13 +4,11 @@ Each basin's main channel carries the routed flow leaving that basin. Other rive
 basin's own runoff by length, and rivers on the lowland plains share the lowland unit's delivered flow by length.
 The shares are indicative (an even split by length), not routed.
 """
-from pathlib import Path
-
 import geopandas as gpd
 import pandas as pd
 
-WATERWAYS_FILE = Path(__file__).resolve().parent.parent / "data" / "input" / "routing" / "osm_murrumbidgee_waterways.geojson"
-MAINSTEM = "Murrumbidgee River"
+from config import MAINSTEM, WATERWAYS_FILE
+
 MIN_KM = 3  # skip river groups shorter than this inside a basin
 KM_PER_DEG = 111
 
@@ -42,22 +40,26 @@ def _groups(ways, geom, skip):
 def river_flows(basins, lateral, basin_flow):
     """Return (rivers, river_flow).
 
-    rivers: one row per river segment with ``river_id``, ``name``, ``basin``, ``kind`` (channel / tributary /
-    lowland), ``share`` and a line geometry. river_flow: daily flow (ML/d) per ``river_id``.
+    rivers: one row per river segment with ``river_id`` (numbered per SDL unit), ``name``, ``basin``, ``sdl_unit``,
+    ``kind`` (channel / tributary / lowland), ``share`` and a line geometry. river_flow: daily flow (ML/d) per ``river_id``.
     ``lateral`` is each basin's runoff reaching the river (ML/d) and ``basin_flow`` the routed flow leaving it.
     """
     allways = gpd.read_file(WATERWAYS_FILE)
     ways = allways[allways.waterway == "river"].reset_index(drop=True)
     streams = allways[allways.waterway == "stream"].reset_index(drop=True)
 
-    rows, series = [], {}
+    rows, series, count = [], {}, {}
+    lowland = basins["subcatchment"].str.startswith("LOWLAND")
 
     def add(basin, name, line, kind, share, flow):
-        river_id = f"R{len(rows) + 1:03d}"
-        rows.append({"river_id": river_id, "name": name or "Unnamed river", "basin": basin, "kind": kind, "share": round(share, 4), "geometry": line})
+        unit = basins.loc[basins["subcatchment"] == basin, "sdl_unit"].iloc[0]
+        count[unit] = count.get(unit, 0) + 1
+        river_id = f"{unit}-R{count[unit]:03d}"
+        rows.append({"river_id": river_id, "name": name or "Unnamed river", "basin": basin, "sdl_unit": unit, "kind": kind,
+                     "share": round(share, 4), "geometry": line})
         series[river_id] = flow
 
-    for basin in basins[basins["subcatchment"] != "LOWLAND"].itertuples():
+    for basin in basins[~lowland].itertuples():
         b = basin.subcatchment
         line, name, chosen = _channel(ways, basin.geometry, prefer=MAINSTEM)
         if line is None:  # headwater basin with no mapped river: fall back to its longest stream
@@ -69,9 +71,10 @@ def river_flows(basins, lateral, basin_flow):
         for gname, gline, km in side:
             add(b, gname, gline, "tributary", km / total, lateral[b] * km / total)
 
-    plains = _groups(ways, basins.loc[basins["subcatchment"] == "LOWLAND", "geometry"].iloc[0], set())
-    total = sum(km for _, _, km in plains)
-    for gname, gline, km in plains:
-        add("LOWLAND", gname, gline, "lowland", km / total, lateral["LOWLAND"] * km / total)
+    for basin in basins[lowland].itertuples():
+        plains = _groups(ways, basin.geometry, set())
+        total = sum(km for _, _, km in plains)
+        for gname, gline, km in plains:
+            add(basin.subcatchment, gname, gline, "lowland", km / total, lateral[basin.subcatchment] * km / total)
 
     return gpd.GeoDataFrame(rows, crs=basins.crs), pd.DataFrame(series)

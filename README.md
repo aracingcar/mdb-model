@@ -1,22 +1,25 @@
-# Murrumbidgee model
+# MDB model
 
-Daily climate-to-ecology chain for the Murrumbidgee valley, run with `python main.py`.
+Daily climate-to-ecology chain for Murray–Darling Basin surface water SDL resource units, currently the Murrumbidgee (SS15), ACT (SS1) and Lachlan (SS16), run with `python main.py`.
 
-1. `1_masking`: NARCliM2.0 4 km P and PET (ACCESS-ESM1-5, SSP2-4.5) area-weighted over terrain-derived subcatchments (HydroBASINS).
-2. `2_rainfall_runoff`: GR4J per subcatchment (uncalibrated).
-3. `3_routing`: Muskingum routing with a calibrated reach loss.
-4. `4_ecology`: fish cease-to-flow refuge survival, colonial waterbird breeding trigger, river red gum condition.
-5. `5_outputs`: stores geometry and results in `data/results.db` (SQLite, git-ignored), one row per climate run and method pair.
-6. `6_display`: builds the River Pulse page, published at `docs/index.html`.
+1. `1_masking`: NARCliM2.0 4 km P and PET (ACCESS-ESM1-5, SSP2-4.5) area-weighted over terrain-derived reaches (HydroBASINS) inside the MDBA SDL unit outlines.
+2. `2_rainfall_runoff`: GR4J per basin (uncalibrated).
+3. `3_routing`: Muskingum routing with a calibrated reach loss and optional flow splits.
+4. `4_ecology`: fish cease-to-flow refuge survival, colonial waterbird breeding trigger, river red gum condition, at each unit's outlet.
+5. `5_outputs`: stores geometry and results in `data/results.db` (SQLite, git-ignored), one row per SDL unit, climate run and method pair.
+6. `6_display`: builds the River Pulse page, published at `docs/index.html`, with every unit's reaches and SDL boundary on one map.
+
+SDL units that share a river network are modelled together as a river system (`SYSTEMS` in `1_masking/config.py`): the upper Murrumbidgee flows into the ACT and the ACT drains back into SS15, so both are routed as one network, and every place a river crosses a unit border ends a reach. Each basin belongs to the unit holding most of its area. Per system the config sets the main-stem reach count, routing calibration (`loss_regions`, `target_outlet_m3s`; `None` leaves flow uncalibrated) and flow splits (a share of a basin's outflow sent to another basin or out of the river); per unit (`SDL_UNITS`) it sets the ecology thresholds (`None`, or a missing indicator, skips it). `main.py` runs each system in its own process (`SYSTEM=lachlan python main.py` runs one) and then builds the page from the database. Rows from before the SDL outlines, built on the CEWO Murrumbidgee valley, are kept under the key `CEWO-MBG`.
 
 The MDB Model driving controls live in `6_display/car/`. Their browser-ready files are copied to `docs/car/` by `python 6_display/car/build.py` and whenever the display build runs.
 
-The model is uncalibrated and indicative only.
+The model is uncalibrated and indicative only. The Lachlan has no calibration gauge yet, so its routed flow carries no losses and is far too high for a terminal river.
 
-Climate runs are stored once, reduced, in `data/results.db` (`climate` table: valley, subcatchment and basin P/PET series plus the display's 4 km evaporation anomaly field). If a run is not in the database, `main.py` downloads its NARCliM subsets to `data/input/narclim/<global_model>/<scenario>/<regional_config>/`, reduces them, stores the result and deletes the raw `.nc` files (set `KEEP_RAW=1` to keep them). Choose the run with the `GLOBAL_MODEL`, `SCENARIO` and `REGIONAL_CONFIG` environment variables (defaults `ACCESS-ESM1-5`, `ssp245`, `WRF412R5`). Later runs read straight from the database, so a full run takes seconds.
+Climate runs are stored once per SDL unit, reduced, in `data/results.db` (`climate` table: unit, reach and basin P/PET series plus the display's 4 km evaporation anomaly field). If a run is not in the database, `main.py` downloads its NARCliM subsets to `data/input/narclim/<system>/<global_model>/<scenario>/<regional_config>/`, reduces them, stores the result and deletes the raw `.nc` files (set `KEEP_RAW=1` to keep them). Choose the run with the `GLOBAL_MODEL`, `SCENARIO` and `REGIONAL_CONFIG` environment variables (defaults `ACCESS-ESM1-5`, `ssp245`, `WRF412R5`). Later runs read straight from the database, so a full run takes seconds.
+Inputs fetched by scripts: SDL unit outlines (`python 1_masking/download_sdl_units.py`), OpenStreetMap waterways per system (`SYSTEM=<system> python 3_routing/download_osm_waterways.py`) and display roads (`python 6_display/fetch_roads.py`).
 Rainfall-runoff and routing methods are modules in `2_rainfall_runoff/` and `3_routing/`; add a module name to `AVAILABLE_MODELS` in the matching `run_*.py` to offer it.
 The display's Climate model panel offers only the dataset embedded in the build, with its identity supplied by `1_masking/config.py`.
 Other global models require their own source member identifiers before downloading; changing the model name alone is insufficient.
-Running `python main.py` rebuilds `docs/index.html` and `docs/data/` (geometry, climate series, results for the default methods, and the basin forcing the browser engine needs). View it with `python -m http.server --directory docs`.
-Only the default method pair is precomputed. Choosing another pair in the page re-runs the hydrology in the browser (`docs/engine.js`, in a Web Worker) and saves the result in IndexedDB. `engine.js` implements the `gr4j` and `muskingum` algorithms; a method that only changes parameters needs no JavaScript, because its `ALGORITHM` and `PARAMS` are shipped to the page. A method with a new algorithm needs a JavaScript implementation in `engine.js` too. Bump `ENGINE_VERSION` in `6_display/template.html` when `engine.js` changes results. `python 6_display/engine_parity.py` checks that the engine matches the Python for every method pair.
-Data: NARCliM2.0 (CC BY 4.0), HydroBASINS, OpenStreetMap contributors (ODbL), CEWO MDB valleys (CC BY-SA 4.0).
+Running `python main.py` (or `python 6_display/run_display.py` alone) rebuilds `docs/index.html` and `docs/data/` (geometry, a shared evaporation index, and per river system the climate series, results for the default methods and the basin forcing the browser engine needs). View it with `python -m http.server --directory docs`.
+Only the default method pair is precomputed. Choosing another pair in the page re-runs the hydrology in the browser (`docs/engine.js`, in a Web Worker, one river system at a time) and saves the result in IndexedDB. `engine.js` implements the `gr4j` and `muskingum` algorithms; a method that only changes parameters needs no JavaScript, because its `ALGORITHM` and `PARAMS` are shipped to the page. A method with a new algorithm needs a JavaScript implementation in `engine.js` too. Bump `ENGINE_VERSION` in `6_display/template.html` when `engine.js` changes results. `python 6_display/engine_parity.py` checks that the engine matches the Python for every method pair and river system.
+Data: NARCliM2.0 (CC BY 4.0), MDBA surface water SDL resource units (CC BY 4.0), HydroBASINS, OpenStreetMap contributors (ODbL). `data/input/catchment/` holds the CEWO MDB valleys (CC BY-SA 4.0) used before the SDL outlines.

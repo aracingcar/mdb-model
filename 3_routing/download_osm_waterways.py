@@ -1,4 +1,4 @@
-"""Fetch and clip OpenStreetMap waterways for the Murrumbidgee valley.
+"""Fetch and clip OpenStreetMap waterways for a river system's SDL units (SYSTEM, default murrumbidgee).
 
 Run from the project root with ``python 3_routing/download_osm_waterways.py``.
 The output is a clipped GeoJSON extract; the raw Overpass response is kept in
@@ -7,9 +7,12 @@ memory. An optional ``--source`` path processes an existing Overpass JSON file.
 
 import argparse
 import json
+import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlencode
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 import geopandas as gpd
@@ -17,8 +20,12 @@ from shapely.geometry import LineString, mapping
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "data" / "input" / "routing" / "osm_murrumbidgee_waterways.geojson"
-METADATA = ROOT / "data" / "input" / "routing" / "osm_murrumbidgee_waterways_metadata.json"
+sys.path.insert(0, str(ROOT / "1_masking"))
+
+from catchment import load_catchment
+from config import SYSTEM_ID, UNITS, WATERWAYS_FILE as OUT
+
+METADATA = OUT.with_name(OUT.stem + "_metadata.json")
 OVERPASS = "https://overpass-api.de/api/interpreter"
 
 
@@ -33,23 +40,25 @@ def get_overpass_data(catchment):
         OVERPASS,
         data=urlencode({"data": query}).encode(),
         headers={
-            "User-Agent": "mdb-model/1.0 (Murrumbidgee rainfall-runoff research)",
+            "User-Agent": "mdb-model/1.0 (Murray-Darling Basin rainfall-runoff research)",
             "Content-Type": "application/x-www-form-urlencoded",
         },
     )
-    with urlopen(req, timeout=240) as response:
-        return json.loads(response.read())
+    for attempt in range(5):  # the public Overpass server answers 429/502/504 when busy
+        try:
+            with urlopen(req, timeout=240) as response:
+                return json.loads(response.read())
+        except HTTPError as e:
+            if e.code not in (429, 502, 503, 504) or attempt == 4:
+                raise
+            print(f"Overpass busy ({e.code}), retrying in {30 * (attempt + 1)} s")
+            time.sleep(30 * (attempt + 1))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, help="existing Overpass JSON response (skip download)")
     args = parser.parse_args()
-
-    import sys
-
-    sys.path.insert(0, str(ROOT / "1_masking"))
-    from catchment import load_catchment
 
     catchment = load_catchment().to_crs("EPSG:4326")
     boundary = catchment.geometry.union_all()
@@ -80,12 +89,12 @@ def main():
         })
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    collection = {"type": "FeatureCollection", "name": "Murrumbidgee OSM waterways", "features": features}
+    collection = {"type": "FeatureCollection", "name": f"{SYSTEM_ID} OSM waterways", "features": features}
     OUT.write_text(json.dumps(collection, separators=(",", ":")))
     metadata = {
         "source": "OpenStreetMap contributors via Overpass API",
         "endpoint": OVERPASS,
-        "query": 'way[waterway~"^(river|stream|canal|drain|ditch)$"] within catchment bounding box, clipped to CEWO Murrumbidgee valley polygon',
+        "query": 'way[waterway~"^(river|stream|canal|drain|ditch)$"] within catchment bounding box, ' f"clipped to MDBA SDL resource units {', '.join(UNITS)}",
         "downloaded_at_utc": datetime.now(timezone.utc).isoformat(),
         "elements_in_response": len(data.get("elements", [])),
         "features_after_clip": len(features),
