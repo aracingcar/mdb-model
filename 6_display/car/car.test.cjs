@@ -17,13 +17,13 @@ const map={getZoom:()=>6.5,getPitch:()=>52,getBearing:()=>-8,getPadding:()=>({})
 for(const h of ['dragPan','dragRotate','touchZoomRotate','touchPitch','keyboard','doubleClickZoom','scrollZoom']) {
   map[h]={enabled:h!=='keyboard',isEnabled(){return this.enabled;},enable(){this.enabled=true;},disable(){this.enabled=false;}};
 }
-let picked=[1.5,1.5,20], redraws=0, paused=0;
+let picked=[1.5,1.5,20], redraws=0;
 const context=vm.createContext({window:{}, document:{createElement:()=>{const e=element();elements.push(e);return e;},body:element(),getElementById:()=>element()},
   addEventListener:(name,fn)=>events[name]=fn,performance:{now:()=>0},requestAnimationFrame(){},setTimeout(){},innerWidth:1000});
 vm.runInContext(fs.readFileSync(__dirname+'/car.js','utf8'),context);
 const car=context.window.createCarMechanics({deck:{SimpleMeshLayer:class{constructor(props){Object.assign(this,props);}}},map,
   terrain:{x0:0,y0:3,step:1,NR:4,NC:4,GZ:new Float32Array(16).fill(10),outline:[[[.1,.1],[2.9,.1],[2.9,2.9],[.1,2.9],[.1,.1]]],getExaggeration:()=>1},
-  getRelief:()=>1,setRelief(){},pausePlayback:()=>paused++,refresh:()=>redraws++,pickTerrain:()=>picked});
+  getRelief:()=>1,setRelief(){},refresh:()=>redraws++,pickTerrain:()=>picked});
 const dock=elements.find(e=>e.id==='car-dock');
 assert.equal(car.layer().data.length,0,'no automatic spawn');
 assert.equal(car.place([0,0]),false,'outside outline rejected even with terrain grid');
@@ -34,7 +34,7 @@ assert.equal(car.isPlacing(),true);
 dock.listeners.pointermove(pointer(400,300));
 dock.listeners.pointerup(pointer(400,300));
 assert.equal(car.state.placed,true); assert.equal(car.state.selected,true);
-assert.deepEqual(Array.from(car.state.pos),[1.5,1.5]); assert.equal(paused,1);
+assert.deepEqual(Array.from(car.state.pos),[1.5,1.5]);
 assert.equal(car.isPlacing(),false); assert.equal(map.dragPan.enabled,false);
 car.state.pos=[1.5,2.89999]; car.state.speed=100000;
 car.tick(.05);
@@ -58,6 +58,11 @@ dock.listeners.pointerdown(pointer(920,700)); dock.listeners.pointermove(pointer
 assert.equal(car.state.placed,false,'drop outside map rejected');
 dock.listeners.pointerdown(pointer(920,700)); dock.listeners.pointercancel(); assert.equal(car.isPlacing(),false);
 assert.equal(car.place([1.2,1.2]),true,'can place again after reset');
+const key=(code,target={})=>({code,target,preventDefault(){this.prevented=true;}});
+const up=key('ArrowUp',{matches:()=>false}); events.keydown(up);
+assert.equal(car.driveKeys.has('KeyW'),true,'ArrowUp drives like W'); assert.equal(up.prevented,true);
+events.keyup(key('ArrowUp')); assert.equal(car.driveKeys.has('KeyW'),false);
+events.keydown(key('ArrowLeft',{matches:()=>true})); assert.equal(car.driveKeys.size,0,'keys typed into a text box are left alone');
 events.keydown({code:'Escape'}); assert.equal(car.state.placed,true); assert.equal(car.state.selected,false,'Escape still pauses normal driving');
 events.keydown({code:'Escape'}); assert.equal(car.state.selected,true);
 car.state.pos=[1.5,2.89999]; car.state.speed=100000; car.tick(.05);

@@ -1,7 +1,11 @@
 /* MDB Model's selectable terrain car. This file is copied into docs/car for GitHub Pages. */
-window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief, pausePlayback, refresh, pickTerrain, isWet }) {
+window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief, refresh, pickTerrain, isWet }) {
   const playerCar = { kind:'playerCar', pos:[0,0], placed:false, heading:0, speed:0, selected:false, jump:0, jumpV:0, pitch:0, roll:0, pitchV:0, rollV:0, accel:0, grade:0, stalled:false, wet:0, course:0, slip:0, skids:[], offEdge:false, airZ:0, airV:0, falling:false, fallZ:0, fallV:0, fallTime:0, fallGravity:0 };
   const driveKeys = new Set(), driveCodes = new Set(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','ShiftLeft','ShiftRight']);
+  const ARROWS = { ArrowUp:'KeyW', ArrowLeft:'KeyA', ArrowDown:'KeyS', ArrowRight:'KeyD' }; // arrows drive exactly like WASD
+  const driveCode = code => ARROWS[code] || code;
+  // Keys typed into a text box stay there; anything else (play button, sliders, dropdowns) gives them to the car while driving.
+  const typing = el => el?.matches?.('textarea,input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=button])');
   const hint = document.createElement('div');
   hint.id = 'driveHint';
   hint.className = 'car-drive-hint';
@@ -36,15 +40,15 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     Object.assign(playerCar,{pos:pos.slice(0,2),placed:true,selected:true,heading:0,speed:0,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,stalled:false,wet:0,course:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
     driveKeys.clear(); choosing = false; dock.classList.remove('choosing');
     dock.classList.add('placed'); dock.blur();
-    pausePlayback(); enterChase();
+    enterChase();
     hint.classList.add('active');
-    setHint('Driving · W drive · A/D steer · S brake · Space jump · Q/E relief · Shift boost · Esc pause');
+    setHint(HINT_DRIVE);
     refresh(); return true;
   }
   function reset() {
     exitChase(true);
     Object.assign(playerCar,{placed:false,selected:false,speed:0,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,stalled:false,wet:0,course:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
-    driveKeys.clear(); choosing=false;
+    driveKeys.clear(); choosing=false; endRain();
     dock.classList.remove('placed','choosing'); hint.classList.remove('active');
     setHint('Drag the car onto the map to drive again.'); refresh();
   }
@@ -179,16 +183,16 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function toggleSelected() {
     if(!playerCar.placed||playerCar.falling) return;
     playerCar.selected=!playerCar.selected; playerCar.speed=0; driveKeys.clear();
-    if(playerCar.selected) { pausePlayback(); enterChase(); } else exitChase();
+    if(playerCar.selected) enterChase(); else { exitChase(); endRain(); }
     hintText=''; hint.classList.toggle('active',playerCar.selected);
-    setHint(playerCar.selected?HINT_DRIVE:'Paused · click the car or press Esc to resume, or drag the dock icon to a new location');
+    setHint(playerCar.selected?HINT_DRIVE:'Driving paused · click the car or press Esc to resume, or drag the dock icon to a new location');
     refresh();
   }
 
   function hover(info) {
     if(info.object?.kind!=='playerCar') return false;
     const tip=document.getElementById('tip');
-    tip.innerHTML='<b>Terrain car</b>Click to select, then drive with WASD';
+    tip.innerHTML='<b>Terrain car</b>Click to select, then drive with WASD or the arrow keys';
     tip.style.display='block'; tip.style.left=Math.min(info.x+14,innerWidth-230)+'px'; tip.style.top=(info.y+14)+'px';
     return true;
   }
@@ -354,7 +358,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     // Carry momentum over the edge and fall before returning to the dock.
     // Wet tyres (in a flowing river, drying over a few seconds) lose grip: the car keeps travelling along its old course
     // while the nose swings round, so it drifts. Dry, the course follows the heading exactly.
-    const soak=isWet&&c.jump===0 ? Math.max(0,Math.min(1,+isWet(c.pos[0],c.pos[1])||0)) : 0; // 0 dry … 1 flowing river
+    const soak=c.jump===0 ? Math.max(rain.level,isWet?Math.max(0,Math.min(1,+isWet(c.pos[0],c.pos[1])||0)):0) : 0; // 0 dry … 1 flowing river
     c.wet=soak>c.wet ? Math.min(soak,c.wet+dt*4) : Math.max(0,c.wet-dt/2.5);
     const gripRate=c.wet>.02 ? (.3+Math.pow(1-c.wet,2)*14)+Math.max(0,1-Math.abs(c.speed)/(.12*vmax))*30 : Infinity;
     if(gripRate===Infinity) { c.course=c.heading; c.slip=0; }
@@ -396,11 +400,28 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     }
   }
 
-  const HINT_DRIVE='Driving · W drive · A/D steer · S brake · Space jump · Q/E relief · Shift boost · Esc pause';
+  // Random rain showers while driving: every 10-35 s of driving a shower of 5-12 s builds up, wets the tyres anywhere on the
+  // map (like a rain cloud, less than a river) so the car drifts, then clears. A streak overlay shows it on screen.
+  const rain={level:0, peak:0, left:0, wait:8+Math.random()*20};
+  const rainVeil=document.createElement('div');
+  rainVeil.className='car-rain'; rainVeil.hidden=true; rainVeil.setAttribute('aria-hidden','true');
+  document.body.append(rainVeil);
+  function rainStep(dt) {
+    if(rain.left>0) rain.left=Math.max(0,rain.left-dt);
+    else if((rain.wait-=dt)<=0) { rain.left=5+Math.random()*7; rain.peak=.35+Math.random()*.3; rain.wait=10+Math.random()*25; }
+    const want=rain.left>0?rain.peak:0;
+    rain.level+=(want-rain.level)*(1-Math.exp(-(want>rain.level?1.5:.8)*dt)); // showers build in and ease off
+    if(rain.level<.01&&!want) rain.level=0;
+    rainVeil.hidden=rain.level===0; rainVeil.style.opacity=Math.min(1,rain.level/.5).toFixed(2);
+  }
+  function endRain() { Object.assign(rain,{level:0,left:0}); rainVeil.hidden=true; }
+
+  const HINT_DRIVE='Driving · W/↑ drive · A/D or ←/→ steer · S/↓ brake · Space jump · Q/E relief · Shift boost · Esc pause';
   let hintText='';
   function updateHint() {
     const deg=Math.round(Math.atan(playerCar.grade)*180/Math.PI);
-    const text=playerCar.stalled?`Too steep (${deg}°) · hold Shift to boost, or reverse out`:Math.abs(deg)>=3?`${HINT_DRIVE} · slope ${deg>0?'+':''}${deg}°`:HINT_DRIVE;
+    const base=rain.left>0?`${HINT_DRIVE} · Rain shower: wet tyres`:HINT_DRIVE;
+    const text=playerCar.stalled?`Too steep (${deg}°) · hold Shift to boost, or reverse out`:Math.abs(deg)>=3?`${base} · slope ${deg>0?'+':''}${deg}°`:base;
     if(text!==hintText) { hintText=text; setHint(text); }
   }
 
@@ -410,6 +431,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     const c=playerCar, old=[c.pos[0],c.pos[1],c.heading,c.speed,c.jump,c.pitch,c.roll];
     const mpp=metresPerPixel(), vmax=map.getContainer().clientWidth*mpp/3.3;
     const input={throttle:driveKeys.has('KeyW'), brake:driveKeys.has('KeyS'), steer:(driveKeys.has('KeyD')?1:0)-(driveKeys.has('KeyA')?1:0), boost:driveKeys.has('ShiftLeft')||driveKeys.has('ShiftRight')};
+    rainStep(dt);
     const n=Math.ceil(dt/(1/120)); // fixed small substeps keep the result independent of frame rate
     for(let i=0;i<n&&c.selected;i++) physicsStep(dt/n,input,mpp,vmax);
     if(c.selected&&!c.falling) { chaseCamera(dt); updateHint(); }
@@ -419,11 +441,17 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
 
   function keydown(e) {
     if(e.code==='Escape') { if(playerCar.falling) { reset(); return; } cancelDrag(); if(choosing) { choosing=false; dock.classList.remove('choosing'); setHint(''); refresh(); } else if(playerCar.placed&&!e.repeat) toggleSelected(); return; }
-    if(!playerCar.selected||playerCar.falling||!driveCodes.has(e.code)||e.target.matches?.('input,button,a')) return;
+    const code=driveCode(e.code);
+    if(!playerCar.selected||playerCar.falling||!driveCodes.has(code)||typing(e.target)) return;
     e.preventDefault();
-    if(e.code==='KeyQ'||e.code==='KeyE') { if(!e.repeat) setRelief(e.code==='KeyE'?.1:-.1); }
-    else if(e.code==='Space') { if(!e.repeat&&playerCar.jump===0&&!playerCar.offEdge) playerCar.jumpV=jumpSpeed(metresPerPixel()); }
-    else driveKeys.add(e.code);
+    if(code==='KeyQ'||code==='KeyE') { if(!e.repeat) setRelief(code==='KeyE'?.1:-.1); }
+    else if(code==='Space') { if(!e.repeat&&playerCar.jump===0&&!playerCar.offEdge) playerCar.jumpV=jumpSpeed(metresPerPixel()); }
+    else driveKeys.add(code);
+  }
+  function keyup(e) {
+    const code=driveCode(e.code);
+    driveKeys.delete(code);
+    if(playerCar.selected&&driveCodes.has(code)&&!typing(e.target)) e.preventDefault(); // a focused button would click on Space keyup
   }
   // Mouse wheel zooms the chase camera (towns appear/disappear with the map zoom); the car itself is unaffected.
   map.getContainer().addEventListener('wheel',e=>{
@@ -432,7 +460,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     viewScale=Math.min(8,Math.max(.2,viewScale*Math.exp(e.deltaY*.0015)));
   },{passive:false});
   addEventListener('keydown',keydown);
-  addEventListener('keyup',e=>driveKeys.delete(e.code));
+  addEventListener('keyup',keyup);
   addEventListener('blur',()=>driveKeys.clear());
 
   function start(redraw) {

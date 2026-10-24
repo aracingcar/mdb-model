@@ -855,7 +855,7 @@ function initMap() {
   syncCarTerrain();
   carMechanics=window.createCarMechanics({deck,map,terrain:carTerrain,getRelief:()=>relief,
     setRelief:delta=>{const input=$('reliefIn');input.value=Math.max(+input.min,Math.min(+input.max,relief+delta));input.dispatchEvent(new Event('input',{bubbles:true}));},
-    pausePlayback:()=>{playing=false;$('play').innerHTML='&#9654;';},refresh:update,
+    refresh:update,
     isWet:riverWetAt,pickTerrain:(x,y)=>overlay?.pickObject({x,y,layerIds:['terrain-'+meshGen],unproject3D:true})?.coordinate});
   const lighting = new deck.LightingEffect({ ambientLight:new deck.AmbientLight({ color:[255,255,255], intensity:0.75 }), dirLight:new deck.DirectionalLight({ color:[255,248,238], intensity:0.9, direction:[1.0,-1.1,-0.85] }) });
   overlay = new deck.MapboxOverlay({ interleaved:false, layers:layers(), effects:[lighting], getTooltip:null, onHover:hover, onClick:info=>carMechanics.click(info) });
