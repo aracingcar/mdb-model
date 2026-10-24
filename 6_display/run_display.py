@@ -135,6 +135,7 @@ def _engine(system, basins, basin_forcing, regions, rivers):
     return {
         "scale": 100,
         "basins": [{"id": b.subcatchment, "area": float(b.area_km2), "length": None if pd.isna(b.length_km) else float(b.length_km), "next": b.next_id, "lossRank": int(b.from_outlet),
+                    "lon": round(b.geometry.representative_point().x, 4), "lat": round(b.geometry.representative_point().y, 4),  # where the routing editor draws the node
                     **({"splits": splits[b.subcatchment]} if b.subcatchment in splits else {})}
                    for b in basins.itertuples()],
         "calibration": SYSTEMS[system]["routing"],

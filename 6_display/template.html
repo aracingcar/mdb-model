@@ -90,17 +90,18 @@
   #routing-edit { margin-top:2px; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--head); font:inherit; cursor:pointer; }
   #routing-edit:hover { background:#f2f4f5; }
   #routing-edit:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
-  #rt-editor { position:fixed; inset:5vh 5vw; z-index:40; display:none; flex-direction:column; border:1px solid var(--rule); border-radius:8px; background:#fff; box-shadow:0 8px 40px rgba(0,0,0,.25); font-size:12px; font-weight:400; color:var(--ink); }
+  #rt-editor { position:fixed; left:420px; right:20px; bottom:76px; z-index:9; display:none; flex-direction:column; gap:6px; padding:10px 14px; border:1px solid var(--rule); border-radius:8px; background:rgba(255,255,255,.96); box-shadow:0 4px 18px rgba(0,0,0,.12); font-size:12px; font-weight:400; color:var(--ink); }
   #rt-editor.open { display:flex; }
-  #rt-head { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; padding:12px 16px; border-bottom:1px solid var(--rule); }
+  body.car-driving #rt-editor { display:none; }
+  #rt-head, #rt-foot { display:flex; flex-wrap:wrap; gap:6px 16px; align-items:center; }
   #rt-head b { font-size:14px; color:var(--head); }
   #rt-head select { padding:4px 6px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
+  #rt-head label:has(input) { display:flex; gap:5px; align-items:center; cursor:pointer; }
   #rt-head .grow { flex:1; color:var(--dim); }
   #rt-close { padding:4px 10px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--head); font:inherit; cursor:pointer; }
-  #rt-scroll { flex:1; overflow:auto; padding:8px; }
-  #rt-svg text { font:10px var(--sans); fill:var(--dim); }
-  #rt-foot { display:flex; flex-wrap:wrap; gap:6px 18px; align-items:center; padding:10px 16px; border-top:1px solid var(--rule); color:var(--dim); }
+  #rt-foot { color:var(--dim); }
   #rt-foot .ramp { width:90px; height:8px; border-radius:4px; background:linear-gradient(90deg,#cfe0ee,#1d4f7c); }
+  @media (max-width:900px) { #rt-editor { left:12px; right:12px; bottom:70px; } }
   @media (max-width:900px) { #model-panels { left:12px; right:12px; top:214px; flex-direction:column; max-height:calc(100% - 298px); overflow:auto; } #model-panels > details { width:240px; } }
   #err { position:absolute; inset:0; display:none; place-items:center; font:300 20px var(--sans); text-align:center; padding:40px; z-index:20; background:var(--bg); }
   @media (max-width:900px) { #map { left:0; top:300px; } #side { width:100%; bottom:auto; height:300px; padding:18px 20px; background:#fff; z-index:2; } h1 { font-size:24px; margin-top:8px; } #desc,#legend,#focus-row,#eco,#credit,#note2,#chartT,#bars { display:none; } #date { font-size:36px; } #wd { margin-top:8px; } }
@@ -188,9 +189,8 @@
 <label id="towns-toggle" for="townsIn"><span>Towns</span><input id="townsIn" type="checkbox" role="switch"></label>
 <label id="detail-toggle" for="detailIn"><span>Roads</span><input id="detailIn" type="checkbox" role="switch"></label>
 <label id="sdl-toggle" for="sdlIn"><span>SDL units</span><input id="sdlIn" type="checkbox" role="switch"></label>
-<div id="rt-editor" role="dialog" aria-label="Routing network" aria-modal="true">
-  <div id="rt-head"><b id="rt-title">Routing network</b><label>River system <select id="rt-system"></select></label><span class="grow" id="rt-sub"></span><button type="button" id="rt-close">Close</button></div>
-  <div id="rt-scroll"><svg id="rt-svg" role="img" aria-label="Basin nodes and the links the routing sends flow along"></svg></div>
+<div id="rt-editor" role="dialog" aria-label="Routing network">
+  <div id="rt-head"><b id="rt-title">Routing network</b><label>River system <select id="rt-system"></select></label><label><input type="checkbox" id="rt-terrain" checked> Terrain</label><label><input type="checkbox" id="rt-rivers" checked> Rivers</label><span class="grow" id="rt-sub"></span><button type="button" id="rt-close">Close</button></div>
   <div id="rt-foot"></div>
 </div>
 <div id="tip"></div>
@@ -308,54 +308,39 @@ async function chooseMethods() {
   } finally { selects.forEach(s => s.disabled = false); }
 }
 $('runoff-model').onchange = $('routing-model').onchange = chooseMethods;
-// ---- Routing editor: read-only for now. Plots the selected method's network (a node per basin, a link per Muskingum reach). ----
+// ---- Routing editor: read-only for now. Draws the selected method's network on the map, a node per basin at its real position. ----
 const rtEngines = {};
 const rtEngine = sys => rtEngines[sys] ||= fetch(D.engines[sys]).then(r => { if (!r.ok) throw new Error(D.engines[sys]); return r.json(); });
 const prettySystem = s => s.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
 for (const s of Object.keys(D.engines)) $('rt-system').add(new Option(prettySystem(s), s));
-async function drawRouting() {
-  const sys = $('rt-system').value, spec = D.routing.specs[$('routing-model').value], svg = $('rt-svg');
+let RT = null;  // { nodes, links } while the editor is open; rtLayers() draws them
+const rtShow = { terrain: true, rivers: true }, rtShows = k => !RT || rtShow[k];  // the editor can hide the terrain and the rivers under its network
+const redraw = () => overlay?.setProps({ layers:layers() });
+async function drawRouting(fit) {
+  const sys = $('rt-system').value, spec = D.routing.specs[$('routing-model').value];
   $('rt-title').textContent = `Routing network · ${spec.label}`;
   $('rt-sub').textContent = 'Loading…';
   let eng;
   try { eng = await rtEngine(sys); } catch (e) { $('rt-sub').textContent = 'Could not load the network: ' + e.message; return; }
-  if (sys !== $('rt-system').value) return;
+  if (sys !== $('rt-system').value || !$('rt-editor').classList.contains('open')) return;
   const p = { ...spec.params, ...eng.calibration }, B = eng.basins, byId = Object.fromEntries(B.map(b => [b.id, b]));
   const kids = Object.fromEntries(B.map(b => [b.id, []]));
   for (const b of B) if (b.next) kids[b.next].push(b.id);
   // channel travel time K as the routing computes it (length / wave speed, kept inside the daily stability range)
   const K = b => Math.min(2.4, Math.max(0.7, (b.length > 0 ? b.length : 1.5 * Math.sqrt(b.area)) / p.velocity_km_day));
   const lossy = b => b.lossRank >= 1 && b.lossRank <= (p.loss_regions || 0);
-  const pos = {}, cum = {}; let row = 0, maxDepth = 0;
-  const place = (id, depth) => {  // leaves take successive rows; a basin sits level with the mean of the basins feeding it
-    maxDepth = Math.max(maxDepth, depth);
-    cum[id] = byId[id].area;
-    const ys = kids[id].map(c => { place(c, depth + 1); cum[id] += cum[c]; return pos[c].y; });
-    pos[id] = { depth, y: ys.length ? ys.reduce((a, v) => a + v, 0) / ys.length : row++ };
-  };
-  const roots = B.filter(b => !b.next).map(b => b.id);
-  roots.forEach((r, i) => { if (i) row += 1; place(r, 0); });
-  const DX = 30, DY = 15, M = 24, W = (maxDepth + 1) * DX + 2 * M + 60, H = row * DY + 2 * M;
-  const X = id => W - M - 40 - pos[id].depth * DX, Y = id => M + pos[id].y * DY;  // outlets on the right: water runs left to right
-  const maxCum = Math.max(...roots.map(r => cum[r])), Ks = B.map(K), k0 = Math.min(...Ks), k1 = Math.max(...Ks);
-  const shade = k => { const t = k1 > k0 ? (k - k0) / (k1 - k0) : 0.5, c = (a, b) => Math.round(a + (b - a) * t); return `rgb(${c(207, 29)},${c(224, 79)},${c(238, 124)})`; };
-  const NS = 'http://www.w3.org/2000/svg', el = (tag, a, text) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (text) e.textContent = text; return e; };
-  svg.replaceChildren(); svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  for (const b of B) {  // links, thickness by drainage area upstream
-    if (b.next) svg.append(el('path', { d: `M${X(b.id)},${Y(b.id)} H${X(b.id) + DX / 2} V${Y(b.next)} H${X(b.next)}`, fill: 'none', stroke: '#8fa9bf', 'stroke-width': 0.8 + 3 * Math.sqrt(cum[b.id] / maxCum) }));
-    for (const [to, share] of Object.entries(b.splits || {})) {  // flow sent somewhere other than downstream
-      const [x2, y2] = to ? [X(to), Y(to)] : [X(b.id) + DX, Y(b.id) - DY];
-      svg.append(el('path', { d: `M${X(b.id)},${Y(b.id)} L${x2},${y2}`, fill: 'none', stroke: '#c0562a', 'stroke-dasharray': '4 3', 'stroke-width': 1.5 }, ''));
-      svg.append(el('text', { x: (X(b.id) + x2) / 2, y: (Y(b.id) + y2) / 2 - 3 }, `${Math.round(share * 100)}%`));
-    }
-  }
+  const cum = {}, total = id => cum[id] ??= byId[id].area + kids[id].reduce((a, c) => a + total(c), 0);
+  const roots = B.filter(b => !b.next).map(b => b.id), maxCum = Math.max(...roots.map(total)), Ks = B.map(K), k0 = Math.min(...Ks), k1 = Math.max(...Ks);
+  const shade = k => { const t = k1 > k0 ? (k - k0) / (k1 - k0) : 0.5, c = (a, b) => Math.round(a + (b - a) * t); return [c(207, 29), c(224, 79), c(238, 124), 255]; };
+  const nodes = B.map(b => ({ id: b.id, lon: b.lon, lat: b.lat, r: Math.min(10, 3 + Math.sqrt(b.area) / 9), fill: shade(K(b)), ring: lossy(b), outlet: !b.next,
+    tip: [`<b>${b.id}</b>${Math.round(b.area).toLocaleString()} km² · ${b.next ? 'drains to ' + b.next : 'outlet'}`, `K ${K(b).toFixed(2)} d · x ${p.x} · delivery ${p.delivery[b.id.startsWith('LOWLAND') ? 'LOWLAND' : b.id] ?? 1}`,
+      lossy(b) ? 'Carries the calibrated reach loss' : ''].filter(Boolean).join('<br>') }));
+  const at = Object.fromEntries(nodes.map(n => [n.id, n])), links = [];
   for (const b of B) {
-    const g = el('g', {}), tip = el('title', {}, [b.id, `area ${Math.round(b.area).toLocaleString()} km²`, `K ${K(b).toFixed(2)} d, x ${p.x}`,
-      `delivery ${p.delivery[b.id.startsWith('LOWLAND') ? 'LOWLAND' : b.id] ?? 1}`, lossy(b) ? 'carries the calibrated reach loss' : null, b.next ? `drains to ${b.next}` : 'outlet'].filter(Boolean).join('\n'));
-    g.append(tip, el('circle', { cx: X(b.id), cy: Y(b.id), r: Math.min(9, 2.5 + Math.sqrt(b.area) / 10), fill: shade(K(b)), stroke: lossy(b) ? '#c0392b' : '#4a6a86', 'stroke-width': lossy(b) ? 2.2 : 0.8 }));
-    if (!b.next) g.append(el('text', { x: X(b.id) + 12, y: Y(b.id) + 3 }, 'outlet'));
-    svg.append(g);
+    if (b.next) links.push({ a: at[b.id], b: at[b.next], w: 1.5 + 4 * Math.sqrt(total(b.id) / maxCum) });
+    for (const [to, share] of Object.entries(b.splits || {})) if (to) links.push({ a: at[b.id], b: at[to], w: 2, split: true });  // flow sent somewhere other than downstream
   }
+  RT = { nodes, links };
   const lossN = B.filter(lossy).length;
   $('rt-sub').textContent = `${B.length} basins, ${roots.length} outlet${roots.length > 1 ? 's' : ''}. Editing is not available yet.`;
   $('rt-foot').replaceChildren(
@@ -363,13 +348,35 @@ async function drawRouting() {
         p.target_outlet_m3s != null ? `loss over the last ${p.loss_regions} reaches (${lossN} basins, red ring), fitted to ${(p.target_outlet_m3s * p.target_scale).toFixed(1)} m³/s at the outlet` : 'no outlet loss calibration',
         'node size: basin area', 'link width: area drained above it'].map(t => { const s = document.createElement('span'); s.textContent = t; return s; }),
     Object.assign(document.createElement('span'), { className: 'ramp', title: 'node colour: K, light = short, dark = long' }));
+  redraw();
+  if (fit && map) {
+    const xs = nodes.map(n => n.lon), ys = nodes.map(n => n.lat);
+    map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: { top: 90, bottom: 240, left: 60, right: 60 }, maxZoom: 9, duration: 900 });
+  }
 }
-const rtOpen = () => $('rt-editor').classList.contains('open');
-$('routing-edit').onclick = () => { $('rt-system').value = SYSTEM_OF[focus] in D.engines ? SYSTEM_OF[focus] : $('rt-system').options[0].value; $('rt-editor').classList.add('open'); drawRouting(); $('rt-close').focus(); };
-$('rt-close').onclick = () => { $('rt-editor').classList.remove('open'); $('routing-edit').focus(); };
-$('rt-system').onchange = drawRouting;
-$('routing-model').addEventListener('change', () => { if (rtOpen()) drawRouting(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && rtOpen()) $('rt-close').click(); });
+function groundZ(lon, lat) {  // terrain height under a point, as the roads are draped
+  const c = Math.round((lon - T.x0) / T.step), r = Math.round((T.y0 - lat) / T.step), z = c >= 0 && c < NC && r >= 0 && r < NR ? GZ[r * NC + c] : 0;
+  return isNaN(z) ? 0 : z;
+}
+function rtLayers() {
+  if (!RT) return [];
+  const blend = { depthWriteEnabled:false, depthCompare:'always' }, at = n => [n.lon, n.lat, rtShow.terrain ? groundZ(n.lon, n.lat) * TERR + 1400 : 0], trig = [relief, meshGen, rtShow.terrain];
+  return [
+    new deck.PathLayer({ id:'rt-links', data:RT.links, getPath:d => [at(d.a), at(d.b)], getColor:d => d.split ? [192,86,42,235] : [28,52,92,215], getWidth:d => d.w, widthUnits:'pixels', capRounded:true,
+      pickable:false, parameters:blend, updateTriggers:{ getPath:trig } }),
+    new deck.ScatterplotLayer({ id:'rt-nodes', data:RT.nodes, getPosition:at, getRadius:d => d.r, radiusUnits:'pixels', getFillColor:d => d.fill, stroked:true,
+      getLineColor:d => d.ring ? [192,57,43,255] : [255,255,255,240], getLineWidth:d => d.ring ? 2.5 : 1, lineWidthUnits:'pixels', billboard:true, pickable:true, parameters:blend, updateTriggers:{ getPosition:trig } }),
+    new deck.TextLayer({ id:'rt-outlets', data:RT.nodes.filter(n => n.outlet), getPosition:at, getText:() => 'outlet', getSize:11, sizeUnits:'pixels', fontFamily:'Arial, sans-serif', fontWeight:600,
+      characterSet:'auto', getColor:[38,42,50,255], getTextAnchor:'start', getAlignmentBaseline:'center', getPixelOffset:[14, 0], background:true, getBackgroundColor:[255,255,255,215], backgroundPadding:[3,2],
+      billboard:true, pickable:false, parameters:blend, updateTriggers:{ getPosition:trig } }),
+  ];
+}
+$('routing-edit').onclick = () => { $('rt-system').value = SYSTEM_OF[focus] in D.engines ? SYSTEM_OF[focus] : $('rt-system').options[0].value; $('rt-editor').classList.add('open'); drawRouting(true); };
+$('rt-close').onclick = () => { $('rt-editor').classList.remove('open'); RT = null; $('tip').style.display = 'none'; redraw(); $('routing-edit').focus(); };
+$('rt-system').onchange = () => drawRouting(true);
+for (const k of ['terrain', 'rivers']) $('rt-' + k).onchange = e => { rtShow[k] = e.target.checked; redraw(); };
+$('routing-model').addEventListener('change', () => { if ($('rt-editor').classList.contains('open')) drawRouting(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('rt-editor').classList.contains('open')) $('rt-close').click(); });
 $('cache-clear').onclick = async () => { await idb.clear(); say('Saved results cleared.'); };
 $('climate-meta').textContent = `${D.climate.source} · ${D.climate.resolution} · ${D.climate.frequency}`;
 if (FULL) { const back = document.createElement('a'); back.href = location.pathname; back.textContent = `Back to the quick ${D.demoYears[0]}\u2013${D.demoYears[1]} view`; $('climate-meta').append(document.createElement('br'), back); }
@@ -916,13 +923,13 @@ function layers() {
   const placePosition = p => [p.lon,p.lat,p.z * TERR + 300];
   if (tintDay !== day) { tintDay = day; D.units.forEach(u => tint[u.id] = evapShade(ANOM[u.id][day])); }
   const mist = [
-    new deck.SolidPolygonLayer({ id:'cloud', data:discs, getPolygon:d => d.ring.map(p => [p[0], p[1], d.z]), extruded:false, filled:true,
+    new deck.SolidPolygonLayer({ id:'cloud', visible:rtShows('terrain'), data:discs, getPolygon:d => d.ring.map(p => [p[0], p[1], d.z]), extruded:false, filled:true,
       getFillColor:d => [...lerp(mistCol(d.t), [168,184,210], 0.55 * d.hi), 24 + 36 * d.t * (1 - 0.5 * d.f)], pickable:false, parameters:blend, updateTriggers:{getPolygon:day, getFillColor:day} }),
   ];
   return [
-    new deck.SimpleMeshLayer({ id:'terrain-' + meshGen, data:[{ pos:[LON0, LAT0, 0] }], mesh:terrainMesh, texture:paintEvap(day), getPosition:d => d.pos, getColor:[255,255,255,255], sizeScale:1,
+    new deck.SimpleMeshLayer({ id:'terrain-' + meshGen, visible:rtShows('terrain'), data:[{ pos:[LON0, LAT0, 0] }], mesh:terrainMesh, texture:paintEvap(day), getPosition:d => d.pos, getColor:[255,255,255,255], sizeScale:1,
       material:{ ambient:.6, diffuse:.7, shininess:4, specularColor:[30,30,30] }, pickable:carMechanics.isPlacing(), updateTriggers:{ getColor:day } }),
-    new deck.SimpleMeshLayer({ id:'wall-' + meshGen, data:[{ pos:[LON0, LAT0, 0] }], mesh:wallMesh, texture:evCanvas, getPosition:d => d.pos, getColor:[238,238,238,255], sizeScale:1,
+    new deck.SimpleMeshLayer({ id:'wall-' + meshGen, visible:rtShows('terrain'), data:[{ pos:[LON0, LAT0, 0] }], mesh:wallMesh, texture:evCanvas, getPosition:d => d.pos, getColor:[238,238,238,255], sizeScale:1,
       material:{ ambient:.55, diffuse:.6, shininess:2, specularColor:[0,0,0] }, pickable:false, updateTriggers:{ getColor:day } }),
     ...(showDetail ? [new deck.SolidPolygonLayer({ id:'roads', data:roadsNow(), getPolygon:d => d.r.map(p => [p[0], p[1], p[2] * TERR]), extruded:true, getElevation:ROAD_RAISE * relief,
       getFillColor:d => [...ROAD_FILL[d.cls], 245], material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:false, updateTriggers:{getPolygon:relief, getElevation:relief} })] : []),
@@ -935,8 +942,8 @@ function layers() {
     new deck.TextLayer({ id:'sdl-labels', visible:showSdl, data:D.sdlBounds, getPosition:d => [d.mid[0], d.mid[1], d.mid[2] * TERR + 900], getText:d => `${d.name.toUpperCase()} \u00b7 ${d.id}`,
       getSize:12, sizeUnits:'pixels', fontFamily:'Arial, sans-serif', fontWeight:700, characterSet:'auto', getColor:[38,42,50,230],
       background:true, getBackgroundColor:[255,255,255,190], backgroundPadding:[4,2], billboard:true, pickable:false, parameters:blend, updateTriggers:{getPosition:relief} }),
-    new deck.SolidPolygonLayer({ id:'context', data:ctxZ, getPolygon:d => d.r, getFillColor:[150,192,220,120], extruded:false, pickable:false }),
-    new deck.SolidPolygonLayer({ id:'rivers', data:riverZ, getPolygon:d => d.r, extruded:true, getElevation:d => elev(flowOf(d)), getFillColor:d => flowCol(flowOf(d)), material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:true, autoHighlight:true, highlightColor:[255,247,224,100], updateTriggers:{getElevation:[day,riverRelief], getFillColor:day} }),
+    new deck.SolidPolygonLayer({ id:'context', visible:rtShows('rivers'), data:ctxZ, getPolygon:d => d.r, getFillColor:[150,192,220,120], extruded:false, pickable:false }),
+    new deck.SolidPolygonLayer({ id:'rivers', visible:rtShows('rivers'), data:riverZ, getPolygon:d => d.r, extruded:true, getElevation:d => elev(flowOf(d)), getFillColor:d => flowCol(flowOf(d)), material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:true, autoHighlight:true, highlightColor:[255,247,224,100], updateTriggers:{getElevation:[day,riverRelief], getFillColor:day} }),
     ...mist,
     new deck.ScatterplotLayer({ id:'places', visible:showTowns, data:places, getPosition:placePosition,
       getRadius:d => d.kind === 'city' ? 4 : 3, radiusUnits:'pixels',
@@ -947,6 +954,7 @@ function layers() {
       getColor:[58,61,66,255], getTextAnchor:'start', getAlignmentBaseline:'center', getPixelOffset:[8,0],
       background:true, getBackgroundColor:[255,255,255,215], backgroundPadding:[3,2],
       billboard:true, pickable:false, parameters:blend, updateTriggers:{getPosition:relief} }),
+    ...rtLayers(),
     ...carMechanics.layers(),
   ];
 }
@@ -1025,6 +1033,7 @@ function hover(info) {
   const tip = $('tip');  // no tooltips while driving: the HUD shows the conditions under the car
   if (!info.object || info.layer?.id.startsWith('terrain-') || document.body.classList.contains('car-driving')) { tip.style.display = 'none'; return; }
   if (carMechanics.hover(info)) return;
+  if (info.layer?.id === 'rt-nodes') { tip.innerHTML = info.object.tip; tip.style.display = 'block'; tip.style.left = Math.min(info.x + 14, innerWidth - 260) + 'px'; tip.style.top = (info.y + 14) + 'px'; return; }
   if (info.object.name !== undefined) {
     const o = info.object;
     tip.innerHTML = `<b>${o.name}</b>${o.kind === 'channel' ? 'Routed flow' : 'Share of local runoff · indicative'}<br>Flow ${fmt(flowOf(o))} ML/d`;
