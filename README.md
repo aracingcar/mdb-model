@@ -9,5 +9,7 @@ Daily climate-to-ecology chain for the Murrumbidgee valley, run with `python mai
 5. `5_outputs`: writes everything to `data/output/`.
 6. `6_display`: builds the River Pulse page, published at `docs/index.html`.
 
+The MDB Model driving controls live in `6_display/car/`. Their browser-ready files are copied to `docs/car/` by `python 6_display/car/build.py` and whenever the display build runs.
+
 The model is uncalibrated and indicative only. NARCliM subsets are not in the repo; fetch them with `1_masking/download.py`.
 Data: NARCliM2.0 (CC BY 4.0), HydroBASINS, OpenStreetMap contributors (ODbL), CEWO MDB valleys (CC BY-SA 4.0).
