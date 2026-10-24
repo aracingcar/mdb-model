@@ -451,6 +451,14 @@ const PLACES = [
   ['Trundle',147.7100,-32.9230,'town',9],
   ['Gunning',149.2650,-34.7820,'town',9],
   ['Euabalong',146.4720,-33.1160,'town',9.5],
+  ['Ivanhoe',144.3000,-32.9000,'town',8],
+  ['Broken Hill',141.4670,-31.9540,'city',0],
+  ['Wentworth',141.9110,-34.1070,'town',0],
+  ['Menindee',142.4180,-32.3930,'town',0],
+  ['Wilcannia',143.3780,-31.5590,'town',7],
+  ['Pooncarie',142.5700,-33.3860,'town',7.5],
+  ['Euston',142.7440,-34.5770,'town',8.5],
+  ['Dareton',142.0420,-34.0940,'town',9],
 ].map(([name,lon,lat,kind,minZoom]) => {
   const c = Math.round((lon - T.x0) / T.step), r = Math.round((T.y0 - lat) / T.step);
   const z = r >= 0 && r < NR && c >= 0 && c < NC ? GZ[r * NC + c] : NaN;
@@ -760,7 +768,8 @@ function layers() {
   ];
 }
 function initMap() {
-  map = new maplibregl.Map({ container:'map', center:[146.6,-34.45], zoom:6.2, pitch:52, bearing:-8, attributionControl:false,
+  const fitZoom = Math.log2($('map').clientWidth * 360 / 512 / (NC * T.step)) - 0.45;  // the whole terrain grid across the map, allowing for the tilt
+  map = new maplibregl.Map({ container:'map', center:[LON0, LAT0], zoom:fitZoom, pitch:52, bearing:-8, attributionControl:false,
     style:{ version:8, sources:{}, layers:[{ id:'bg', type:'background', paint:{'background-color':'#ffffff'} }] } });
   carMechanics=window.createCarMechanics({deck,map,terrain:{x0:T.x0,y0:T.y0,step:T.step,GZ,NR,NC,outline:D.outline,getExaggeration:()=>TERR},getRelief:()=>relief,
     setRelief:delta=>{const input=$('reliefIn');input.value=Math.max(+input.min,Math.min(+input.max,relief+delta));input.dispatchEvent(new Event('input',{bubbles:true}));},

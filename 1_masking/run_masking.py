@@ -18,8 +18,12 @@ def _reduce_climate(units, subcatchments, basins):
     narclim = load_narclim()
     grids = evap_anomaly_grids(narclim, {u: units.loc[[u]] for u in UNITS})
     for u in UNITS:
-        save_climate(u, RUN_KEY, areal_average(narclim, units.loc[[u]]), unit_averages(narclim, subcatchments[subcatchments["sdl_unit"] == u]),
-                     unit_averages(narclim, basins[basins["sdl_unit"] == u]), grids[u])
+        reduced = (areal_average(narclim, units.loc[[u]]), unit_averages(narclim, subcatchments[subcatchments["sdl_unit"] == u]),
+                   unit_averages(narclim, basins[basins["sdl_unit"] == u]))
+        empty = [c for frame in reduced for c in frame.columns if frame[c].isna().all()]
+        if empty:  # a unit with no 4 km cells under it: the grid and outlines disagree, so store nothing
+            raise RuntimeError(f"1_masking: no NARCliM cells under {', '.join(sorted({c.rsplit('_', 1)[0] for c in empty}))}")
+        save_climate(u, RUN_KEY, *reduced, grids[u])
     narclim.close()
     if not KEEP_RAW:
         files = list(NARCLIM_DIR.glob("*.nc"))

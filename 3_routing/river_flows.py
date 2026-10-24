@@ -7,7 +7,7 @@ The shares are indicative (an even split by length), not routed.
 import geopandas as gpd
 import pandas as pd
 
-from config import MAINSTEM, WATERWAYS_FILE
+from config import MAINSTEM, SYSTEM, WATERWAYS_FILE
 
 MIN_KM = 3  # skip river groups shorter than this inside a basin
 KM_PER_DEG = 111
@@ -45,6 +45,7 @@ def river_flows(basins, lateral, basin_flow):
     ``lateral`` is each basin's runoff reaching the river (ML/d) and ``basin_flow`` the routed flow leaving it.
     """
     allways = gpd.read_file(WATERWAYS_FILE)
+    allways = allways[~allways["name"].isin(SYSTEM.get("other_rivers", ()))]  # rivers of other systems that cross this one
     ways = allways[allways.waterway == "river"].reset_index(drop=True)
     streams = allways[allways.waterway == "stream"].reset_index(drop=True)
 

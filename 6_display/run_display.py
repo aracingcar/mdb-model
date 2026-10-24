@@ -37,7 +37,10 @@ CONTEXT_RIVERS = 120  # per river system: longest other named rivers drawn as th
 def _rings(geom, dem=None, ndigits=4):
     """Exterior rings as [lon, lat] points, with the ground elevation (m) as a third value if a DEM is given."""
     out = []
-    for p in getattr(geom, "geoms", [geom]):
+    for p in shapely.get_parts(geom):
+        if p.geom_type != "Polygon":  # a repaired geometry can be a collection of collections, or carry stray lines
+            out += _rings(p, dem, ndigits) if hasattr(p, "geoms") else []
+            continue
         if p.is_empty:
             continue
         pts = np.array(p.exterior.coords)[:, :2]
@@ -175,6 +178,7 @@ def run_display(run=DEFAULT_RUN, methods=(RAINFALL_RUNOFF_MODEL, ROUTING_MODEL))
 
     regions = pd.concat([geo[u]["subcatchments"] for u in geo], ignore_index=True)
     regions = gpd.GeoDataFrame(regions, crs=geo[next(iter(geo))]["subcatchments"].crs)
+    regions["geometry"] = regions.geometry.make_valid()  # the stored GeoJSON can carry tiny self-touches that break the union
     rivers = gpd.GeoDataFrame(pd.concat([geo[u]["rivers"] for u in geo], ignore_index=True), crs=regions.crs)
     river_flow = pd.concat([results[u][2] for u in geo], axis=1)
     dem = Dem(regions.total_bounds)

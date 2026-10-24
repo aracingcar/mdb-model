@@ -13,5 +13,6 @@ def load_narclim():
         arrays.append(da.rename(name))
     ds = xr.merge(arrays)
     ds["time"] = ds.time.dt.floor("D")  # daily means are stamped at 12:00
+    ds = ds.assign_coords(rlon=ds.rlon % 360 - 180)  # into ROTATED_POLE_CRS's half-turned frame, where rlon never wraps
     ds = ds.rio.set_spatial_dims(x_dim="rlon", y_dim="rlat").rio.write_crs(ROTATED_POLE_CRS)
     return ds

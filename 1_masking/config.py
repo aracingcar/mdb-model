@@ -20,6 +20,7 @@ SDL_UNITS = {
     },
     "SS1": {"name": "ACT", "system": "murrumbidgee", "ecology": None},
     "SS16": {"name": "Lachlan", "system": "lachlan", "ecology": None},
+    "SS18": {"name": "Lower Darling", "system": "lower_darling", "ecology": None},
 }
 
 # River systems: the units whose rivers form one network, routed together across unit borders (the upper
@@ -30,6 +31,7 @@ SDL_UNITS = {
 #   the mean outlet flow matches target_outlet_m3s. Both None: no loss, the routed flow is left uncalibrated.
 # splits: {basin: {to: fraction}} sends that share of a basin's routed outflow to another basin, or out of the river
 #   with to = '' (e.g. into a terminal wetland); the rest goes on to its downstream basin.
+# other_rivers (optional): rivers of other systems that run through this one; they are not given this system's flow.
 SYSTEMS = {
     "murrumbidgee": {
         "units": ("SS15", "SS1"), "n_subcatchments": 11, "mainstem": "Murrumbidgee River",
@@ -41,8 +43,14 @@ SYSTEMS = {
         "routing": {"loss_regions": None, "target_outlet_m3s": None},  # terminal river: no calibration gauge chosen yet
         "splits": {},
     },
+    # Local runoff only: the Darling's inflow from the Barwon-Darling (SS19) and the northern Basin is not modelled.
+    "lower_darling": {
+        "units": ("SS18",), "n_subcatchments": 11, "mainstem": "Darling River", "other_rivers": ("Murray River",),
+        "routing": {"loss_regions": None, "target_outlet_m3s": None},  # no calibration gauge chosen yet
+        "splits": {},
+    },
 }
-DISPLAY_SYSTEMS = ("murrumbidgee", "lachlan")  # drawn together on docs/index.html
+DISPLAY_SYSTEMS = ("murrumbidgee", "lachlan", "lower_darling")  # drawn together on docs/index.html
 SYSTEM_ID = os.environ.get("SYSTEM", DISPLAY_SYSTEMS[0])  # the system this process models (main.py sets it per system)
 SYSTEM = SYSTEMS[SYSTEM_ID]
 UNITS = SYSTEM["units"]
@@ -87,8 +95,10 @@ BBOX_MARGIN = 0.2  # degrees around the catchment
 VARIABLES = {"pr": "P", "evspsblpot": "PET"}
 SECONDS_PER_DAY = 86400
 
-# Rotated-pole grid of the SEAus-04 domain (stored rlon is wrong; see RLON_CORRECTION_FILE).
+# Rotated-pole grid of the SEAus-04 domain (stored rlon is wrong; see RLON_CORRECTION_FILE). o_lon_p=180 turns the
+# rotated longitudes half a circle, so the domain runs -6 to 17 degrees instead of crossing +-180 over the Lower Darling;
+# load.py shifts the stored rlon to match.
 ROTATED_POLE_CRS = (
-    "+proj=ob_tran +o_proj=longlat +o_lon_p=0 +o_lat_p=60.31 +lon_0=321.38 "
+    "+proj=ob_tran +o_proj=longlat +o_lon_p=180 +o_lat_p=60.31 +lon_0=321.38 "
     "+R=6370000 +to_meter=0.017453292519943295 +no_defs"
 )
