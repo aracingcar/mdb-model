@@ -176,11 +176,20 @@
 // Geometry, climate series and the flow results are separate files (see run_display.py), so editing the page does not rewrite them.
 const META = __META__;
 const D = { ...META };
+// The page opens on the small demo bundle (META.demoYears, coarser terrain). Other years or methods reload it with
+// ?data=full and the choices in the URL, on the full series.
+const ASK = new URLSearchParams(location.search), FULL = ASK.get('data') === 'full';
+function goFull(choice) {
+  const q = new URLSearchParams({ data: 'full', start: $('climate-start').value, end: $('climate-end').value, rr: $('runoff-model').value, rt: $('routing-model').value, ...choice });
+  location.search = q.toString();
+}
+if (FULL) { const e = document.getElementById('err'); e.textContent = `Loading the full ${META.years[0]}\u2013${META.years[1]} series\u2026`; e.style.display = 'grid'; }
 try {
   // each river system's files add to the same objects (P, PET, evapParts, reachFlow, riverFlow, sdl)
   const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
-  for (const f of await Promise.all(META.files.map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); }))))
+  for (const f of await Promise.all((FULL ? META.files : META.demoFiles).map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); }))))
     for (const [k, v] of Object.entries(f)) D[k] = isObj(D[k]) && isObj(v) ? { ...D[k], ...v } : v;
+  if (FULL) document.getElementById('err').style.display = 'none';
 } catch (e) {
   const err = document.getElementById('err'); err.textContent = 'The model data could not be loaded. Serve this folder over http (for example python -m http.server in docs).'; err.style.display = 'grid'; return;
 }
@@ -197,6 +206,7 @@ for (const [id, s] of Object.entries(D.runoff.specs)) $('runoff-model').add(new 
 $('runoff-model').value = D.runoff.selected;
 for (const [id, s] of Object.entries(D.routing.specs)) $('routing-model').add(new Option(s.label, id));
 $('routing-model').value = D.routing.selected;
+if (FULL) for (const [id, key] of [['runoff-model', 'rr'], ['routing-model', 'rt']]) if ($(id).querySelector(`option[value="${ASK.get(key)}"]`)) $(id).value = ASK.get(key);
 // The outlet flow (date line and timeline) and the ecology rows follow one SDL unit at a time; the map shows them all.
 let focus = D.focus, FQ = 1;
 function setFocus(u) {
@@ -209,7 +219,7 @@ const UNIT_NAME = Object.fromEntries(D.sdlBounds.map(b => [b.id, b.name]));
 for (const b of D.sdlBounds) $('focus').add(new Option(`${b.name} (${b.id})`, b.id));
 $('focus').value = focus;
 $('focus').onchange = e => { setFocus(e.target.value); update(); };
-function maxQ() { return Math.max(...Object.values(D.sdl).map(s => Math.max(...s.flow)), ...Object.values(D.reachFlow).map(a => Math.max(...a))); }
+function maxQ() { return (!FULL && D.maxQ) || Math.max(...Object.values(D.sdl).map(s => Math.max(...s.flow)), ...Object.values(D.reachFlow).map(a => Math.max(...a))); }
 
 // ---- Method choice: the defaults are precomputed; any other pair is recalculated here (engine.js in a worker) and saved in IndexedDB ----
 const ENGINE_VERSION = 2;  // bump when docs/engine.js changes what it computes, so saved results are not reused
@@ -252,6 +262,7 @@ function recalc(rr, rt) {
 }
 async function chooseMethods() {
   const rr = $('runoff-model').value, rt = $('routing-model').value, token = ++selToken;
+  if (!FULL) { goFull({ rr, rt }); return; }  // other methods are recalculated on the full series
   if (rr === DEFAULT_RR && rt === DEFAULT_RT) { applyResults(DEFAULT_RESULTS); say(''); return; }
   const key = [ENGINE_VERSION, D.run, D.engineHash, rr, JSON.stringify(D.runoff.specs[rr].params), rt, JSON.stringify(D.routing.specs[rt].params)].join('|');
   const saved = await idb.get(key);
@@ -271,9 +282,11 @@ async function chooseMethods() {
 $('runoff-model').onchange = $('routing-model').onchange = chooseMethods;
 $('cache-clear').onclick = async () => { await idb.clear(); say('Saved results cleared.'); };
 $('climate-meta').textContent = `${D.climate.source} · ${D.climate.resolution} · ${D.climate.frequency}`;
-// The period is a start and end year within the embedded data; playback and the timeline cover only that window.
-const FIRST_YEAR = +D.days[0].slice(0, 4), LAST_YEAR = +D.days[N - 1].slice(0, 4);
-const DEFAULT_PERIOD = [Math.max(FIRST_YEAR, 2027), Math.min(LAST_YEAR, 2036)];  // the window the page opens on
+if (FULL) { const back = document.createElement('a'); back.href = location.pathname; back.textContent = `Back to the quick ${D.demoYears[0]}\u2013${D.demoYears[1]} view`; $('climate-meta').append(document.createElement('br'), back); }
+// The period is a start and end year within the run; playback and the timeline cover only that window. The demo
+// bundle holds only META.demoYears, so a period outside them reloads the page on the full series.
+const [FIRST_YEAR, LAST_YEAR] = D.years, DEFAULT_PERIOD = D.demoYears;
+if (FULL) for (const [id, key] of [['climate-start', 'start'], ['climate-end', 'end']]) { const y = +ASK.get(key); if (y >= FIRST_YEAR && y <= LAST_YEAR) $(id).add(new Option(y, y)), $(id).value = y; }
 let W0 = 0, W1 = N - 1;
 function fillYears(id, from, to, keep) {
   const sel = $(id); sel.length = 0;
@@ -283,6 +296,7 @@ function fillYears(id, from, to, keep) {
 // A period spans at least two years: each list only offers years on the correct side of the other's choice.
 function setPeriod() {
   const a = +($('climate-start').value || DEFAULT_PERIOD[0]), b = +($('climate-end').value || DEFAULT_PERIOD[1]);
+  if (!FULL && (a < DEFAULT_PERIOD[0] || b > DEFAULT_PERIOD[1])) { goFull({ start: a, end: b }); return; }
   fillYears('climate-start', FIRST_YEAR, b - 1, a);
   fillYears('climate-end', a + 1, LAST_YEAR, b);
   W0 = D.days.indexOf(`${a}-01-01`); W1 = D.days.indexOf(`${b}-12-31`);
@@ -338,9 +352,11 @@ const ANOM = {}, ANOMV = new Float32Array(N);
 {
   for (const u of D.units) {
     const sum = {}, cnt = {};
-    for (let i = 0; i < N; i++) { const k = doyKey(i); sum[k] = (sum[k] || 0) + RE[u.id][i]; cnt[k] = (cnt[k] || 0) + 1; }
+    // the demo bundle ships each unit's full-run normal (D.petNormal, by D.normalKeys); the full series makes its own
+    const shipped = D.petNormal?.[u.id], at = shipped && Object.fromEntries(D.normalKeys.map((k, j) => [k, j]));
+    if (!shipped) for (let i = 0; i < N; i++) { const k = doyKey(i); sum[k] = (sum[k] || 0) + RE[u.id][i]; cnt[k] = (cnt[k] || 0) + 1; }
     ANOM[u.id] = new Float32Array(N);
-    for (let i = 0; i < N; i++) { const k = doyKey(i); ANOM[u.id][i] = RE[u.id][i] - sum[k] / cnt[k]; }
+    for (let i = 0; i < N; i++) { const k = doyKey(i); ANOM[u.id][i] = RE[u.id][i] - (shipped ? shipped[at[k]] : sum[k] / cnt[k]); }
   }
   for (let i = 0; i < N; i++) ANOMV[i] = D.units.reduce((a, u) => a + ANOM[u.id][i] * u.area, 0) / totalArea;
 }
@@ -720,9 +736,11 @@ function roadsNow() {
 }
 // ---- optional road network (OpenStreetMap major roads, fetch_roads.py); more classes appear as you zoom in, draped on the terrain
 const ROAD_MIN_ZOOM = [6.5, 7.5, 8.5, 9.5], ROAD_M = [560, 440, 330, 250], ROAD_RAISE = 220, ROAD_FILL = [[255,196,84],[255,222,128],[255,255,255],[246,246,240]];  // base ribbon width in metres by class; ribbons widen a little when zoomed out so they stay visible
-const ROADS = (() => {
+// fetched (data/roads.json) the first time the Roads switch is turned on
+let ROADS = [], roadsLoad = null;
+function buildRoads(raw) {
   const out = [];
-  for (const [cls, f] of __ROADS__) {
+  for (const [cls, f] of raw) {
     let path = [], prev = null;
     const flush = () => { if (path.length > 1) out.push({ cls, path }); path = []; };
     for (let i = 0; i < f.length; i += 2) {
@@ -737,7 +755,7 @@ const ROADS = (() => {
     flush();
   }
   return out;
-})();
+}
 
 function layers() {
   const blend = { depthWriteEnabled:false, depthCompare:'always' };
@@ -886,7 +904,15 @@ function seek(e) { const r = cv.getBoundingClientRect(); day = Math.max(W0, Math
 let drag = false; cv.onpointerdown = e => { drag = true; cv.setPointerCapture(e.pointerId); seek(e); }; cv.onpointermove = e => drag && seek(e); cv.onpointerup = () => drag = false;
 $('play').onclick = () => { playing = !playing; $('play').innerHTML = playing ? '&#10073;&#10073;' : '&#9654;'; last = performance.now(); if (playing) requestAnimationFrame(tick); };
 $('speed').onclick = () => { si = (si + 1) % speeds.length; $('speed').textContent = speeds[si] + ' d/s'; };
-$('detailIn').onchange = e => { showDetail = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
+$('detailIn').onchange = async e => {
+  showDetail = e.target.checked;
+  if (showDetail && !roadsLoad) {
+    roadsLoad = fetch('data/roads.json').then(r => { if (!r.ok) throw new Error('data/roads.json'); return r.json(); })
+      .then(raw => { ROADS = buildRoads(raw); roadSets.clear(); }).catch(() => { roadsLoad = null; e.target.checked = showDetail = false; });
+  }
+  if (roadsLoad) await roadsLoad;
+  if (overlay) overlay.setProps({layers:layers()});
+};
 $('townsIn').onchange = e => { showTowns = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 $('sdlIn').onchange = e => { showSdl = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 $('riverReliefIn').oninput = e => { riverRelief = +e.target.value; cache = { day: -1 }; update(); };
@@ -901,6 +927,7 @@ addEventListener('resize', () => update());
 { const q = new URLSearchParams(location.search).get('day'), i = q ? D.days.indexOf(q) : -1; if (i >= 0) day = i; }
 $('climate-start').onchange = setPeriod; $('climate-end').onchange = setPeriod;
 if (typeof maplibregl !== 'undefined' && typeof deck !== 'undefined') { initMap(); legend(); setPeriod(); }
+if (FULL && ($('runoff-model').value !== DEFAULT_RR || $('routing-model').value !== DEFAULT_RT)) chooseMethods();
 })();
 </script>
 </body>
