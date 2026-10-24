@@ -1,6 +1,6 @@
 /* MDB Model's selectable terrain car. This file is copied into docs/car for GitHub Pages. */
 window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief, refresh, pickTerrain, isWet, playWhileDriving, getRivers }) {
-  const playerCar = { kind:'playerCar', pos:[0,0], placed:false, heading:0, speed:0, selected:false, jump:0, jumpV:0, pitch:0, roll:0, pitchV:0, rollV:0, accel:0, grade:0, stalled:false, wet:0, course:0, slip:0, skids:[], offEdge:false, airZ:0, airV:0, falling:false, fallZ:0, fallV:0, fallTime:0, fallGravity:0 };
+  const playerCar = { kind:'playerCar', pos:[0,0], placed:false, heading:0, speed:0, vel:[0,0], yawRate:0, steer:0, spin:false, selected:false, jump:0, jumpV:0, pitch:0, roll:0, pitchV:0, rollV:0, accel:0, grade:0, bank:0, stalled:false, wet:0, slip:0, skids:[], offEdge:false, airZ:0, airV:0, falling:false, fallZ:0, fallV:0, fallTime:0, fallGravity:0 };
   const driveKeys = new Set(), driveCodes = new Set(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','ShiftLeft','ShiftRight']);
   const ARROWS = { ArrowUp:'KeyW', ArrowLeft:'KeyA', ArrowDown:'KeyS', ArrowRight:'KeyD' }; // arrows drive exactly like WASD
   const driveCode = code => ARROWS[code] || code;
@@ -37,7 +37,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function place(pos) {
     if (!pos || !onTerrain(pos[0],pos[1])) return false;
     exitChase();
-    Object.assign(playerCar,{pos:pos.slice(0,2),placed:true,selected:true,heading:0,speed:0,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,stalled:false,wet:0,course:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
+    Object.assign(playerCar,{pos:pos.slice(0,2),placed:true,selected:true,heading:0,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
     driveKeys.clear(); choosing = false; dock.classList.remove('choosing'); hideGhost();
     dock.classList.add('placed'); dock.blur();
     enterChase(); playWhileDriving?.(); // the climate scenario plays on while you drive
@@ -47,7 +47,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   }
   function reset() {
     exitChase(true);
-    Object.assign(playerCar,{placed:false,selected:false,speed:0,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,stalled:false,wet:0,course:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
+    Object.assign(playerCar,{placed:false,selected:false,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
     driveKeys.clear(); choosing=false; endRain(); drawRadar();
     dock.classList.remove('placed','choosing'); hint.classList.remove('active');
     setHint('Drag the car onto the map to drive again.'); refresh();
@@ -192,7 +192,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   // Clicking the car and pressing Escape do the same thing: pause driving (back to the overview) or resume it.
   function toggleSelected() {
     if(!playerCar.placed||playerCar.falling) return;
-    playerCar.selected=!playerCar.selected; playerCar.speed=0; driveKeys.clear();
+    playerCar.selected=!playerCar.selected; Object.assign(playerCar,{speed:0,vel:[0,0],yawRate:0}); driveKeys.clear();
     if(playerCar.selected) enterChase(); else { exitChase(); endRain(); drawRadar(); }
     hintText=''; hint.classList.toggle('active',playerCar.selected);
     setHint(playerCar.selected?HINT_DRIVE:'Driving paused · click the car or press Esc to resume, or drag the dock icon to a new location');
@@ -278,9 +278,9 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     return { pitch:Math.atan(rise), roll:Math.atan(lean) };
   }
 
-  function updateTilt(dt,mpp,vmax) {
+  function updateTilt(dt,mpp) {
     const c=playerCar, t=groundTilt(mpp), airborne=c.jump>0||c.offEdge;
-    const squat=airborne?0:Math.max(-.06,Math.min(.06,c.accel/(vmax/1.5)*.05)); // nose lifts when accelerating, dips when braking
+    const squat=airborne?0:Math.max(-.06,Math.min(.06,c.accel/CAR.gravity*.05)); // nose lifts when accelerating, dips when braking
     const target=airborne?{pitch:Math.max(-.35,Math.min(.35,c.jumpV/jumpSpeed(mpp)*.3)),roll:0}:{pitch:t.pitch+squat,roll:t.roll+Math.max(-.3,Math.min(.3,c.slip*.35))};
     const k=70, d=11;
     c.pitchV+=((target.pitch-c.pitch)*k-c.pitchV*d)*dt; c.pitch+=c.pitchV*dt;
@@ -288,23 +288,40 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     c.pitch=Math.max(-1.2,Math.min(1.2,c.pitch)); c.roll=Math.max(-.9,Math.min(.9,c.roll));
   }
 
-  // Speeds are tied to the view: top speed crosses the screen in ~5 s, so the car moves across the map at any zoom.
   // Jumps are sized in screen terms: peak ~JUMP_PX pixels high, ~JUMP_AIR seconds in the air, at any zoom.
   const JUMP_PX=60, JUMP_AIR=.7;
   const jumpGravity=mpp=>8*JUMP_PX*mpp/(JUMP_AIR*JUMP_AIR), jumpSpeed=mpp=>4*JUMP_PX*mpp/JUMP_AIR;
-  const BOOST_FLAT=7, BOOST_HILL=1.5; // boost engine multiplier on level ground / at the normal climb limit
   const CLIMB_DEG=22, SIN_CLIMB=Math.sin(CLIMB_DEG*Math.PI/180); // the normal engine just stalls at this slope; boost climbs steeper
+
+  // Driving model: Marco Monster's "Car Physics for Games" (2003), as adapted to JavaScript by Mike Linkovich in carphysics2d
+  // (https://github.com/spacejack/carphysics2d, MIT licence, copyright (c) 2015 Mike Linkovich; see car/LICENSE-carphysics2d).
+  // CAR is that project's default "lightweight sports sedan" config, unchanged. The car is simulated in its own real-size
+  // metres and drawn CAR_SCALE times larger on the map, so it handles like a 4 m car whatever the map scale.
+  const CAR={ gravity:9.81, mass:1200, inertiaScale:1, cgToFrontAxle:1.25, cgToRearAxle:1.25, cgHeight:.55, length:4,
+    tireGrip:2, lockGrip:.7, engineForce:8000, brakeForce:12000, weightTransfer:.2, maxSteer:.6,
+    cornerStiffnessFront:5, cornerStiffnessRear:5.2, airResist:2.5, rollResist:8 };
+  const WHEELBASE=CAR.cgToFrontAxle+CAR.cgToRearAxle, INERTIA=CAR.mass*CAR.inertiaScale;
+  const carScale=()=>CHASE.drawPx*chaseMpp()/CAR.length; // map metres per car metre
+  // Game additions on top of the source model:
+  //  - Boost (Shift) is extra engine force through the rear tyres plus, once rolling, a rocket push on the body for top speed.
+  //    The wheel part is sized so dry tyres just hold it but wet ones spin up: that wheelspin is what makes donuts.
+  //  - Wet tyres (river, rain) lose up to WET_LOSS of their grip.
+  //  - Hills: gravity along and across the slope, scaled (HILL_G) so the normal engine just stalls at CLIMB_DEG.
+  const BOOST_WHEEL=1.25, BOOST_ROCKET=3, WET_LOSS=.6, STEER_ASSIST=.7, WHEELSPIN=12, HILL_G=CAR.engineForce/(CAR.mass*SIN_CLIMB);
+  const TOP_SPEED=Math.sqrt(CAR.engineForce/CAR.airResist); // ~57 m/s (205 km/h) unboosted on the flat
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
   // Keep an absolute altitude after crossing the edge: outside-grid heights must not snap the car to zero.
   // Hold the camera at the cliff so the fall stays visible, then restore the overview and dock.
   function fallStep(dt) {
     const c=playerCar;
     c.fallTime+=dt;
-    c.pos[0]+=Math.sin(c.heading)*c.speed*dt*metresToLon(c.pos[1]);
-    c.pos[1]+=Math.cos(c.heading)*c.speed*dt*metresToLat;
+    const S=carScale();
+    c.pos[0]+=c.vel[0]*S*dt*metresToLon(c.pos[1]);
+    c.pos[1]+=c.vel[1]*S*dt*metresToLat;
     c.fallZ+=c.fallV*dt-.5*c.fallGravity*dt*dt;
     c.fallV-=c.fallGravity*dt;
-    c.speed*=Math.exp(-.2*dt);
+    c.vel=c.vel.map(v=>v*Math.exp(-.2*dt));
     c.pitch-=.9*dt; c.roll+=.6*dt;
     if(c.fallTime>=2.6) reset();
   }
@@ -321,71 +338,93 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     setHint('Off the edge! Returning the car to its dock…');
   }
 
-  function physicsStep(dt, input, mpp, vmax0) {
+  function physicsStep(dt, input, mpp) {
     if(playerCar.falling) { fallStep(dt); return; }
-    const boost=input.boost&&input.throttle, vmax=vmax0*(boost?4:1); // Shift: higher top speed and a much harder push
-    const c=playerCar, sin=Math.sin(c.heading), cos=Math.cos(c.heading);
-    // Hill mechanics, built on a few standard vehicle-game rules:
-    //  - Slope is read over the car's wheelbase (half a car length either side) and low-passed, so rough cells never jolt it.
-    //  - Gravity is a real force along the slope (sin of the angle) set so the normal engine just stalls at CLIMB_DEG.
-    //    Climbing therefore costs speed smoothly, and momentum carries you: arriving fast gets you up further than creeping.
-    //  - Boost multiplies engine force but not gravity, so it is the answer to a steep face.
-    //  - No hard wall: on a face the engine cannot hold the car just runs out of speed, then rolls back slowly (capped), and
-    //    reversing out or turning always works. A gentler slope the car can hold stays parked when you let go.
-    const span=Math.max(150,.5*CHASE.carPx*mpp), dLon=sin*span*metresToLon(c.pos[1]), dLat=cos*span*metresToLat;
-    const raw=(terrainHeightAt(c.pos[0]+dLon,c.pos[1]+dLat)-terrainHeightAt(c.pos[0]-dLon,c.pos[1]-dLat))/(2*span);
-    c.grade+=(raw-c.grade)*(1-Math.exp(-8*dt));
-    const grade=c.grade, airborne=c.jump>0||c.offEdge;
-    const sinTheta=grade/Math.hypot(1,grade), baseEngine=vmax0/1.5, G=baseEngine/SIN_CLIMB; // gravity scale: engine == G·sin(θ) at CLIMB_DEG
-    // Boost is a flat-ground rocket: its extra push fades to a modest hill-climbing edge as the slope nears the normal limit,
-    // so it covers level country fast but cannot climb faces the normal engine has no chance on.
-    const uphill=Math.min(1,Math.max(0,sinTheta)/SIN_CLIMB), engine=baseEngine*(boost?BOOST_FLAT+(BOOST_HILL-BOOST_FLAT)*uphill:1);
-    const pull=G*sinTheta;                                          // along-heading gravity (positive = holding you back when facing uphill)
-    let a=0;
-    if(!airborne) {
-      if(input.throttle) a+=engine*Math.max(-1,1-Math.max(0,c.speed)/vmax);
-      if(input.brake) a+=c.speed>.02*vmax ? -baseEngine*2.2 : -baseEngine*1.1; // brake, then reverse
-      if(!input.throttle) a-=c.speed*.35+Math.sign(c.speed)*baseEngine*.12;   // coasting: rolling resistance plus a little friction
-      a-=pull;
-    }
-    c.accel=a;
-    let v=c.speed+a*dt;
-    const cantHold=pull>=engine*.98;                              // even full normal throttle can't push up this
-    c.stalled=!airborne&&input.throttle&&cantHold&&v<.05*vmax;
-    if(!airborne&&cantHold&&v<0&&(input.throttle||input.brake)) v=Math.max(v,-.12*vmax0); // rolls back, but never runs away
-    if(!input.throttle&&!input.brake&&Math.abs(v)<.01*vmax&&Math.abs(sinTheta)<SIN_CLIMB*.55) v=0; // parked on a slope it can hold
-    // Steep faces cap speed outright (traction), so boost momentum cannot be carried up them: the cap falls to zero at ~1.6x the
-    // normal climb limit and is a real limit above that, however fast the car arrives.
-    const dirSin=(v>=0?1:-1)*sinTheta;
-    if(!airborne&&dirSin>0) {
-      const cap=vmax*Math.max(0,1-dirSin/(1.6*SIN_CLIMB));
-      if(Math.abs(v)>cap) v=Math.sign(v)*(Math.abs(v)-(Math.abs(v)-cap)*(1-Math.exp(-8*dt)));
-    }
-    c.speed=Math.max(-.4*vmax,Math.min(vmax*1.15,v));
-    // Steering: yaw rate follows speed (no turning on the spot), limited by lateral grip; reversing flips it like a real car.
-    const radius=60*mpp, grip=Math.PI*.55, rate=Math.max(-1.6,Math.min(1.6,c.speed/radius))*input.steer*(1+2*c.wet);
-    // Power oversteer: boosting on wet tyres spins the driven wheels, so steering swings the tail round even from a standstill
-    // (a donut). The yaw comes from wheelspin, not speed; forward speed is held down because the power is going into the spin.
-    const spin=boost&&!airborne ? Math.min(1,c.wet/.6) : 0, donut=spin*Math.abs(input.steer);
-    const spinRate=donut ? spin*input.steer*3.6*Math.min(1,.35+Math.abs(c.speed)/(.25*vmax0)) : 0;
-    const yaw=Math.max(-grip,Math.min(grip,rate))*(1-donut*.6)+spinRate;
-    c.heading=((c.heading+yaw*dt)%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
-    if(donut) { const cap=vmax*(1-donut)+.7*vmax0*donut; if(c.speed>cap) c.speed+=(cap-c.speed)*(1-Math.exp(-6*dt)); }
-    // Carry momentum over the edge and fall before returning to the dock.
-    // Wet tyres (in a flowing river, drying over a few seconds) lose grip: the car keeps travelling along its old course
-    // while the nose swings round, so it drifts. Dry, the course follows the heading exactly.
-    const soak=c.jump===0 ? Math.max(rain.level,isWet?Math.max(0,Math.min(1,+isWet(c.pos[0],c.pos[1])||0)):0) : 0; // 0 dry … 1 flowing river
+    const c=playerCar, P=CAR, sin=Math.sin(c.heading), cos=Math.cos(c.heading);
+    // Steering filter, from the source's applySmoothSteer: the wheel turns at 2/s and recentres at 1/s. Its applySafeSteer
+    // (less lock at speed, "prevents oversteer at expense of more understeer") is made grip-aware here: the lock is held to
+    // what a steady turn needs for STEER_ASSIST of the tyres' grip (bicycle model: tan δ = a_lat·L / v²), so the car corners
+    // hard without snapping round. Boosting on wet tyres spins the rear wheels, so the tail still comes round: donuts.
+    c.steer=input.steer ? clamp(c.steer+input.steer*dt*2,-1,1) : c.steer>0 ? Math.max(c.steer-dt,0) : Math.min(c.steer+dt,0);
+    const absVel=Math.hypot(c.vel[0],c.vel[1]), grip=P.tireGrip*(1-WET_LOSS*c.wet);
+    const lock=Math.min(P.maxSteer*(1-Math.min(absVel,250)/280), Math.atan(STEER_ASSIST*grip*P.gravity*WHEELBASE/Math.max(1e-6,absVel*absVel)));
+    const steerAngle=c.steer*lock;
+    // Velocity in car coordinates: x forward, y to the right (heading is clockwise from north, as is yawRate).
+    const vx=sin*c.vel[0]+cos*c.vel[1], vy=cos*c.vel[0]-sin*c.vel[1];
+    // Slope under the car, read over a span wider than any one terrain cell and low-passed, along and across the heading.
+    const span=Math.max(150,.5*CHASE.carPx*mpp), lat=c.pos[1], at=(f,r)=>terrainHeightAt(c.pos[0]+(sin*f+cos*r)*metresToLon(lat), lat+(cos*f-sin*r)*metresToLat);
+    const ease=1-Math.exp(-8*dt);
+    c.grade+=((at(span,0)-at(-span,0))/(2*span)-c.grade)*ease;
+    c.bank+=((at(0,span)-at(0,-span))/(2*span)-c.bank)*ease;
+    const sinTheta=c.grade/Math.hypot(1,c.grade), sinBank=c.bank/Math.hypot(1,c.bank);
+    const airborne=c.jump>0||c.offEdge, boost=input.boost&&input.throttle;
+    // Wet tyres: soaked in a flowing river or by rain, drying over a few seconds.
+    const soak=c.jump===0 ? Math.max(rain.level,isWet?clamp(+isWet(c.pos[0],c.pos[1])||0,0,1):0) : 0; // 0 dry … 1 flowing river
     c.wet=soak>c.wet ? Math.min(soak,c.wet+dt*4) : Math.max(0,c.wet-dt/2.5);
-    const gripRate=c.wet>.02 ? ((.3+Math.pow(1-c.wet,2)*14)+Math.max(0,1-Math.abs(c.speed)/(.12*vmax))*30)*(1-.85*spin) : Infinity;
-    if(gripRate===Infinity) { c.course=c.heading; c.slip=0; }
-    else {
-      const slip=((c.heading-c.course+3*Math.PI)%(2*Math.PI))-Math.PI;
-      c.course+=slip*(1-Math.exp(-gripRate*dt));
-      c.speed*=Math.exp(-dt*.35*Math.min(1,Math.abs(slip)));
-      const maxSlip=1.15+.45*spin; // slide angle capped near 66°, or ~92° when spinning the wheels
-      const s2=Math.max(-maxSlip,Math.min(maxSlip,((c.heading-c.course+3*Math.PI)%(2*Math.PI))-Math.PI)); c.course=c.heading-s2; c.slip=s2;
+    let Fx=0, Fy=0, torque=0, spin=false, reversing=false;
+    // Drag acts in the air too (source: rolling resistance + air resistance, per axis).
+    Fx-=P.rollResist*vx+P.airResist*vx*Math.abs(vx);
+    Fy-=P.rollResist*vy+P.airResist*vy*Math.abs(vy);
+    if(!airborne) {
+      // Axle loads, with weight shifting back under acceleration and forward under braking (source).
+      const shift=P.weightTransfer*c.accel*P.cgHeight/WHEELBASE;
+      const wFront=P.mass*(P.cgToRearAxle/WHEELBASE*P.gravity-shift), wRear=P.mass*(P.cgToFrontAxle/WHEELBASE*P.gravity+shift);
+      // Slip angles: wheel velocity includes the body's rotation (source). The front angle is measured in the turned wheel's
+      // own frame. The source's shortcut, atan2(v_lat,|v_x|) - sign(v_x)·δ, is the same for small angles but flips the
+      // steering when v_x crosses zero, which is exactly what happens mid-donut with the car sliding sideways.
+      const sgn=vx>0?1:vx<0?-1:0, vyFront=vy+P.cgToFrontAxle*c.yawRate, cd=Math.cos(steerAngle), sd=Math.sin(steerAngle);
+      const slipFront=Math.atan2(vyFront*cd-vx*sd,Math.abs(vx*cd+vyFront*sd));
+      const slipRear=Math.atan2(vy-P.cgToRearAxle*c.yawRate,Math.abs(vx));
+      const latFront=clamp(-P.cornerStiffnessFront*slipFront,-grip,grip)*wFront;
+      let latRear=clamp(-P.cornerStiffnessRear*slipRear,-grip,grip)*wRear;
+      // Rear-wheel drive (source). Brake, then reverse once (almost) stopped.
+      const uphill=Math.min(1,Math.max(0,sinTheta)/SIN_CLIMB);
+      let drive=0, brake=0;
+      if(input.throttle) drive=P.engineForce*(boost?BOOST_WHEEL:1);
+      if(input.brake) { if(vx>1) brake=P.brakeForce; else if(!input.throttle) { drive=-.6*P.engineForce; reversing=true; } }
+      // Traction circle on the driven (rear) tyres (Beckman, "The Physics of Racing", part 5): drive and cornering share one
+      // grip budget. Ask for more and the wheels spin. A spinning tyre slides, so it gives sliding grip (the source's
+      // lockGrip) directed against its contact patch's slip: the tread running WHEELSPIN m/s ahead of the ground, plus however
+      // fast the axle slides sideways. Mostly drive, with sideways hold growing as the tail slides: on wet tyres, boost and
+      // full lock swing the tail round and hold it there, a donut.
+      const budget=grip*wRear, demand=Math.hypot(drive,latRear);
+      if(drive&&demand>budget) {
+        const slideRear=vy-P.cgToRearAxle*c.yawRate, ahead=Math.sign(drive)*WHEELSPIN, k=P.lockGrip*budget/Math.hypot(ahead,slideRear);
+        drive=ahead*k; latRear=-slideRear*k; spin=true;
+      }
+      Fx+=drive-brake*sgn;
+      Fy+=Math.cos(steerAngle)*latFront+latRear;
+      torque=latFront*P.cgToFrontAxle-latRear*P.cgToRearAxle;
+      // Gravity along and across the slope (game addition).
+      Fx-=P.mass*HILL_G*sinTheta; Fy-=P.mass*HILL_G*sinBank;
+      // Boost rocket: only above 15 m/s (full by 30) so it never breaks a donut, and fades on climbs so it cannot fly up cliffs.
+      if(boost) Fx+=P.engineForce*BOOST_ROCKET*clamp((vx-15)/15,0,1)*(1-.85*uphill);
+      c.stalled=input.throttle&&P.mass*HILL_G*sinTheta>=P.engineForce*(boost?BOOST_WHEEL:1)*.98&&vx<1;
+    } else c.stalled=false;
+    c.spin=spin;
+    const ax=Fx/P.mass, ay=Fy/P.mass;
+    c.accel=ax;
+    c.vel[0]+=(ax*sin+ay*cos)*dt; c.vel[1]+=(ax*cos-ay*sin)*dt;
+    c.yawRate+=torque/INERTIA*dt;
+    // The source stops the car outright when slow and coasting (the tyre model is unstable near zero). Here that also
+    // parks it on any slope gentle enough to hold; steeper, it keeps rolling back.
+    const speedNow=Math.hypot(c.vel[0],c.vel[1]);
+    if(!airborne&&speedNow<.5&&!input.throttle&&!reversing&&Math.abs(sinTheta)<SIN_CLIMB*.55&&Math.abs(sinBank)<SIN_CLIMB*.55) { c.vel=[0,0]; c.yawRate=0; }
+    c.heading=((c.heading+c.yawRate*dt)%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
+    // Steep faces: traction caps speed up them, falling to zero at ~1.6x the normal climb limit, however fast the car arrives;
+    // a car held there rolls back no faster than 3 m/s while you work the pedals (game addition).
+    const s2=Math.sin(c.heading), c2=Math.cos(c.heading);
+    let fwd=s2*c.vel[0]+c2*c.vel[1];
+    const dirSin=(fwd>=0?1:-1)*sinTheta;
+    if(!airborne&&dirSin>0) {
+      const cap=TOP_SPEED*Math.max(0,1-dirSin/(1.6*SIN_CLIMB));
+      if(Math.abs(fwd)>cap) { const cut=Math.sign(fwd)*(Math.abs(fwd)-cap)*ease; c.vel[0]-=s2*cut; c.vel[1]-=c2*cut; fwd-=cut; }
     }
-    const dist=c.speed*dt, nLon=Math.sin(c.course)*dist*metresToLon(c.pos[1]), nLat=Math.cos(c.course)*dist*metresToLat;
+    if(!airborne&&fwd<-3&&c.stalled) { const cut=fwd+3; c.vel[0]-=s2*cut; c.vel[1]-=c2*cut; fwd=-3; }
+    c.speed=fwd;
+    const side=c2*c.vel[0]-s2*c.vel[1];
+    c.slip=Math.hypot(fwd,side)>1 ? -Math.atan2(side,Math.abs(fwd)) : 0; // nose angle off the direction of travel, + when sliding left
+    const S=carScale(), nLon=c.vel[0]*S*dt*metresToLon(c.pos[1]), nLat=c.vel[1]*S*dt*metresToLat;
     const nextOn=onTerrain(c.pos[0]+nLon,c.pos[1]+nLat);
     if(!nextOn&&!c.offEdge) { // leaving the platform: carry on as a projectile from the current altitude
       c.offEdge=true; c.airZ=terrainHeightAt(c.pos[0],c.pos[1])+c.jump; c.airV=c.jumpV; c.jump=0; c.jumpV=0; c.lastSkid=null;
@@ -399,8 +438,8 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
       } else if(c.airZ<minPlatformZ()) { startFall(mpp); fallStep(dt); return; }        // dropped below the platform's lowest point
     }
     c.pos[0]+=nLon; c.pos[1]+=nLat;
-    // Skid marks: two rear-wheel tracks laid down while the car is visibly sliding.
-    if(Math.abs(c.slip)>.18&&c.jump===0&&!c.offEdge&&Math.abs(c.speed)>.05*vmax) {
+    // Skid marks: two rear-wheel tracks laid down while the car is visibly sliding or spinning its wheels.
+    if((Math.abs(c.slip)>.18||c.spin)&&c.jump===0&&!c.offEdge&&Math.hypot(c.vel[0],c.vel[1])>1) {
       const L=CHASE.drawPx*mpp, lat=c.pos[1], hs=Math.sin(c.heading), hc=Math.cos(c.heading), now=performance.now();
       const wheel=side=>{ const f=-.3*L, s2=side*.2*L;
         const lon2=c.pos[0]+(hs*f+hc*s2)*metresToLon(lat), lat2=lat+(hc*f-hs*s2)*metresToLat;
@@ -410,7 +449,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
       c.lastSkid={p:pts,t:now};
       if(c.skids.length>400) c.skids.splice(0,c.skids.length-400);
     } else c.lastSkid=null;
-    updateTilt(dt,mpp,vmax);
+    updateTilt(dt,mpp);
     if(c.jumpV||c.jump) {
       c.jumpV-=jumpGravity(mpp)*dt; c.jump=Math.max(0,c.jump+c.jumpV*dt);
       if(c.jump===0) c.jumpV=0;
@@ -489,11 +528,11 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     if(!playerCar.selected) return false;
     dt=Math.min(.05,dt);
     const c=playerCar, old=[c.pos[0],c.pos[1],c.heading,c.speed,c.jump,c.pitch,c.roll];
-    const mpp=metresPerPixel(), vmax=map.getContainer().clientWidth*mpp/3.3;
+    const mpp=metresPerPixel();
     const input={throttle:driveKeys.has('KeyW'), brake:driveKeys.has('KeyS'), steer:(driveKeys.has('KeyD')?1:0)-(driveKeys.has('KeyA')?1:0), boost:driveKeys.has('ShiftLeft')||driveKeys.has('ShiftRight')};
     rainStep(dt);
     const n=Math.ceil(dt/(1/120)); // fixed small substeps keep the result independent of frame rate
-    for(let i=0;i<n&&c.selected;i++) physicsStep(dt/n,input,mpp,vmax);
+    for(let i=0;i<n&&c.selected;i++) physicsStep(dt/n,input,mpp);
     if(c.selected&&!c.falling) { chaseCamera(dt); updateHint(); }
     drawRadar();
     if(c.falling||!c.placed) return true;

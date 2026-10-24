@@ -37,7 +37,7 @@ dock.listeners.pointerup(pointer(400,300));
 assert.equal(car.state.placed,true); assert.equal(car.state.selected,true);
 assert.deepEqual(Array.from(car.state.pos),[1.5,1.5]);
 assert.equal(car.isPlacing(),false); assert.equal(map.dragPan.enabled,false);
-car.state.pos=[1.5,2.89999]; car.state.speed=100000;
+car.state.pos=[1.5,2.89999]; car.state.vel=[0,1000];
 car.tick(.05);
 assert.equal(car.state.placed,true,'car remains visible after crossing boundary');
 assert.equal(car.state.falling,true);
@@ -66,25 +66,27 @@ events.keyup(key('ArrowUp')); assert.equal(car.driveKeys.has('KeyW'),false);
 events.keydown(key('ArrowLeft',{matches:()=>true})); assert.equal(car.driveKeys.size,0,'keys typed into a text box are left alone');
 events.keydown({code:'Escape'}); assert.equal(car.state.placed,true); assert.equal(car.state.selected,false,'Escape still pauses normal driving');
 events.keydown({code:'Escape'}); assert.equal(car.state.selected,true);
-car.state.pos=[1.5,2.89999]; car.state.speed=100000; car.tick(.05);
+car.state.pos=[1.5,2.89999]; car.state.vel=[0,1000]; car.tick(.05);
 assert.equal(car.state.falling,true);
 events.keydown({code:'Escape'}); assert.equal(car.state.placed,false,'Escape can skip the fall');
 assert(redraws>0);
 
-// Donuts: boost + steer on wet tyres spins the car round on the spot; on dry tyres the same input just drives off in an arc.
+// Donuts: boost + full lock on wet tyres (rain-level wetness) spins the rear wheels and the car pivots in a tight circle;
+// on dry tyres the rear holds the same input and the car carves a wide, fast arc instead.
 function spinTest(wet) {
   const flat={x0:0,y0:3,step:1,NR:4,NC:4,GZ:new Float32Array(16).fill(10),outline:[[[.1,.1],[2.9,.1],[2.9,2.9],[.1,2.9],[.1,.1]]],getExaggeration:()=>1};
   const c=context.window.createCarMechanics({deck:{SimpleMeshLayer:class{constructor(props){Object.assign(this,props);}}},map,terrain:flat,
     getRelief:()=>1,setRelief(){},refresh(){},pickTerrain:()=>picked,isWet:()=>wet});
   c.place([1.5,1.5]); c.state.wet=wet;
   for(const k of ['KeyW','ShiftLeft','KeyD']) c.driveKeys.add(k);
+  const carMetres=55*78271.5*Math.cos(1.5*Math.PI/180)/Math.pow(2,10.5)/4/111320; // degrees per simulated car metre
   let turned=0, far=0, h=c.state.heading;
-  for(let i=0;i<60;i++) { c.tick(.05); turned+=((c.state.heading-h+3*Math.PI)%(2*Math.PI))-Math.PI; h=c.state.heading;
-    far=Math.max(far,Math.hypot(c.state.pos[0]-1.5,c.state.pos[1]-1.5)); }
-  return {turned,far};
+  for(let i=0;i<120;i++) { c.tick(.05); turned+=((c.state.heading-h+3*Math.PI)%(2*Math.PI))-Math.PI; h=c.state.heading;
+    far=Math.max(far,Math.hypot(c.state.pos[0]-1.5,c.state.pos[1]-1.5)/carMetres); }
+  return {turns:turned/2/Math.PI,far};
 }
-const wetSpin=spinTest(1), drySpin=spinTest(0);
-assert(wetSpin.turned>2*Math.PI,`wet boost turns a full donut in 3 s (turned ${wetSpin.turned.toFixed(2)} rad)`);
-assert(drySpin.turned<wetSpin.turned/2,'dry tyres do not spin like that');
-assert(wetSpin.far<drySpin.far,'a donut stays closer to where it started than a dry boost');
+const wetSpin=spinTest(.5), drySpin=spinTest(0);
+assert(wetSpin.turns>1.5,`wet boost at full lock keeps spinning (${wetSpin.turns.toFixed(2)} turns in 6 s)`);
+assert(wetSpin.far<12,`and stays on the spot (${wetSpin.far.toFixed(1)} m)`);
+assert(drySpin.turns<.75&&drySpin.far>50,`dry tyres grip and carve a wide arc (${drySpin.turns.toFixed(2)} turns, ${drySpin.far.toFixed(0)} m)`);
 console.log('Car placement, drag cancellation, invalid drops, animated fall, delayed reset, camera restoration, reuse, arrow keys and wet-boost donuts passed.');
