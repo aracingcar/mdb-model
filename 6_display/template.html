@@ -50,21 +50,23 @@
   #speed { font-size:13px; font-weight:600; padding:4px 6px; }
   #relief { position:absolute; right:22px; top:18px; font-size:12px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; display:flex; align-items:center; gap:8px; }
   #relief input { width:110px; accent-color:#8a8e94; }
-  #towns-toggle { position:absolute; right:22px; bottom:90px; z-index:6; display:flex; align-items:center; gap:9px; padding:9px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); color:var(--head); font-size:12px; font-weight:600; cursor:pointer; }
-  #townsIn { appearance:none; width:30px; height:18px; margin:0; border-radius:10px; background:#b8bdc2; position:relative; cursor:pointer; transition:background .15s; }
-  #townsIn::before { content:''; position:absolute; top:3px; left:3px; width:12px; height:12px; border-radius:50%; background:#fff; transition:transform .15s; }
-  #townsIn:checked { background:#4a78a0; }
-  #townsIn:checked::before { transform:translateX(12px); }
-  #townsIn:focus-visible { outline:2px solid #2d6aa8; outline-offset:3px; }
+  #towns-toggle, #detail-toggle { position:absolute; right:22px; bottom:90px; z-index:6; display:flex; align-items:center; gap:9px; padding:9px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); color:var(--head); font-size:12px; font-weight:600; cursor:pointer; }
+  #detail-toggle { bottom:138px; }
+  #townsIn, #detailIn { appearance:none; width:30px; height:18px; margin:0; border-radius:10px; background:#b8bdc2; position:relative; cursor:pointer; transition:background .15s; }
+  #townsIn::before, #detailIn::before { content:''; position:absolute; top:3px; left:3px; width:12px; height:12px; border-radius:50%; background:#fff; transition:transform .15s; }
+  #townsIn:checked, #detailIn:checked { background:#4a78a0; }
+  #townsIn:checked::before, #detailIn:checked::before { transform:translateX(12px); }
+  #townsIn:focus-visible, #detailIn:focus-visible { outline:2px solid #2d6aa8; outline-offset:3px; }
   #tip { position:absolute; pointer-events:none; padding:9px 12px; display:none; z-index:5; font-size:13px; line-height:1.45; background:#fff; border:1px solid var(--rule); box-shadow:0 2px 10px rgba(0,0,0,.08); color:var(--ink); font-weight:400; }
   #tip b { font-weight:700; display:block; color:var(--head); }
   #climate-panel { position:absolute; left:420px; top:18px; z-index:8; width:260px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
   #climate-panel summary { cursor:pointer; font-weight:600; color:var(--head); }
   #climate-fields { display:grid; gap:8px; margin-top:12px; }
   #climate-fields label { display:grid; gap:3px; }
+  #climate-fields .years { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   #climate-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
   #climate-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
-  #climate-meta,#climate-availability { margin:8px 0 0; color:var(--dim); line-height:1.4; }
+  #climate-meta { margin:8px 0 0; color:var(--dim); line-height:1.4; }
   @media (max-width:900px) { #climate-panel { left:12px; top:310px; width:240px; max-height:calc(100% - 394px); overflow:auto; } }
   #err { position:absolute; inset:0; display:none; place-items:center; font:300 20px var(--sans); text-align:center; padding:40px; z-index:20; background:var(--bg); }
   @media (max-width:900px) { #map { left:0; top:300px; } #side { width:100%; bottom:auto; height:300px; padding:18px 20px; background:#fff; z-index:2; } h1 { font-size:24px; margin-top:8px; } #desc,#legend,#eco,#credit,#note2,#chartT,#bars { display:none; } #date { font-size:36px; } #wd { margin-top:8px; } }
@@ -98,13 +100,16 @@
     <label for="climate-global">Global model<select id="climate-global"></select></label>
     <label for="climate-scenario">Scenario<select id="climate-scenario"></select></label>
     <label for="climate-regional">Regional configuration<select id="climate-regional"></select></label>
-    <label for="climate-period">Period<select id="climate-period"></select></label>
+    <div class="years">
+      <label for="climate-start">Start year<select id="climate-start"></select></label>
+      <label for="climate-end">End year<select id="climate-end"></select></label>
+    </div>
   </div>
   <p id="climate-meta"></p>
-  <p id="climate-availability">Only the currently loaded dataset is available.</p>
 </details>
 <div id="bar"><button id="play">&#9654;</button><div id="timeline"><canvas id="tl"></canvas></div><div id="clock"></div><button id="speed">30 d/s</button></div>
 <label id="towns-toggle" for="townsIn"><span>Towns</span><input id="townsIn" type="checkbox" role="switch" checked></label>
+<label id="detail-toggle" for="detailIn"><span>Roads</span><input id="detailIn" type="checkbox" role="switch"></label>
 <div id="tip"></div>
 <div id="err">The map libraries could not load. Open this page with an internet connection.</div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -117,11 +122,28 @@ const BF = {};
 for (const id in D.riverFlow) { const bin = atob(D.riverFlow[id]), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); BF[id] = new Uint16Array(u8.buffer); }
 const N = D.days.length, $ = id => document.getElementById(id);
 // Only the dataset embedded in this build is selectable; empty input folders are not available runs.
-for (const [id, key] of [['climate-global', 'globalModel'], ['climate-scenario', 'scenario'], ['climate-regional', 'regionalConfig'], ['climate-period', 'period']]) {
+for (const [id, key] of [['climate-global', 'globalModel'], ['climate-scenario', 'scenario'], ['climate-regional', 'regionalConfig']]) {
   $(id).add(new Option(D.climate[key], D.climate[key]));
 }
 $('climate-meta').textContent = `${D.climate.source} · ${D.climate.resolution} · ${D.climate.frequency}`;
-$('kicker').textContent = `Murrumbidgee / ${D.climate.period}`;
+// The period is a start and end year within the embedded data; playback and the timeline cover only that window.
+const FIRST_YEAR = +D.days[0].slice(0, 4), LAST_YEAR = +D.days[N - 1].slice(0, 4);
+let W0 = 0, W1 = N - 1;
+function fillYears(id, from, to, keep) {
+  const sel = $(id); sel.length = 0;
+  for (let y = from; y <= to; y++) sel.add(new Option(y, y));
+  sel.value = keep;
+}
+// A period spans at least two years: each list only offers years on the correct side of the other's choice.
+function setPeriod() {
+  const a = +($('climate-start').value || FIRST_YEAR), b = +($('climate-end').value || LAST_YEAR);
+  fillYears('climate-start', FIRST_YEAR, b - 1, a);
+  fillYears('climate-end', a + 1, LAST_YEAR, b);
+  W0 = D.days.indexOf(`${a}-01-01`); W1 = D.days.indexOf(`${b}-12-31`);
+  $('kicker').textContent = `Murrumbidgee / ${a}\u2013${b}`;
+  if (day < W0 || day > W1) day = W0;
+  update();
+}
 const fmt = n => Math.round(n).toLocaleString('en-AU');
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const nice = s => { const [y,m,d] = s.split('-'); return `${+d} ${MONTHS[+m-1]} ${y}`; };
@@ -233,6 +255,41 @@ const PLACES = [
   ['Darlington Point',145.9990,-34.5690,'town',7.5],
   ['Coleambally',145.8800,-34.8070,'town',7.5],
   ['Jerilderie',145.7300,-35.3570,'town',7.5],
+  ['Junee',147.5830,-34.8680,'town',8],
+  ['Temora',147.5330,-34.4460,'town',8],
+  ['Cootamundra',148.0350,-34.6400,'town',8],
+  ['Young',148.3000,-34.3130,'town',8],
+  ['Boorowa',148.7170,-34.4380,'town',8.5],
+  ['Harden',148.3650,-34.5520,'town',8.5],
+  ['Adelong',148.0680,-35.3050,'town',9],
+  ['Tarcutta',147.7420,-35.2780,'town',9],
+  ['Jugiong',148.3250,-34.8200,'town',9.5],
+  ['Bowning',148.8010,-34.7630,'town',9.5],
+  ['Murrumbateman',149.0310,-35.0510,'town',9],
+  ['Bungendore',149.4470,-35.2570,'town',8.5],
+  ['Hall',149.0700,-35.1730,'town',9.5],
+  ['Sutton',149.2500,-35.1620,'town',9.5],
+  ['Captains Flat',149.4460,-35.5890,'town',9],
+  ['Michelago',149.1370,-35.7070,'town',9],
+  ['Tharwa',149.0700,-35.5130,'town',10],
+  ['Belconnen',149.0650,-35.2380,'town',9.5],
+  ['Woden',149.0870,-35.3450,'town',9.5],
+  ['Tuggeranong',149.0680,-35.4200,'town',9.5],
+  ['Coolamon',147.2000,-34.8130,'town',9],
+  ['Ganmain',147.0420,-34.7940,'town',9.5],
+  ['The Rock',147.1100,-35.2690,'town',9.5],
+  ['Uranquinty',147.2400,-35.1990,'town',10],
+  ['Collingullie',147.1280,-35.0350,'town',10],
+  ['Lockhart',146.7160,-35.2240,'town',9],
+  ['Grong Grong',146.7870,-34.7370,'town',9.5],
+  ['Barellan',146.5660,-34.2910,'town',9],
+  ['Yanco',146.4130,-34.6220,'town',10],
+  ['Whitton',146.1930,-34.5190,'town',9.5],
+  ['Yenda',146.2020,-34.2480,'town',9.5],
+  ['Hanwood',146.0250,-34.3320,'town',10],
+  ['Urana',146.2670,-35.3330,'town',9],
+  ['Carrathool',145.4280,-34.4120,'town',9],
+  ['Maude',144.2990,-34.4750,'town',9],
 ].map(([name,lon,lat,kind,minZoom]) => {
   const c = Math.round((lon - T.x0) / T.step), r = Math.round((T.y0 - lat) / T.step);
   const z = r >= 0 && r < NR && c >= 0 && c < NC ? GZ[r * NC + c] : NaN;
@@ -453,7 +510,46 @@ let cache = { day: -1 }, meshGen = 0;
 buildMeshes();
 const tint = {}; let tintDay = -1;
 let map, overlay, carMechanics;
-let showTowns = true;
+let showTowns = true, showDetail = false;
+const roadSets = new Map();  // ribbon polygons memoised per (visible classes, width bucket) so the layer data keeps its identity between frames
+function roadsNow() {
+  const z = map ? map.getZoom() : 6.5, n = ROAD_MIN_ZOOM.filter(m => z >= m).length, w = Math.max(.4, Math.min(3, 2 ** (9.5 - z))), key = n + ':' + w.toFixed(1);
+  if (roadSets.has(key)) return roadSets.get(key);
+  const out = [];
+  for (const { cls, path } of ROADS) {
+    if (cls >= n) continue;
+    const hw = ROAD_M[cls] * w / 2, L = [], R = [];
+    for (let i = 0; i < path.length; i++) {
+      const a = path[Math.max(0, i - 1)], b = path[Math.min(path.length - 1, i + 1)];
+      let dx = (b[0] - a[0]) * MX, dy = (b[1] - a[1]) * MY; const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
+      const ox = -dy * hw / MX, oy = dx * hw / MY, p = path[i];
+      L.push([p[0] + ox, p[1] + oy, p[2]]); R.push([p[0] - ox, p[1] - oy, p[2]]);
+    }
+    out.push({ cls, r: [...L, ...R.reverse()] });
+  }
+  roadSets.set(key, out); return out;
+}
+// ---- optional road network (OpenStreetMap major roads, fetch_roads.py); more classes appear as you zoom in, draped on the terrain
+const ROAD_MIN_ZOOM = [6.5, 7.5, 8.5, 9.5], ROAD_M = [560, 440, 330, 250], ROAD_RAISE = 220, ROAD_FILL = [[255,196,84],[255,222,128],[255,255,255],[246,246,240]];  // base ribbon width in metres by class; ribbons widen a little when zoomed out so they stay visible
+const ROADS = (() => {
+  const out = [];
+  for (const [cls, f] of __ROADS__) {
+    let path = [], prev = null;
+    const flush = () => { if (path.length > 1) out.push({ cls, path }); path = []; };
+    for (let i = 0; i < f.length; i += 2) {
+      const lon = f[i], lat = f[i + 1], c = Math.round((lon - T.x0) / T.step), r = Math.round((T.y0 - lat) / T.step);
+      const z = c >= 0 && c < NC && r >= 0 && r < NR ? GZ[r * NC + c] : NaN;
+      if (isNaN(z)) { flush(); prev = null; continue; }   // outside the clipped terrain
+      if (prev) { const n = Math.floor(Math.hypot(lon - prev[0], lat - prev[1]) / 0.01);  // densify so long segments follow the ground
+        for (let k = 1; k <= n; k++) { const t = k / (n + 1), lo = prev[0] + (lon - prev[0]) * t, la = prev[1] + (lat - prev[1]) * t;
+          const cc = Math.round((lo - T.x0) / T.step), rr = Math.round((T.y0 - la) / T.step), zz = GZ[rr * NC + cc]; path.push([lo, la, isNaN(zz) ? z : zz]); } }
+      path.push(prev = [lon, lat, z]);
+    }
+    flush();
+  }
+  return out;
+})();
+
 function layers() {
   const blend = { depthWriteEnabled:false, depthCompare:'always' };
   if (cache.day !== day) {
@@ -473,6 +569,8 @@ function layers() {
       material:{ ambient:.6, diffuse:.7, shininess:4, specularColor:[30,30,30] }, pickable:carMechanics.isPlacing(), updateTriggers:{ getColor:day } }),
     new deck.SimpleMeshLayer({ id:'wall-' + meshGen, data:[{ pos:[LON0, LAT0, 0] }], mesh:wallMesh, texture:evCanvas, getPosition:d => d.pos, getColor:[238,238,238,255], sizeScale:1,
       material:{ ambient:.55, diffuse:.6, shininess:2, specularColor:[0,0,0] }, pickable:false, updateTriggers:{ getColor:day } }),
+    ...(showDetail ? [new deck.SolidPolygonLayer({ id:'roads', data:roadsNow(), getPolygon:d => d.r.map(p => [p[0], p[1], p[2] * TERR]), extruded:true, getElevation:ROAD_RAISE * relief,
+      getFillColor:d => [...ROAD_FILL[d.cls], 245], material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:false, updateTriggers:{getPolygon:relief, getElevation:relief} })] : []),
     new deck.PolygonLayer({ id:'units', data:polys, getPolygon:d => d.r.map(p => [p[0], p[1], 0]), getFillColor:[0,0,0,2], stroked:false, pickable:true }),
     new deck.PathLayer({ id:'bounds', data:bounds, getPath:d => d.path, getColor:[70,76,86,90], getWidth:0.9, widthUnits:'pixels', pickable:false }),
     new deck.SolidPolygonLayer({ id:'context', data:ctxZ, getPolygon:d => d.r, getFillColor:[150,192,220,120], extruded:false, pickable:false }),
@@ -569,31 +667,34 @@ function drawTimeline() {
   const dpr = devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
   if (cv.width !== w * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
   cx.setTransform(dpr,0,0,dpr,0,0); cx.clearRect(0,0,w,h);
-  const base = h - 16, top = 6, X = i => i / (N - 1) * w, Y = q => base - Math.sqrt(q / MAXQ) * (base - top);
+  const base = h - 16, top = 6, X = i => (i - W0) / Math.max(1, W1 - W0) * w, Y = q => base - Math.sqrt(q / MAXQ) * (base - top);
   cx.fillStyle = 'rgba(138,142,148,.16)'; cx.strokeStyle = '#a9adb3'; cx.lineWidth = 1;
   cx.beginPath(); cx.moveTo(0, base);
-  for (let i = 0; i < N; i += 2) cx.lineTo(X(i), Y(D.flow[i]));
+  const stride = Math.max(2, Math.floor((W1 - W0) / w / 2)); for (let i = W0; i <= W1; i += stride) cx.lineTo(X(i), Y(D.flow[i]));
   cx.lineTo(w, base); cx.closePath(); cx.fill(); cx.stroke();
   cx.fillStyle = '#8a8e94'; cx.font = '300 11px "Source Sans 3", sans-serif'; cx.textAlign = 'left';
-  D.days.forEach((s, i) => { if (s.slice(5) === '07-01') { cx.fillRect(X(i), base, 1, 4); if (+s.slice(0,4) % 2 === 1 || w > 900) cx.fillText(s.slice(0,4), X(i) + 3, h - 2); } });
-  const x = X(Math.min(N - 1, day));
+  const years = (W1 - W0) / 365.25, ystep = [1, 2, 5, 10, 20].find(k => w / years * k >= 48) || 20;
+  for (let i = W0; i <= W1; i++) { const s = D.days[i]; if (s.slice(5) === '07-01') { cx.fillRect(X(i), base, 1, 4); if (+s.slice(0,4) % ystep === 0) cx.fillText(s.slice(0,4), X(i) + 3, h - 2); } }
+  const x = X(Math.min(W1, day));
   cx.fillStyle = '#3a3d42'; cx.fillRect(x - 0.75, 0, 1.5, base); cx.beginPath(); cx.arc(x, Y(D.flow[Math.min(N - 1, Math.floor(day))]), 4, 0, 7); cx.fill();
 }
-function seek(e) { const r = cv.getBoundingClientRect(); day = Math.max(0, Math.min(N - 1, Math.round((e.clientX - r.left) / r.width * (N - 1)))); update(); }
+function seek(e) { const r = cv.getBoundingClientRect(); day = Math.max(W0, Math.min(W1, W0 + Math.round((e.clientX - r.left) / r.width * (W1 - W0)))); update(); }
 let drag = false; cv.onpointerdown = e => { drag = true; cv.setPointerCapture(e.pointerId); seek(e); }; cv.onpointermove = e => drag && seek(e); cv.onpointerup = () => drag = false;
 $('play').onclick = () => { playing = !playing; $('play').innerHTML = playing ? '&#10073;&#10073;' : '&#9654;'; last = performance.now(); if (playing) requestAnimationFrame(tick); };
 $('speed').onclick = () => { si = (si + 1) % speeds.length; $('speed').textContent = speeds[si] + ' d/s'; };
+$('detailIn').onchange = e => { showDetail = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 $('townsIn').onchange = e => { showTowns = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 $('reliefIn').oninput = e => { relief = +e.target.value; TERR = TERR0 * relief; buildZ(); buildMeshes(); meshGen++; cache = { day: -1 }; update(); };
 function tick(now) {
   if (!playing) return;
   acc += (now - last) / 1000 * speeds[si]; last = now;
-  if (acc >= 1) { const step = Math.floor(acc); acc -= step; day += step; if (day >= N) day = 0; update(); }
+  if (acc >= 1) { const step = Math.floor(acc); acc -= step; day += step; if (day > W1) day = W0 + (day - W1 - 1) % (W1 - W0 + 1); update(); }
   requestAnimationFrame(tick);
 }
 addEventListener('resize', () => update());
 { const q = new URLSearchParams(location.search).get('day'), i = q ? D.days.indexOf(q) : -1; if (i >= 0) day = i; }
-if (typeof maplibregl !== 'undefined' && typeof deck !== 'undefined') { initMap(); legend(); update(); }
+$('climate-start').onchange = setPeriod; $('climate-end').onchange = setPeriod;
+if (typeof maplibregl !== 'undefined' && typeof deck !== 'undefined') { initMap(); legend(); setPeriod(); }
 </script>
 </body>
 </html>

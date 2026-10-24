@@ -25,7 +25,7 @@
   position:absolute; right:22px; bottom:90px; z-index:7;
   display:flex; align-items:center; gap:8px;
 }
-#map-tools #towns-toggle { position:static; }
+#map-tools #towns-toggle, #map-tools #detail-toggle { position:static; }
 #car-dock {
   display:grid; place-items:center; width:42px; height:38px; padding:0;
   border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94);

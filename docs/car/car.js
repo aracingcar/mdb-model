@@ -19,6 +19,8 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   const towns = document.getElementById('towns-toggle');
   tools.append(dock);
   if (towns) tools.append(towns);
+  const detailToggle = document.getElementById('detail-toggle');
+  if (detailToggle) tools.append(detailToggle);
   document.body.append(tools);
   const ghost = document.createElement('div');
   ghost.className = 'car-drag-ghost'; ghost.textContent = '🚗'; ghost.hidden = true;
@@ -143,7 +145,9 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   }
 
   function layer() {
-    const scale=Math.max(1,(saved?CHASE.drawPx:34)*metresPerPixel()/4.5)*(playerCar.selected&&!saved?1.3:1);
+    // Fixed real-world size, so the car is the same size selected or not; the floor only keeps it findable when zoomed far out.
+    const viewMpp=78271.5*Math.cos(playerCar.pos[1]*Math.PI/180)/Math.pow(2,map.getZoom());
+    const scale=Math.max(1,CHASE.drawPx*chaseMpp()/4.5, saved?0:9*viewMpp/4.5);
     const car=new deck.SimpleMeshLayer({
       id:'player-car', data:playerCar.placed?[playerCar]:[], mesh:carMesh, sizeScale:scale,
       getPosition:d=>[d.pos[0],d.pos[1],(d.falling?d.fallZ:d.offEdge?d.airZ:terrainHeightAt(d.pos[0],d.pos[1])+d.jump)+scale*1.2],
@@ -272,7 +276,8 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   // Jumps are sized in screen terms: peak ~JUMP_PX pixels high, ~JUMP_AIR seconds in the air, at any zoom.
   const JUMP_PX=60, JUMP_AIR=.7;
   const jumpGravity=mpp=>8*JUMP_PX*mpp/(JUMP_AIR*JUMP_AIR), jumpSpeed=mpp=>4*JUMP_PX*mpp/JUMP_AIR;
-  const CLIMB_DEG=38, SIN_CLIMB=Math.sin(CLIMB_DEG*Math.PI/180); // the normal engine just stalls at this slope; boost climbs steeper
+  const BOOST_FLAT=7, BOOST_HILL=1.5; // boost engine multiplier on level ground / at the normal climb limit
+  const CLIMB_DEG=22, SIN_CLIMB=Math.sin(CLIMB_DEG*Math.PI/180); // the normal engine just stalls at this slope; boost climbs steeper
 
   // Keep an absolute altitude after crossing the edge: outside-grid heights must not snap the car to zero.
   // Hold the camera at the cliff so the fall stays visible, then restore the overview and dock.
@@ -303,7 +308,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function physicsStep(dt, input, mpp, vmax0) {
     if(playerCar.falling) { fallStep(dt); return; }
     const boost=input.boost&&input.throttle, vmax=vmax0*(boost?4:1); // Shift: higher top speed and a much harder push
-    const c=playerCar, engine=vmax0/1.5*(boost?7:1), sin=Math.sin(c.heading), cos=Math.cos(c.heading);
+    const c=playerCar, sin=Math.sin(c.heading), cos=Math.cos(c.heading);
     // Hill mechanics, built on a few standard vehicle-game rules:
     //  - Slope is read over the car's wheelbase (half a car length either side) and low-passed, so rough cells never jolt it.
     //  - Gravity is a real force along the slope (sin of the angle) set so the normal engine just stalls at CLIMB_DEG.
@@ -316,6 +321,9 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     c.grade+=(raw-c.grade)*(1-Math.exp(-8*dt));
     const grade=c.grade, airborne=c.jump>0||c.offEdge;
     const sinTheta=grade/Math.hypot(1,grade), baseEngine=vmax0/1.5, G=baseEngine/SIN_CLIMB; // gravity scale: engine == G·sin(θ) at CLIMB_DEG
+    // Boost is a flat-ground rocket: its extra push fades to a modest hill-climbing edge as the slope nears the normal limit,
+    // so it covers level country fast but cannot climb faces the normal engine has no chance on.
+    const uphill=Math.min(1,Math.max(0,sinTheta)/SIN_CLIMB), engine=baseEngine*(boost?BOOST_FLAT+(BOOST_HILL-BOOST_FLAT)*uphill:1);
     const pull=G*sinTheta;                                          // along-heading gravity (positive = holding you back when facing uphill)
     let a=0;
     if(!airborne) {
@@ -326,10 +334,17 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     }
     c.accel=a;
     let v=c.speed+a*dt;
-    const cantHold=pull>=baseEngine*.98;                              // even full normal throttle can't push up this
-    c.stalled=!airborne&&input.throttle&&!boost&&cantHold&&v<.05*vmax;
-    if(!airborne&&cantHold&&v<0&&(input.throttle||input.brake)) v=Math.max(v,-.12*vmax); // rolls back, but never runs away
+    const cantHold=pull>=engine*.98;                              // even full normal throttle can't push up this
+    c.stalled=!airborne&&input.throttle&&cantHold&&v<.05*vmax;
+    if(!airborne&&cantHold&&v<0&&(input.throttle||input.brake)) v=Math.max(v,-.12*vmax0); // rolls back, but never runs away
     if(!input.throttle&&!input.brake&&Math.abs(v)<.01*vmax&&Math.abs(sinTheta)<SIN_CLIMB*.55) v=0; // parked on a slope it can hold
+    // Steep faces cap speed outright (traction), so boost momentum cannot be carried up them: the cap falls to zero at ~1.6x the
+    // normal climb limit and is a real limit above that, however fast the car arrives.
+    const dirSin=(v>=0?1:-1)*sinTheta;
+    if(!airborne&&dirSin>0) {
+      const cap=vmax*Math.max(0,1-dirSin/(1.6*SIN_CLIMB));
+      if(Math.abs(v)>cap) v=Math.sign(v)*(Math.abs(v)-(Math.abs(v)-cap)*(1-Math.exp(-8*dt)));
+    }
     c.speed=Math.max(-.4*vmax,Math.min(vmax*1.15,v));
     // Steering: yaw rate follows speed (no turning on the spot), limited by lateral grip; reversing flips it like a real car.
     const radius=60*mpp, grip=Math.PI*.55, rate=Math.max(-1.6,Math.min(1.6,c.speed/radius))*input.steer*(1+2*c.wet);
