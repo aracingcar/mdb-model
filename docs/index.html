@@ -979,6 +979,11 @@ function initMap() {
     if (u) loadDetail(SYSTEM_OF[u.sdl]);
   });
   carMechanics.start(()=>overlay.setProps({layers:layers()}));
+  // deck draws in step with the map's own frames, and the first one can land before the meshes and textures are ready, leaving the
+  // map blank until something moves the camera: repaint as it loads and settles.
+  const repaint = () => { overlay.setProps({ layers:layers() }); map.jumpTo({ zoom:map.getZoom() + 1e-4 }); };
+  map.once('load', repaint); map.once('idle', repaint);
+  for (const ms of [200, 800, 2000]) setTimeout(repaint, ms);
 }
 // The river polygon under a point (the boat's water), or null. Called every physics step, so it keeps the rivers near the
 // last query and tries the last hit first.
