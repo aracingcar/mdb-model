@@ -48,7 +48,8 @@
   #timeline canvas { width:100%; height:100%; cursor:pointer; display:block; }
   #clock { font-size:13px; color:var(--ink); font-weight:400; min-width:84px; text-align:right; font-variant-numeric:tabular-nums; }
   #speed { font-size:13px; font-weight:600; padding:4px 6px; }
-  #relief { position:absolute; right:22px; top:18px; font-size:12px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; display:flex; align-items:center; gap:8px; }
+  #relief { position:absolute; right:22px; top:18px; font-size:12px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  #relief label { display:flex; align-items:center; gap:8px; }
   #relief input { width:110px; accent-color:#8a8e94; }
   #towns-toggle, #detail-toggle { position:absolute; right:22px; bottom:90px; z-index:6; display:flex; align-items:center; gap:9px; padding:9px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); color:var(--head); font-size:12px; font-weight:600; cursor:pointer; }
   #detail-toggle { bottom:138px; }
@@ -70,9 +71,28 @@
   @media (max-width:900px) { #climate-panel { left:12px; top:310px; width:240px; max-height:calc(100% - 394px); overflow:auto; } }
   #err { position:absolute; inset:0; display:none; place-items:center; font:300 20px var(--sans); text-align:center; padding:40px; z-index:20; background:var(--bg); }
   @media (max-width:900px) { #map { left:0; top:300px; } #side { width:100%; bottom:auto; height:300px; padding:18px 20px; background:#fff; z-index:2; } h1 { font-size:24px; margin-top:8px; } #desc,#legend,#eco,#credit,#note2,#chartT,#bars { display:none; } #date { font-size:36px; } #wd { margin-top:8px; } }
+  #site-menu { position:fixed; z-index:30; top:16px; right:210px; font-size:11px; font-weight:400; color:#888d92; }
+  #site-menu summary { list-style:none; cursor:pointer; padding:5px 7px; color:inherit; background:transparent; border:1px solid transparent; border-radius:5px; }
+  #site-menu summary:hover, #site-menu[open] summary { color:var(--head); background:rgba(255,255,255,.72); border-color:var(--rule); }
+  #site-menu summary::-webkit-details-marker { display:none; }
+  #site-menu summary::before { content:'⚙'; margin-right:6px; }
+  #site-menu summary::after { content:'⌄'; margin-left:6px; }
+  #site-menu[open] summary::after { content:'⌃'; }
+  #site-menu nav { position:absolute; top:calc(100% + 4px); right:0; min-width:190px; padding:8px; background:#fff; border:1px solid var(--rule); border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,.1); }
+  #site-menu nav::before { content:'PROJECT PAGES'; display:block; padding:5px 10px 7px; color:var(--dim); font-size:10px; letter-spacing:.08em; }
+  #site-menu a { display:block; padding:9px 10px; color:var(--head); text-decoration:none; border-radius:4px; }
+  #site-menu a:hover, #site-menu a:focus-visible { background:#f2f4f5; }
 </style>
 </head>
 <body>
+<details id="site-menu">
+  <summary>Settings</summary>
+  <nav aria-label="Project pages">
+    <a href="https://aracingcar.github.io/">Main page</a>
+    <a href="https://aracingcar.github.io/mdb-model/" aria-current="page">MDB Model</a>
+    <a href="https://aracingcar.github.io/mdb-river-pulse/">MDB River Pulse</a>
+  </nav>
+</details>
 <div id="map"></div>
 <div id="side">
   <div id="kicker">Murrumbidgee / 2015&ndash;2034</div>
@@ -93,7 +113,7 @@
   </div>
   <div id="credit"><b>NARCliM2.0 &middot; NCI / NSW DCCEEW</b><br>GR4J + Muskingum, uncalibrated, indicative only<br>HydroBASINS &middot; AWS Terrain Tiles &middot; OSM</div>
 </div>
-<div id="relief"><span>Relief</span><input id="reliefIn" type="range" min="0" max="2" step="0.05" value="1"></div>
+<div id="relief"><label><span>Rivers</span><input id="riverReliefIn" type="range" min="0" max="2" step="0.05" value="1"></label><label><span>Terrain</span><input id="reliefIn" type="range" min="0" max="2" step="0.05" value="1"></label></div>
 <details id="climate-panel">
   <summary>Climate model</summary>
   <div id="climate-fields">
@@ -151,10 +171,10 @@ const wyOf = s => +s.slice(0,4) + (+s.slice(5,7) >= 7 ? 1 : 0);
 const totalArea = D.units.reduce((a,u) => a + u.area, 0);
 const valleyMean = (series, i) => D.units.reduce((a,u) => a + series[u.id][i] * u.area, 0) / totalArea;
 const lerp = (a,b,t) => a.map((v,i) => Math.round(v + (b[i]-v)*t));
-let day = 0, playing = false, speeds = [10,30,90,365], si = 1, relief = 1, last = performance.now(), acc = 0;
+let day = 0, playing = false, speeds = [10,30,90,365], si = 1, relief = 1, riverRelief = 1, last = performance.now(), acc = 0;
 const MAXQ = Math.max(...D.flow, ...Object.values(D.reachFlow).map(a => Math.max(...a)));
 const flowCol = q => [...lerp([28,111,176],[140,225,250],Math.min(1,Math.sqrt(q / MAXQ))), 245];
-const elev = q => (800 + 24 * Math.sqrt(q)) * relief;  // river rises a little above the ground, deliberately unrealistic
+const elev = q => (800 + 24 * Math.sqrt(q)) * riverRelief;  // river rises a little above the ground, deliberately unrealistic
 
 const ROLL_RAIN = 60, ROLL_EVAP = 30, RAIN_MAX = 450, EVAP_MAX = 300;
 function rolling(series, ROLL) {
@@ -574,7 +594,7 @@ function layers() {
     new deck.PolygonLayer({ id:'units', data:polys, getPolygon:d => d.r.map(p => [p[0], p[1], 0]), getFillColor:[0,0,0,2], stroked:false, pickable:true }),
     new deck.PathLayer({ id:'bounds', data:bounds, getPath:d => d.path, getColor:[70,76,86,90], getWidth:0.9, widthUnits:'pixels', pickable:false }),
     new deck.SolidPolygonLayer({ id:'context', data:ctxZ, getPolygon:d => d.r, getFillColor:[150,192,220,120], extruded:false, pickable:false }),
-    new deck.SolidPolygonLayer({ id:'rivers', data:riverZ, getPolygon:d => d.r, extruded:true, getElevation:d => elev(flowOf(d)), getFillColor:d => flowCol(flowOf(d)), material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:true, autoHighlight:true, highlightColor:[255,247,224,100], updateTriggers:{getElevation:[day,relief], getFillColor:day} }),
+    new deck.SolidPolygonLayer({ id:'rivers', data:riverZ, getPolygon:d => d.r, extruded:true, getElevation:d => elev(flowOf(d)), getFillColor:d => flowCol(flowOf(d)), material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:true, autoHighlight:true, highlightColor:[255,247,224,100], updateTriggers:{getElevation:[day,riverRelief], getFillColor:day} }),
     ...mist,
     new deck.ScatterplotLayer({ id:'places', visible:showTowns, data:places, getPosition:placePosition,
       getRadius:d => d.kind === 'city' ? 4 : 3, radiusUnits:'pixels',
@@ -684,6 +704,7 @@ $('play').onclick = () => { playing = !playing; $('play').innerHTML = playing ? 
 $('speed').onclick = () => { si = (si + 1) % speeds.length; $('speed').textContent = speeds[si] + ' d/s'; };
 $('detailIn').onchange = e => { showDetail = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 $('townsIn').onchange = e => { showTowns = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
+$('riverReliefIn').oninput = e => { riverRelief = +e.target.value; cache = { day: -1 }; update(); };
 $('reliefIn').oninput = e => { relief = +e.target.value; TERR = TERR0 * relief; buildZ(); buildMeshes(); meshGen++; cache = { day: -1 }; update(); };
 function tick(now) {
   if (!playing) return;
