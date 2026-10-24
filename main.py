@@ -19,4 +19,4 @@ if __name__ == "__main__":
     flow, reach_flow, basin_flow, rivers, river_flow = run_routing(runoff, basins, subcatchments)
     fish, waterbirds, river_red_gum = run_ecology(flow)
     write_data(subcatchments, basins, flow, reach_flow, rivers, river_flow, fish, waterbirds, river_red_gum, (RAINFALL_RUNOFF_MODEL, ROUTING_MODEL))
-    run_display(forcing, subcatchments, subcatchment_forcing, evap_grid, flow, reach_flow, rivers, river_flow, fish, waterbirds, river_red_gum)
+    run_display(forcing, subcatchments, subcatchment_forcing, evap_grid, flow, reach_flow, rivers, river_flow, fish, waterbirds, river_red_gum, basins, basin_forcing)

@@ -19,6 +19,15 @@ def model_options():
     return [(name, import_module(name).LABEL) for name in AVAILABLE_MODELS]
 
 
+def model_specs():
+    """{module name: {label, algorithm, params}} for every selectable method, so the browser can re-run them."""
+    out = {}
+    for name in AVAILABLE_MODELS:
+        m = import_module(name)
+        out[name] = {"label": m.LABEL, "algorithm": m.ALGORITHM, "params": list(m.PARAMS)}
+    return out
+
+
 def run_rainfall_runoff(basin_forcing, basins, model=RAINFALL_RUNOFF_MODEL):
     """Selected rainfall-runoff method on every basin: returns runoff as discharge (m3/s), one column per basin id (and LOWLAND)."""
     if model not in AVAILABLE_MODELS:

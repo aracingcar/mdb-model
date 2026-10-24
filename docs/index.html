@@ -61,7 +61,9 @@
   #tip { position:absolute; pointer-events:none; padding:9px 12px; display:none; z-index:5; font-size:13px; line-height:1.45; background:#fff; border:1px solid var(--rule); box-shadow:0 2px 10px rgba(0,0,0,.08); color:var(--ink); font-weight:400; }
   #tip b { font-weight:700; display:block; color:var(--head); }
   #model-panels { position:absolute; left:420px; top:18px; right:300px; z-index:8; display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start; pointer-events:none; }
-  #model-panels > details { pointer-events:auto; }
+  #model-panels > details, #calc-status { pointer-events:auto; }
+  #calc-status { flex-basis:100%; margin:0; padding:5px 10px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; color:var(--dim); }
+  #calc-status button { margin-left:6px; padding:0; border:0; background:none; color:#2d6aa8; font:inherit; text-decoration:underline; cursor:pointer; }
   #climate-panel { width:240px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
   #climate-panel summary { cursor:pointer; font-weight:600; color:var(--head); }
   #climate-fields { display:grid; gap:8px; margin-top:12px; }
@@ -70,13 +72,13 @@
   #climate-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
   #climate-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
   #climate-meta { margin:8px 0 0; color:var(--dim); line-height:1.4; }
-  #runoff-panel { width:170px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
+  #runoff-panel { width:200px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
   #runoff-panel summary { cursor:pointer; font-weight:600; color:var(--head); }
   #runoff-fields { display:grid; gap:8px; margin-top:12px; }
   #runoff-fields label { display:grid; gap:3px; }
   #runoff-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
   #runoff-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
-  #routing-panel { width:150px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
+  #routing-panel { width:200px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
   #routing-panel summary { cursor:pointer; font-weight:600; color:var(--head); }
   #routing-fields { display:grid; gap:8px; margin-top:12px; }
   #routing-fields label { display:grid; gap:3px; }
@@ -154,6 +156,7 @@
     <label for="routing-model">Method<select id="routing-model"></select></label>
   </div>
 </details>
+<p id="calc-status" role="status" aria-live="polite" hidden><span></span> <button type="button" id="cache-clear" hidden>Clear saved</button></p>
 </div>
 <div id="bar"><button id="play">&#9654;</button><div id="timeline"><canvas id="tl"></canvas></div><div id="clock"></div><button id="speed">30 d/s</button></div>
 <label id="towns-toggle" for="townsIn"><span>Towns</span><input id="townsIn" type="checkbox" role="switch"></label>
@@ -166,7 +169,7 @@
 <script>
 (async () => {
 // Geometry, climate series and the flow results are separate files (see run_display.py), so editing the page does not rewrite them.
-const META = {"climate":{"globalModel":"ACCESS-ESM1-5","scenario":"ssp245","regionalConfig":"WRF412R5","period":"2015\u20132100","source":"NARCliM2.0","resolution":"4 km","frequency":"Daily"},"runoff":{"selected":"gr4j","options":[{"id":"gr4j","label":"GR4J"},{"id":"gr4j_2","label":"GR4J (alt. parameters)"}]},"routing":{"selected":"muskingum","options":[{"id":"muskingum","label":"Muskingum"},{"id":"muskingum_2","label":"Muskingum (alt. parameters)"}]},"files":["data/geometry.json","data/climate_ACCESS-ESM1-5_ssp245_WRF412R5.json","data/flow_ACCESS-ESM1-5_ssp245_WRF412R5_gr4j_muskingum.json"]};
+const META = {"climate":{"globalModel":"ACCESS-ESM1-5","scenario":"ssp245","regionalConfig":"WRF412R5","period":"2015\u20132100","source":"NARCliM2.0","resolution":"4 km","frequency":"Daily"},"runoff":{"selected":"gr4j","specs":{"gr4j":{"label":"GR4J","algorithm":"gr4j","params":[350.0,0.0,90.0,1.7]},"gr4j_2":{"label":"GR4J (alt. parameters)","algorithm":"gr4j","params":[300.0,-0.5,80.0,2.2]}}},"routing":{"selected":"muskingum","specs":{"muskingum":{"label":"Muskingum","algorithm":"muskingum","params":{"x":0.2,"velocity_km_day":86.4,"delivery":{"LOWLAND":0.05},"loss_from":9,"target_outlet_m3s":27.0}},"muskingum_2":{"label":"Muskingum (alt. parameters)","algorithm":"muskingum","params":{"x":0.15,"velocity_km_day":64.8,"delivery":{"LOWLAND":0.08},"loss_from":9,"target_outlet_m3s":24.0}}}},"run":"ACCESS-ESM1-5_ssp245_WRF412R5","engine":"data/engine_ACCESS-ESM1-5_ssp245_WRF412R5.json","engineHash":"f34c131f62","files":["data/geometry.json","data/climate_ACCESS-ESM1-5_ssp245_WRF412R5.json","data/flow_ACCESS-ESM1-5_ssp245_WRF412R5_gr4j_muskingum.json"]};
 const D = { ...META };
 try {
   for (const f of await Promise.all(META.files.map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); })))) Object.assign(D, f);
@@ -182,10 +185,62 @@ for (const [id, key] of [['climate-global', 'globalModel'], ['climate-scenario',
   $(id).add(new Option(D.climate[key], D.climate[key]));
 }
 // Same for rainfall-runoff: only methods run in this build are listed.
-for (const o of D.runoff.options) $('runoff-model').add(new Option(o.label, o.id));
+for (const [id, s] of Object.entries(D.runoff.specs)) $('runoff-model').add(new Option(s.label, id));
 $('runoff-model').value = D.runoff.selected;
-for (const o of D.routing.options) $('routing-model').add(new Option(o.label, o.id));
+for (const [id, s] of Object.entries(D.routing.specs)) $('routing-model').add(new Option(s.label, id));
 $('routing-model').value = D.routing.selected;
+
+// ---- Method choice: the defaults are precomputed; any other pair is recalculated here (engine.js in a worker) and saved in IndexedDB ----
+const ENGINE_VERSION = 1;  // bump when docs/engine.js changes what it computes, so saved results are not reused
+const DEFAULT_RR = D.runoff.selected, DEFAULT_RT = D.routing.selected;
+const DEFAULT_RESULTS = { reachFlow: D.reachFlow, flow: D.flow, fish: D.fish, birds: D.birds, gum: D.gum, riverFlow: { ...BF } };
+function applyResults(r) {
+  D.reachFlow = r.reachFlow; D.flow = r.flow; D.fish = r.fish; D.birds = r.birds; D.gum = r.gum;
+  for (const id in BF) delete BF[id];
+  Object.assign(BF, r.riverFlow);
+  MAXQ = Math.max(...D.flow, ...Object.values(D.reachFlow).map(a => Math.max(...a)));
+  cache = { day: -1 }; update();
+}
+const idb = (() => {
+  let opened;
+  const open = () => opened ||= new Promise((res, rej) => {
+    try { const q = indexedDB.open('mdb-model', 1); q.onupgradeneeded = () => q.result.createObjectStore('results'); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); } catch (e) { rej(e); }
+  });
+  const run = async (mode, f) => { try { const db = await open(); return await new Promise((res, rej) => { const q = f(db.transaction('results', mode).objectStore('results')); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); } catch (e) { return undefined; } };  // storage can be blocked: then nothing is saved
+  return { get: k => run('readonly', s => s.get(k)), put: (k, v) => run('readwrite', s => s.put(v, k)), clear: () => run('readwrite', s => s.clear()), count: () => run('readonly', s => s.count()) };
+})();
+const calc = $('calc-status'), calcText = calc.firstElementChild;
+const say = (msg, clearable) => { calc.hidden = !msg; calcText.textContent = msg || ''; $('cache-clear').hidden = !clearable; };
+let enginePromise, worker, selToken = 0;
+const getEngine = () => enginePromise ||= fetch(D.engine).then(r => { if (!r.ok) throw new Error(D.engine); return r.json(); });
+function recalc(rr, rt) {
+  return new Promise((res, rej) => {
+    worker ||= new Worker('engine.js');
+    worker.onmessage = ({ data }) => data.error ? rej(new Error(data.error)) : res(data.result);
+    worker.onerror = e => rej(new Error(e.message));
+    getEngine().then(engine => worker.postMessage({ engine, days: D.days, rr: D.runoff.specs[rr], routing: D.routing.specs[rt] }), rej);
+  });
+}
+async function chooseMethods() {
+  const rr = $('runoff-model').value, rt = $('routing-model').value, token = ++selToken;
+  if (rr === DEFAULT_RR && rt === DEFAULT_RT) { applyResults(DEFAULT_RESULTS); say(''); return; }
+  const key = [ENGINE_VERSION, D.run, D.engineHash, rr, JSON.stringify(D.runoff.specs[rr].params), rt, JSON.stringify(D.routing.specs[rt].params)].join('|');
+  const saved = await idb.get(key);
+  if (token !== selToken) return;
+  if (saved) { applyResults(saved); say('Loaded from this browser\u2019s saved results.', true); return; }
+  const selects = [$('runoff-model'), $('routing-model')];
+  selects.forEach(s => s.disabled = true); say('Recalculating\u2026');
+  const t0 = performance.now();
+  try {
+    const result = await recalc(rr, rt);
+    await idb.put(key, result);
+    if (token === selToken) { applyResults(result); say(`Recalculated in ${((performance.now() - t0) / 1000).toFixed(1)} s and saved in this browser.`, true); }
+  } catch (e) {
+    if (token === selToken) { say('Could not recalculate: ' + e.message); $('runoff-model').value = DEFAULT_RR; $('routing-model').value = DEFAULT_RT; applyResults(DEFAULT_RESULTS); }
+  } finally { selects.forEach(s => s.disabled = false); }
+}
+$('runoff-model').onchange = $('routing-model').onchange = chooseMethods;
+$('cache-clear').onclick = async () => { await idb.clear(); say('Saved results cleared.'); };
 $('climate-meta').textContent = `${D.climate.source} · ${D.climate.resolution} · ${D.climate.frequency}`;
 // The period is a start and end year within the embedded data; playback and the timeline cover only that window.
 const FIRST_YEAR = +D.days[0].slice(0, 4), LAST_YEAR = +D.days[N - 1].slice(0, 4);

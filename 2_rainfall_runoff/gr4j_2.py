@@ -4,6 +4,7 @@ from gr4j import gr4j
 # Slightly smaller production store, small groundwater loss and a longer unit hydrograph than the default.
 PARAMS = (300.0, -0.5, 80.0, 2.2)
 LABEL = "GR4J (alt. parameters)"
+ALGORITHM = "gr4j"
 
 
 def simulate(precip, pet):

@@ -6,6 +6,7 @@ from river_flows import river_flows
 from routing import route_network
 
 LABEL = "Muskingum"
+ALGORITHM = "muskingum"  # the browser engine (docs/engine.js) implements this algorithm and takes PARAMS from here
 M3S_TO_ML_DAY = 86.4
 
 # x: Muskingum weighting. velocity_km_day: wave speed (~1 m/s), sets each reach's K from its length ~ 1.5 x sqrt(area).

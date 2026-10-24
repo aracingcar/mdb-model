@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -11,8 +12,8 @@ from scipy.ndimage import binary_dilation
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "1_masking"))
 
 from config import INPUT, GLOBAL_MODEL, SCENARIO, REGIONAL_CONFIG
-from run_rainfall_runoff import RAINFALL_RUNOFF_MODEL, model_options as runoff_options
-from run_routing import ROUTING_MODEL, model_options as routing_options
+from run_rainfall_runoff import RAINFALL_RUNOFF_MODEL, model_specs as runoff_specs
+from run_routing import ROUTING_MODEL, model_specs as routing_specs
 from terrain import Dem
 from car.build import publish_assets
 
@@ -81,7 +82,29 @@ def _terrain(units, dem):
             "unit": owner[rows, cols].tolist()}, stats
 
 
-def run_display(forcing, subcatchments, subcatchment_forcing, evap_grid, flow, reach_flow, rivers, river_flow, fish, waterbirds, river_red_gum):
+def _quantised(basin_forcing, names, var):
+    """Basin series as base64 little-endian uint16 in hundredths of a mm/day, basin-major."""
+    a = np.stack([basin_forcing[f"{n}_{var}"].to_numpy() for n in names])
+    return base64.b64encode(np.clip(np.round(a * 100), 0, 65535).astype("<u2").tobytes()).decode()
+
+
+def _engine(basins, basin_forcing, units, rivers):
+    """Everything the browser needs to re-run rainfall-runoff, routing, river flows and ecology on another method pair."""
+    names = list(basins["subcatchment"])
+    outlet = basins.loc[basins["next_id"] == "", "subcatchment"].iloc[0]
+    return {
+        "scale": 100,
+        "basins": [{"id": b.subcatchment, "area": float(b.area_km2), "next": b.next_id, "region": int(b.region[2:]) if b.subcatchment != "LOWLAND" else 0}
+                   for b in basins.itertuples()],
+        "outlet": outlet,
+        "P": _quantised(basin_forcing, names, "P"),
+        "PET": _quantised(basin_forcing, names, "PET"),
+        "reachOutlet": {r.subcatchment: (r.outlet_basin if r.outlet_basin else outlet) for r in units.itertuples()},
+        "rivers": [[r.river_id, r.basin, r.kind, r.share] for r in rivers.itertuples()],
+    }
+
+
+def run_display(forcing, subcatchments, subcatchment_forcing, evap_grid, flow, reach_flow, rivers, river_flow, fish, waterbirds, river_red_gum, basins, basin_forcing):
     """Write one self-contained interactive 'river pulse' page for the modelled Murrumbidgee."""
     units = subcatchments.sort_values("route_order").reset_index(drop=True)
     ids = list(units["subcatchment"])
@@ -121,7 +144,9 @@ def run_display(forcing, subcatchments, subcatchment_forcing, evap_grid, flow, r
                   "trigger_date": [None if v != v else str(v) for v in waterbirds["trigger_date"]]},
         "gum": river_red_gum.reset_index().round(3).to_dict("list"),
     }
-    files = {"geometry.json": geometry, f"climate_{run}.json": climate, f"flow_{run}_{methods}.json": results}
+    engine_file = f"engine_{run}.json"
+    files = {"geometry.json": geometry, f"climate_{run}.json": climate, f"flow_{run}_{methods}.json": results,
+             engine_file: _engine(basins, basin_forcing, units, rivers)}
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     for old in DATA_DIR.glob("*.json"):  # keep only the build's own files; unchanged content is rewritten byte-for-byte
         if old.name not in files:
@@ -131,9 +156,12 @@ def run_display(forcing, subcatchments, subcatchment_forcing, evap_grid, flow, r
     meta = {
         "climate": {"globalModel": GLOBAL_MODEL, "scenario": SCENARIO, "regionalConfig": REGIONAL_CONFIG,
                     "period": f"{days[0][:4]}–{days[-1][:4]}", "source": "NARCliM2.0", "resolution": "4 km", "frequency": "Daily"},
-        "runoff": {"selected": RAINFALL_RUNOFF_MODEL, "options": [{"id": i, "label": l} for i, l in runoff_options()]},
-        "routing": {"selected": ROUTING_MODEL, "options": [{"id": i, "label": l} for i, l in routing_options()]},
-        "files": [f"data/{name}" for name in files],
+        "runoff": {"selected": RAINFALL_RUNOFF_MODEL, "specs": runoff_specs()},
+        "routing": {"selected": ROUTING_MODEL, "specs": routing_specs()},
+        "run": run,
+        "engine": f"data/{engine_file}",  # fetched only when a non-default method is chosen
+        "engineHash": hashlib.sha1((DATA_DIR / engine_file).read_bytes()).hexdigest()[:10],  # saved results are keyed by it
+        "files": [f"data/{name}" for name in files if name != engine_file],
     }
     DISPLAY_FILE.parent.mkdir(parents=True, exist_ok=True)
     html = TEMPLATE.read_text().replace("__META__", json.dumps(meta, separators=(",", ":"))).replace("__ROADS__", (HERE / "roads.json").read_text())

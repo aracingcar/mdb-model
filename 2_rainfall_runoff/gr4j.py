@@ -5,6 +5,8 @@ import numpy as np
 # x3 routing store (mm), x4 unit hydrograph time base (days). Not calibrated to the Murrumbidgee.
 DEFAULT_PARAMS = (350.0, 0.0, 90.0, 1.7)
 LABEL = "GR4J"
+ALGORITHM = "gr4j"  # the browser engine (docs/engine.js) implements this algorithm and takes PARAMS from here
+PARAMS = DEFAULT_PARAMS
 
 
 def _unit_hydrographs(x4):
@@ -61,4 +63,4 @@ def gr4j(precip, pet, params=DEFAULT_PARAMS):
 
 def simulate(precip, pet):
     """Rainfall-runoff model interface: runoff depth (mm/day) with this model's parameters."""
-    return gr4j(precip, pet, DEFAULT_PARAMS)
+    return gr4j(precip, pet, PARAMS)

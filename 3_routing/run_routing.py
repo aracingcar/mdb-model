@@ -12,6 +12,15 @@ def model_options():
     return [(name, import_module(name).LABEL) for name in AVAILABLE_MODELS]
 
 
+def model_specs():
+    """{module name: {label, algorithm, params}} for every selectable method, so the browser can re-run them."""
+    out = {}
+    for name in AVAILABLE_MODELS:
+        m = import_module(name)
+        out[name] = {"label": m.LABEL, "algorithm": m.ALGORITHM, "params": m.PARAMS}
+    return out
+
+
 def run_routing(runoff, basins, subcatchments, model=ROUTING_MODEL):
     """Route basin runoff (m3/s) down the watershed network; return (flow, reach_flow, basin_flow, rivers, river_flow).
 
