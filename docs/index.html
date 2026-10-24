@@ -114,7 +114,7 @@
 </details>
 <div id="map"></div>
 <div id="side">
-  <div id="kicker">Murrumbidgee, ACT, Lachlan, Lower Darling and NSW Murray / 2015&ndash;2034</div>
+  <div id="kicker">Murrumbidgee, ACT, Lachlan, Lower Darling and NSW Murray / 2027&ndash;2036</div>
   <h1>Water on the land,<br>day by day</h1>
   <div id="desc">Rolling 30-day potential evaporation on the native 4 km grid, minus its normal for that day of the year, smoothed over the land&rsquo;s own terrain, with rivers at their routed flow.</div>
   <div id="wd"></div>
@@ -273,6 +273,7 @@ $('cache-clear').onclick = async () => { await idb.clear(); say('Saved results c
 $('climate-meta').textContent = `${D.climate.source} · ${D.climate.resolution} · ${D.climate.frequency}`;
 // The period is a start and end year within the embedded data; playback and the timeline cover only that window.
 const FIRST_YEAR = +D.days[0].slice(0, 4), LAST_YEAR = +D.days[N - 1].slice(0, 4);
+const DEFAULT_PERIOD = [Math.max(FIRST_YEAR, 2027), Math.min(LAST_YEAR, 2036)];  // the window the page opens on
 let W0 = 0, W1 = N - 1;
 function fillYears(id, from, to, keep) {
   const sel = $(id); sel.length = 0;
@@ -281,7 +282,7 @@ function fillYears(id, from, to, keep) {
 }
 // A period spans at least two years: each list only offers years on the correct side of the other's choice.
 function setPeriod() {
-  const a = +($('climate-start').value || FIRST_YEAR), b = +($('climate-end').value || LAST_YEAR);
+  const a = +($('climate-start').value || DEFAULT_PERIOD[0]), b = +($('climate-end').value || DEFAULT_PERIOD[1]);
   fillYears('climate-start', FIRST_YEAR, b - 1, a);
   fillYears('climate-end', a + 1, LAST_YEAR, b);
   W0 = D.days.indexOf(`${a}-01-01`); W1 = D.days.indexOf(`${b}-12-31`);
