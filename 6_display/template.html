@@ -58,6 +58,14 @@
   #townsIn:focus-visible { outline:2px solid #2d6aa8; outline-offset:3px; }
   #tip { position:absolute; pointer-events:none; padding:9px 12px; display:none; z-index:5; font-size:13px; line-height:1.45; background:#fff; border:1px solid var(--rule); box-shadow:0 2px 10px rgba(0,0,0,.08); color:var(--ink); font-weight:400; }
   #tip b { font-weight:700; display:block; color:var(--head); }
+  #climate-panel { position:absolute; left:420px; top:18px; z-index:8; width:260px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
+  #climate-panel summary { cursor:pointer; font-weight:600; color:var(--head); }
+  #climate-fields { display:grid; gap:8px; margin-top:12px; }
+  #climate-fields label { display:grid; gap:3px; }
+  #climate-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
+  #climate-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
+  #climate-meta,#climate-availability { margin:8px 0 0; color:var(--dim); line-height:1.4; }
+  @media (max-width:900px) { #climate-panel { left:12px; top:310px; width:240px; max-height:calc(100% - 394px); overflow:auto; } }
   #err { position:absolute; inset:0; display:none; place-items:center; font:300 20px var(--sans); text-align:center; padding:40px; z-index:20; background:var(--bg); }
   @media (max-width:900px) { #map { left:0; top:300px; } #side { width:100%; bottom:auto; height:300px; padding:18px 20px; background:#fff; z-index:2; } h1 { font-size:24px; margin-top:8px; } #desc,#legend,#eco,#credit,#note2,#chartT,#bars { display:none; } #date { font-size:36px; } #wd { margin-top:8px; } }
 </style>
@@ -84,6 +92,17 @@
   <div id="credit"><b>NARCliM2.0 &middot; NCI / NSW DCCEEW</b><br>GR4J + Muskingum, uncalibrated, indicative only<br>HydroBASINS &middot; AWS Terrain Tiles &middot; OSM</div>
 </div>
 <div id="relief"><span>Relief</span><input id="reliefIn" type="range" min="0" max="2" step="0.05" value="1"></div>
+<details id="climate-panel">
+  <summary>Climate model</summary>
+  <div id="climate-fields">
+    <label for="climate-global">Global model<select id="climate-global"></select></label>
+    <label for="climate-scenario">Scenario<select id="climate-scenario"></select></label>
+    <label for="climate-regional">Regional configuration<select id="climate-regional"></select></label>
+    <label for="climate-period">Period<select id="climate-period"></select></label>
+  </div>
+  <p id="climate-meta"></p>
+  <p id="climate-availability">Only the currently loaded dataset is available.</p>
+</details>
 <div id="bar"><button id="play">&#9654;</button><div id="timeline"><canvas id="tl"></canvas></div><div id="clock"></div><button id="speed">30 d/s</button></div>
 <label id="towns-toggle" for="townsIn"><span>Towns</span><input id="townsIn" type="checkbox" role="switch" checked></label>
 <div id="tip"></div>
@@ -97,6 +116,12 @@ if (typeof maplibregl === 'undefined' || typeof deck === 'undefined') document.g
 const BF = {};
 for (const id in D.riverFlow) { const bin = atob(D.riverFlow[id]), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); BF[id] = new Uint16Array(u8.buffer); }
 const N = D.days.length, $ = id => document.getElementById(id);
+// Only the dataset embedded in this build is selectable; empty input folders are not available runs.
+for (const [id, key] of [['climate-global', 'globalModel'], ['climate-scenario', 'scenario'], ['climate-regional', 'regionalConfig'], ['climate-period', 'period']]) {
+  $(id).add(new Option(D.climate[key], D.climate[key]));
+}
+$('climate-meta').textContent = `${D.climate.source} · ${D.climate.resolution} · ${D.climate.frequency}`;
+$('kicker').textContent = `Murrumbidgee / ${D.climate.period}`;
 const fmt = n => Math.round(n).toLocaleString('en-AU');
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const nice = s => { const [y,m,d] = s.split('-'); return `${+d} ${MONTHS[+m-1]} ${y}`; };
@@ -160,6 +185,17 @@ const mistCol = t => lerp([214,224,238], [58,70,96], Math.pow(Math.max(0, (Math.
 const polys = D.units.flatMap(u => u.rings.map(r => ({ r, u, id: u.id })));
 const rivers = D.reaches.flatMap(x => x.rings.map(r => ({ r, id: x.unit, name: x.name, kind: x.kind })));
 const flowOf = d => BF[d.id][day];
+const riverBox = rivers.map(d => { let a = 1e9, b = 1e9, c = -1e9, e = -1e9; for (const p of d.r) { a = Math.min(a, p[0]); c = Math.max(c, p[0]); b = Math.min(b, p[1]); e = Math.max(e, p[1]); } return [a, b, c, e]; });
+function riverWetAt(lon, lat) {  // is this spot inside a river that is currently flowing?
+  for (let i = 0; i < rivers.length; i++) {
+    const [a, b, c, e] = riverBox[i];
+    if (lon < a || lon > c || lat < b || lat > e || flowOf(rivers[i]) <= 0) continue;
+    const r = rivers[i].r; let inside = false;
+    for (let k = 0, j = r.length - 1; k < r.length; j = k++) if ((r[k][1] > lat) !== (r[j][1] > lat) && lon < (r[j][0] - r[k][0]) * (lat - r[k][1]) / (r[j][1] - r[k][1]) + r[k][0]) inside = !inside;
+    if (inside) return true;
+  }
+  return false;
+}
 const T = D.terrain;
 // ---- smooth terrain: one triangle mesh per subcatchment, shared vertices and per-vertex normals
 const NC = Math.max(...T.col) + 1, NR = Math.max(...T.row) + 1;
@@ -442,7 +478,7 @@ function layers() {
       getColor:[58,61,66,255], getTextAnchor:'start', getAlignmentBaseline:'center', getPixelOffset:[8,0],
       background:true, getBackgroundColor:[255,255,255,215], backgroundPadding:[3,2],
       billboard:true, pickable:false, parameters:blend, updateTriggers:{getPosition:relief} }),
-    carMechanics.layer(),
+    ...carMechanics.layers(),
   ];
 }
 function initMap() {
@@ -451,7 +487,7 @@ function initMap() {
   carMechanics=window.createCarMechanics({deck,map,terrain:{x0:T.x0,y0:T.y0,step:T.step,GZ,NR,NC,outline:D.outline,getExaggeration:()=>TERR},getRelief:()=>relief,
     setRelief:delta=>{const input=$('reliefIn');input.value=Math.max(+input.min,Math.min(+input.max,relief+delta));input.dispatchEvent(new Event('input',{bubbles:true}));},
     pausePlayback:()=>{playing=false;$('play').innerHTML='&#9654;';},refresh:update,
-    pickTerrain:(x,y)=>overlay?.pickObject({x,y,layerIds:['terrain-'+meshGen],unproject3D:true})?.coordinate});
+    isWet:riverWetAt,pickTerrain:(x,y)=>overlay?.pickObject({x,y,layerIds:['terrain-'+meshGen],unproject3D:true})?.coordinate});
   const lighting = new deck.LightingEffect({ ambientLight:new deck.AmbientLight({ color:[255,255,255], intensity:0.75 }), dirLight:new deck.DirectionalLight({ color:[255,248,238], intensity:0.9, direction:[1.0,-1.1,-0.85] }) });
   overlay = new deck.MapboxOverlay({ interleaved:false, layers:layers(), effects:[lighting], getTooltip:null, onHover:hover, onClick:info=>carMechanics.click(info) });
   map.addControl(overlay);
