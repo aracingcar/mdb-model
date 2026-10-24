@@ -398,7 +398,7 @@ buildMeshes();
 const tint = {}; let tintDay = -1;
 let map, overlay, carMarker, carMarkerElement;
 const playerCar={kind:'playerCar',pos:[149.13,-35.28],heading:0,speed:0,selected:false,jump:0,jumpV:0};
-const driveKeys=new Set(),driveCodes=new Set(['KeyW','KeyA','KeyS','KeyD','Space']);
+const driveKeys=new Set(),driveCodes=new Set(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space']);
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 function terrainHeightAt(lon,lat){
   const x=(lon-T.x0)/T.step,y=(T.y0-lat)/T.step,c=Math.floor(x),r=Math.floor(y),fx=x-c,fy=y-r;let z=0,w=0;
