@@ -9,7 +9,7 @@ import pandas as pd
 import shapely
 
 from catchment import load_buffered_catchment
-from config import MAINSTEM, OUTLINE_BUFFER_CRS, SYSTEM, WATERWAYS_FILE
+from config import MAINSTEM, OUTLINE_BUFFER_CRS, SYSTEM, SYSTEM_ID, WATERWAYS_FILE
 
 MIN_KM = 3  # skip river groups shorter than this inside a basin
 KM_PER_DEG = 111
@@ -32,6 +32,16 @@ def _outside(ways, basins):
     nearest = nearest[~nearest.index.duplicated()]
     segments["basin"] = nearest["subcatchment"].reindex(segments.index).values
     return {b: g.groupby("way").geometry.apply(lambda x: x.union_all()) for b, g in segments.groupby("basin")}
+
+
+_BEYOND = {}  # (system, basins) -> the border strips below: pure geometry, the slowest step, and identical for every method pair
+
+
+def _beyond(ways, streams, basins):
+    key = (SYSTEM_ID, tuple(basins["subcatchment"]))
+    if key not in _BEYOND:
+        _BEYOND[key] = _outside(ways, basins), _outside(streams, basins)
+    return _BEYOND[key]
 
 
 def _pieces(ways, geom, extra=None):
@@ -85,7 +95,7 @@ def river_flows(basins, lateral, basin_flow):
     ways = allways[allways.waterway == "river"].reset_index(drop=True)
     streams = allways[allways.waterway == "stream"].reset_index(drop=True)
 
-    beyond, beyond_streams = _outside(ways, basins), _outside(streams, basins)  # rivers along the exterior border, past the units
+    beyond, beyond_streams = _beyond(ways, streams, basins)  # rivers along the exterior border, past the units
 
     rows, series, count = [], {}, {}
     lowland = basins["subcatchment"].str.startswith("LOWLAND")
