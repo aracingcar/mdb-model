@@ -9,3 +9,6 @@ data/input/dem/
 data/output/
 data/*.db
 data/input/sdl/
+
+# re-downloadable OSM waterways (3_routing/download_osm_waterways.py)
+data/input/routing/osm_*_waterways.geojson
