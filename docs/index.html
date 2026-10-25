@@ -227,7 +227,7 @@
   <div id="rt-legend" aria-label="Node symbol legend"></div>
   <div id="rt-tools" aria-label="Network editing tools">
     <button id="rt-move" disabled>Move node</button><button id="rt-add" disabled>Add tributary</button>
-    <button id="rt-connect" disabled>Reconnect downstream</button><button id="rt-join" disabled>Join channel</button><button id="rt-delete" disabled>Delete node</button>
+    <button id="rt-connect" disabled>Reconnect downstream</button><button id="rt-join" disabled>Join channel</button><button id="rt-detach" disabled>Detach inflow</button><button id="rt-delete" disabled>Delete node</button>
     <label>Tributary runoff share <input id="rt-share" type="number" min="1" max="99" value="25" style="width:50px">%</label><button id="rt-run">Apply &amp; recalculate flows</button><button id="rt-undo" disabled>Undo</button><button id="rt-reset">Reset network</button><button id="rt-export">Export draft</button>
   </div>
   <p id="rt-status" role="status" aria-live="polite">Select a node to edit.</p>
@@ -243,7 +243,7 @@
 <script>
 (async () => {
 // Geometry, climate series and the flow results are separate files (see run_display.py), so editing the page does not rewrite them.
-const META = {"title":"Murrumbidgee, ACT, Lachlan, Lower Darling, NSW Murray, Victorian Murray, Kiewa, Ovens, Goulburn and Broken","focus":"SS15","climate":{"globalModel":"ACCESS-ESM1-5","scenario":"ssp245","regionalConfig":"WRF412R5","period":"2015\u20132100","source":"NARCliM2.0","resolution":"4 km","frequency":"Daily"},"cases":[{"id":"best","label":"Best case","globalModel":"NorESM2-MM","scenario":"ssp126","regionalConfig":"WRF412R3","built":false},{"id":"median","label":"Median","globalModel":"ACCESS-ESM1-5","scenario":"ssp245","regionalConfig":"WRF412R5","built":true},{"id":"worst","label":"Worst case","globalModel":"UKESM1-0-LL","scenario":"ssp370","regionalConfig":"WRF412R5","built":false}],"runoff":{"selected":"gr4j","specs":{"gr4j":{"label":"GR4J","algorithm":"gr4j","params":[350.0,0.0,90.0,1.7]},"gr4j_2":{"label":"GR4J (alt. parameters)","algorithm":"gr4j","params":[300.0,-0.5,80.0,2.2]}}},"routing":{"selected":"muskingum","specs":{"muskingum":{"label":"Muskingum","algorithm":"muskingum","params":{"x":0.2,"velocity_km_day":86.4,"delivery":{"LOWLAND":0.05},"target_scale":1.0,"channel_width_m":10.0,"pet_factor":1.0,"seepage_ML_day_km":0.02,"misc_loss_per_km":0.001}},"muskingum_2":{"label":"Muskingum (alt. parameters)","algorithm":"muskingum","params":{"x":0.15,"velocity_km_day":64.8,"delivery":{"LOWLAND":0.08},"target_scale":0.8888888888888888,"channel_width_m":10.0,"pet_factor":1.0,"seepage_ML_day_km":0.02,"misc_loss_per_km":0.001}}}},"run":"ACCESS-ESM1-5_ssp245_WRF412R5","years":[2015,2100],"demoYears":[2027,2036],"maxQ":126572,"engines":{"murrumbidgee":"data/engine_murrumbidgee_ACCESS-ESM1-5_ssp245_WRF412R5.json","lachlan":"data/engine_lachlan_ACCESS-ESM1-5_ssp245_WRF412R5.json","lower_darling":"data/engine_lower_darling_ACCESS-ESM1-5_ssp245_WRF412R5.json","murray":"data/engine_murray_ACCESS-ESM1-5_ssp245_WRF412R5.json","goulburn_broken":"data/engine_goulburn_broken_ACCESS-ESM1-5_ssp245_WRF412R5.json"},"engineHash":"16f0c1c071","demoFiles":["data/demo/geometry.json","data/demo/climate.json","data/demo/climate_murrumbidgee.json","data/demo/flow_murrumbidgee.json","data/demo/climate_lachlan.json","data/demo/flow_lachlan.json","data/demo/climate_lower_darling.json","data/demo/flow_lower_darling.json","data/demo/climate_murray.json","data/demo/flow_murray.json","data/demo/climate_goulburn_broken.json","data/demo/flow_goulburn_broken.json"],"details":{"murrumbidgee":"data/demo/detail_murrumbidgee.json","lachlan":"data/demo/detail_lachlan.json","lower_darling":"data/demo/detail_lower_darling.json","murray":"data/demo/detail_murray.json","goulburn_broken":"data/demo/detail_goulburn_broken.json"},"detailStep":0.01,"files":["data/full/geometry.json","data/full/climate.json","data/full/climate_murrumbidgee.json","data/full/flow_murrumbidgee.json","data/full/climate_lachlan.json","data/full/flow_lachlan.json","data/full/climate_lower_darling.json","data/full/flow_lower_darling.json","data/full/climate_murray.json","data/full/flow_murray.json","data/full/climate_goulburn_broken.json","data/full/flow_goulburn_broken.json"]};
+const META = {"title":"Murrumbidgee, ACT, Lachlan, Lower Darling, NSW Murray, Victorian Murray, Kiewa, Ovens, Goulburn and Broken","focus":"SS15","climate":{"globalModel":"ACCESS-ESM1-5","scenario":"ssp245","regionalConfig":"WRF412R5","period":"2015\u20132100","source":"NARCliM2.0","resolution":"4 km","frequency":"Daily"},"cases":[{"id":"best","label":"Best case","globalModel":"NorESM2-MM","scenario":"ssp126","regionalConfig":"WRF412R3","built":false},{"id":"median","label":"Median","globalModel":"ACCESS-ESM1-5","scenario":"ssp245","regionalConfig":"WRF412R5","built":true},{"id":"worst","label":"Worst case","globalModel":"UKESM1-0-LL","scenario":"ssp370","regionalConfig":"WRF412R5","built":false}],"runoff":{"selected":"gr4j","specs":{"gr4j":{"label":"GR4J","algorithm":"gr4j","params":[350.0,0.0,90.0,1.7]},"gr4j_2":{"label":"GR4J (alt. parameters)","algorithm":"gr4j","params":[300.0,-0.5,80.0,2.2]}}},"routing":{"selected":"muskingum","specs":{"muskingum":{"label":"Muskingum","algorithm":"muskingum","params":{"x":0.2,"velocity_km_day":86.4,"delivery":{"LOWLAND":0.05},"target_scale":1.0,"channel_width_m":10.0,"pet_factor":1.0,"seepage_ML_day_km":0.02,"misc_loss_per_km":0.001}},"muskingum_2":{"label":"Muskingum (alt. parameters)","algorithm":"muskingum","params":{"x":0.15,"velocity_km_day":64.8,"delivery":{"LOWLAND":0.08},"target_scale":0.8888888888888888,"channel_width_m":10.0,"pet_factor":1.0,"seepage_ML_day_km":0.02,"misc_loss_per_km":0.001}}}},"run":"ACCESS-ESM1-5_ssp245_WRF412R5","years":[2015,2100],"demoYears":[2027,2036],"maxQ":122437,"engines":{"murrumbidgee":"data/engine_murrumbidgee_ACCESS-ESM1-5_ssp245_WRF412R5.json","lachlan":"data/engine_lachlan_ACCESS-ESM1-5_ssp245_WRF412R5.json","lower_darling":"data/engine_lower_darling_ACCESS-ESM1-5_ssp245_WRF412R5.json","murray":"data/engine_murray_ACCESS-ESM1-5_ssp245_WRF412R5.json","goulburn_broken":"data/engine_goulburn_broken_ACCESS-ESM1-5_ssp245_WRF412R5.json"},"engineHash":"161003f2cc","demoFiles":["data/demo/geometry.json","data/demo/climate.json","data/demo/climate_murrumbidgee.json","data/demo/flow_murrumbidgee.json","data/demo/climate_lachlan.json","data/demo/flow_lachlan.json","data/demo/climate_lower_darling.json","data/demo/flow_lower_darling.json","data/demo/climate_murray.json","data/demo/flow_murray.json","data/demo/climate_goulburn_broken.json","data/demo/flow_goulburn_broken.json"],"details":{"murrumbidgee":"data/demo/detail_murrumbidgee.json","lachlan":"data/demo/detail_lachlan.json","lower_darling":"data/demo/detail_lower_darling.json","murray":"data/demo/detail_murray.json","goulburn_broken":"data/demo/detail_goulburn_broken.json"},"detailStep":0.01,"files":["data/full/geometry.json","data/full/climate.json","data/full/climate_murrumbidgee.json","data/full/flow_murrumbidgee.json","data/full/climate_lachlan.json","data/full/flow_lachlan.json","data/full/climate_lower_darling.json","data/full/flow_lower_darling.json","data/full/climate_murray.json","data/full/flow_murray.json","data/full/climate_goulburn_broken.json","data/full/flow_goulburn_broken.json"]};
 const D = { ...META };
 // The page opens on the small demo bundle (META.demoYears, coarser terrain). Other years or methods reload it with
 // ?data=full and the choices in the URL, on the full series.
@@ -459,6 +459,9 @@ function smooth(path, rounds = 3) {  // Chaikin corner cutting, ends kept: the r
 // Display-only generalisation: keep broad bends, not each mapped river meander.
 // Original paths remain intact for editing, export and routing-length calculations.
 function rtDisplayPath(path, toleranceKm = 2.5) {
+  return path.length <= 2 ? path : smooth(rtBends(path, toleranceKm), 2);
+}
+function rtBends(path, toleranceKm = 2.5) {  // the path's broad bends: Douglas-Peucker to within toleranceKm
   if (path.length <= 2) return path;
   const scaleX = 111.2 * Math.cos(path.reduce((sum, p) => sum + p[1], 0) / path.length * Math.PI / 180);
   const points = path.map(([x,y]) => [x * scaleX, y * 111.2]);
@@ -475,19 +478,19 @@ function rtDisplayPath(path, toleranceKm = 2.5) {
     }
     if (furthest !== -1) { keep.add(furthest); pending.push([first,furthest], [furthest,last]); }
   }
-  return smooth([...keep].sort((a,b) => a-b).map(i => path[i]), 2);
+  return [...keep].sort((a,b) => a-b).map(i => path[i]);
 }
 let rtLineSource = null, rtLineDisplay = [];
 function rtLayers() {
   if (!RT) return [];
   if (rtLineSource !== RT.links) {
     rtLineSource = RT.links;
-    rtLineDisplay = RT.links.map(link => ({...link, displayPath:rtDisplayPath(link.path)}));
+    rtLineDisplay = RT.links.map(link => ({ link, displayPath:link.drawn ? link.path : rtDisplayPath(link.path) }));  // a drawn reach shows the vertices it is dragged by
   }
   const blend = { depthWriteEnabled:false, depthCompare:'always' }, at = n => [n.lon, n.lat, rtShow.terrain ? groundZ(n.lon, n.lat) * TERR + 1400 : 0], trig = [relief, meshGen, rtShow.terrain];
   return [
-    new deck.PathLayer({ id:'rt-links', data:rtLineDisplay, getPath:d => d.displayPath.map(([x, y]) => at({ lon:x, lat:y })), getColor:d => d.split ? [192,86,42,235] : d.straight ? [28,52,92,110] : [28,52,92,215], getWidth:d => d.w, widthUnits:'pixels', capRounded:true,
-      pickable:false, parameters:blend, updateTriggers:{ getPath:trig } }),
+    new deck.PathLayer({ id:'rt-links', data:rtLineDisplay, getPath:d => d.displayPath.map(([x, y]) => at({ lon:x, lat:y })), getColor:({link:d}) => d.split ? [192,86,42,235] : d.straight ? [28,52,92,110] : [28,52,92,215], getWidth:d => d.link.w, widthUnits:'pixels', capRounded:true,
+      pickable:true, parameters:blend, updateTriggers:{ getPath:trig } }),  // dragged by the map's pointer events (initMap) to reshape a reach
     new deck.ScatterplotLayer({ id:'rt-node-rings', data:RT.nodes.filter(n => n.ring || n.id === rtSelected), getPosition:at,
       getRadius:d => d.id === rtSelected ? 19 : 16, radiusUnits:'pixels', filled:false, stroked:true,
       getLineColor:d => d.id === rtSelected ? [0,150,130,255] : [192,57,43,255], getLineWidth:2.5, lineWidthUnits:'pixels',
@@ -519,7 +522,7 @@ const rtKey = () => `river-network-draft-v2:${D.engineHash}:${rtSystem}`;
 // The same vector symbols are used by the map and its legend. Roles follow edited connections.
 const RT_SYMBOLS = {
   entry: {label:'Runoff entry', detail:'Local catchment runoff enters here; no mapped river node feeds it.', color:'#357f99', shape:'<circle cx="20" cy="20" r="14"/>', mark:'<circle cx="20" cy="20" r="4" fill="white" stroke="none"/>'},
-  reach: {label:'River reach', detail:'Routes upstream flow and adds its share of local runoff.', color:'#39617e', shape:'<circle cx="20" cy="20" r="13"/>', mark:'<path d="M12 20h16m-6-6 6 6-6 6"/>'},
+  reach: {label:'River reach', detail:'Routes upstream flow and adds its share of local runoff.', color:'#39617e', shape:'<circle cx="20" cy="20" r="11" stroke-width="3"/>', mark:''},
   junction: {label:'Junction', detail:'Two or more mapped branches combine here.', color:'#275d83', shape:'<path d="M20 2 38 20 20 38 2 20Z"/>', mark:'<path d="m12 12 8 8 8-8m-8 8v10"/>'},
   split: {label:'Flow split', detail:'Divides flow using the existing diversion fractions.', color:'#82509c', shape:'<rect x="5" y="5" width="30" height="30" rx="6"/>', mark:'<path d="M20 29V19m0 0-8-8m8 8 8-8M12 17v-6h6m4 0h6v6"/>'},
   link: {label:'System link', detail:'Water from or to another river system enters or leaves here.', color:'#206d7d', shape:'<rect x="5" y="5" width="30" height="30" rx="2"/>', mark:'<path d="M15 11v18m0-14h9m-9 6h6m-6 6h9"/>'},
@@ -560,17 +563,18 @@ function rtUnpack(data) {
 }
 function rtControls(message) {
   const selected = RT?.nodes.find(n => n.id === rtSelected);
-  for (const name of ['move','add','connect','join','delete']) {
+  for (const name of ['move','add','connect','join','detach','delete']) {
     $('rt-' + name).disabled = !selected;
     $('rt-' + name).setAttribute('aria-pressed', String(rtMode === name));
   }
   $('rt-delete').disabled = !selected || !!rtProtected(selected);
   $('rt-connect').disabled = !selected || !!rtProtected(selected);
   $('rt-join').disabled = !selected || !!rtProtected(selected);
+  $('rt-detach').disabled = !selected || !!rtProtected(selected) || !rtInflows(selected).length;
   $('rt-run').disabled = rtBusy;
   $('rt-undo').disabled = !rtHistory.length;
   if (RT) $('rt-sub').textContent = `${RT.nodes.length} river nodes · ${RT.links.length} connections · edits apply across downstream systems`;
-  $('rt-status').textContent = message || (selected ? `Selected ${selected.id}. ${rtNodeDescription(selected)} ${rtProtected(selected) || 'Choose an action.'}` : 'Click a node to select it. Pan and zoom to find a reach.');
+  $('rt-status').textContent = message || (selected ? `Selected ${selected.id}. ${rtNodeDescription(selected)} ${rtProtected(selected) || 'Choose an action.'} Drag it to move it.` : 'Click a node to select it, or drag a reach line to reshape it. Pan and zoom to find a reach.');
 }
 function rtCommit(change) {
   rtHistory.push(rtPack(RT));
@@ -591,7 +595,54 @@ function rtSave() {
 }
 function rtStraight(link) {
   link.path = [[link.a.lon, link.a.lat], [link.b.lon, link.b.lat]];
-  link.straight = true; link.edited = true;
+  link.straight = true; link.edited = true; link.drawn = true; delete link.km;  // its length is now the drawn line's
+}
+// Moving a node redraws every reach touching it as a straight line (a diversion leaving down its own river keeps its course).
+function rtMoveNode(node, lon, lat) {
+  node.lon = lon; node.lat = lat;
+  for (const link of RT.links) {
+    if (link.b && (link.a.id === node.id || link.b.id === node.id)) rtStraight(link);
+    else if (link.a.id === node.id) { link.path[0] = [lon, lat]; link.edited = true; }
+  }
+}
+// Reshaping: a press on a reach grabs its nearest bend, or adds one there. A reach still following the mapped river is first
+// redrawn as its broad bends, as shown on the map. Its routing length is then the drawn line's.
+function rtGrabLink(link, lon, lat, toleranceKm) {
+  if (!link.drawn) { link.path = rtBends(link.path).map(p => [...p]); link.drawn = true; link.straight = false; }
+  link.edited = true; delete link.km;
+  const kx = 111.2 * Math.cos(lat * Math.PI / 180), ky = 111.2, far = ([x, y]) => Math.hypot((x - lon) * kx, (y - lat) * ky);
+  let near = -1;
+  for (let i = 1; i < link.path.length - 1; i++) if (far(link.path[i]) <= toleranceKm && (near < 0 || far(link.path[i]) < far(link.path[near]))) near = i;
+  if (near > 0) return near;
+  let best = 1, bestKm = Infinity, point = null;
+  for (let i = 1; i < link.path.length; i++) {
+    const [ax, ay] = link.path[i-1], [bx, by] = link.path[i], dx = (bx - ax) * kx, dy = (by - ay) * ky, len2 = dx * dx + dy * dy;
+    const t = len2 ? Math.max(0, Math.min(1, ((lon - ax) * kx * dx + (lat - ay) * ky * dy) / len2)) : 0, q = [ax + t * (bx - ax), ay + t * (by - ay)];
+    if (far(q) < bestKm) { bestKm = far(q); best = i; point = q; }
+  }
+  link.path.splice(best, 0, point);
+  return best;
+}
+function rtKm(link) {  // a reach's routing length: as split, drawn, or the mapped river's
+  return link.km ?? (link.edited || link.a.model.length == null ? rtLength(link.path) : link.a.model.length);
+}
+const rtInflows = node => RT.links.filter(l => l.b?.id === node.id && !l.split);
+// Detach inflow: an incoming reach bypasses the selected node and runs on, down its channel, to the node below it. A river
+// reach with its one inflow detached becomes a runoff entry; a junction left with one becomes a river reach.
+function rtDetach(node, from) {
+  const inflow = rtInflows(node).find(l => l.a.id === from.id), out = RT.links.find(l => l.a.id === node.id && l.b && !l.split);
+  if (!inflow) return 'Choose a reach that flows into the selected node.';
+  if (!out) return 'This node has no downstream node for the detached reach to continue to.';
+  if (rtProtected(from)) return `The upstream node is protected: ${rtProtected(from)}`;
+  rtCommit(() => {
+    const km = rtKm(inflow) + rtKm(out);
+    Object.assign(inflow, { b:out.b, path:[...inflow.path, ...out.path.slice(1)], km, edited:true, drawn:!!(inflow.drawn || out.drawn), straight:!!(inflow.straight && out.straight) });
+  });
+  rtControls(`${from.id} now bypasses ${node.id}, joining ${out.b.id}. ${node.id} is now a ${RT_SYMBOLS[rtRole(node)].label.toLowerCase()}. Apply to update flows.`);
+  return '';
+}
+function rtReachText(link) {
+  return `Reach ${link.a.id} → ${link.b?.id || 'out of the system'}: ${rtLength(link.path).toFixed(1)} km${link.drawn ? ' as drawn' : ''}.`;
 }
 function rtWouldCycle(from, to) {
   const pending = [to], seen = new Set();
@@ -619,6 +670,12 @@ function rtClick(info) {
     });
     return true;
   }
+  if (rtMode === 'detach' && selected) {
+    const from = hit || (info.layer?.id === 'rt-links' ? info.object?.link.a : null);
+    const problem = from ? rtDetach(selected, from) : 'Click a reach flowing into the selected node, or the node it comes from.';
+    if (problem) rtControls(problem);
+    return true;
+  }
   if (rtMode === 'join' && selected) {
     if (info.coordinate?.every(Number.isFinite)) rtJoin(info.coordinate[0], info.coordinate[1]);
     return true;
@@ -631,13 +688,8 @@ function rtClick(info) {
     const fraction = Number($('rt-share').value) / 100;
     if (rtMode === 'add' && (!Number.isFinite(fraction) || fraction < .01 || fraction > .99)) { rtControls('Choose a runoff share from 1% to 99%.'); return true; }
     rtCommit(() => {
-      if (rtMode === 'move') {
-        selected.lon = lon; selected.lat = lat;
-        for (const link of RT.links) {
-          if (link.a.id === selected.id) { link.path[0] = [lon, lat]; link.edited = true; }
-          if (link.b?.id === selected.id) { link.path[link.path.length - 1] = [lon, lat]; link.edited = true; }
-        }
-      } else {
+      if (rtMode === 'move') rtMoveNode(selected, lon, lat);
+      else {
         const id = 'tributary-' + crypto.randomUUID();
         const model = { ...structuredClone(selected.model), id, lon, lat, next:selected.id, outlet:false, storage:null, maxRelease:null, splits:{}, lossRank:0, share:selected.model.share * fraction, area:selected.model.area * fraction };
         selected.model.share *= 1 - fraction; selected.model.area *= 1 - fraction;
@@ -695,7 +747,7 @@ function rtJoin(lon, lat) {
   rtCommit(() => {
     const { link, i } = snap, down = link.b, point = [snap.lon, snap.lat];
     const before = [...link.path.slice(0, i), point], after = [point, ...link.path.slice(i)];
-    const km = link.km ?? (link.edited || link.a.model.length == null ? rtLength(link.path) : link.a.model.length);
+    const km = rtKm(link);
     const f = Math.min(.95, Math.max(.05, rtLength(before) / (rtLength(link.path) || 1)));  // the share of the reach's local runoff entering above the junction
     const id = 'junction-' + crypto.randomUUID();
     const model = { ...structuredClone(down.model), id, lon:snap.lon, lat:snap.lat, next:down.id, outlet:false, storage:null, maxRelease:null, splits:{}, lossRank:0,
@@ -722,6 +774,14 @@ function rtJoin(lon, lat) {
   });
   rtControls(`Joined ${from.id} to the channel${deleted.length ? `; removed ${deleted.length} node${deleted.length > 1 ? 's' : ''} left with no inflow, their runoff and basin reporting kept` : ''}. Apply to update flows.`);
 }
+$('rt-detach').onclick = () => {
+  const selected = RT?.nodes.find(n => n.id === rtSelected);
+  if (!selected) return;
+  const inflows = rtInflows(selected);
+  if (inflows.length === 1) { const problem = rtDetach(selected, inflows[0].a); if (problem) rtControls(problem); return; }
+  rtMode = 'detach'; rtGhost = null;
+  rtControls('Click the reach (or its upstream node) to detach from this junction; it will join the node below instead.');
+};
 for (const mode of ['move','add','connect','join']) $('rt-' + mode).onclick = () => {
   if (!RT || !rtSelected) return;
   rtMode = mode; rtGhost = null;
@@ -731,7 +791,7 @@ for (const mode of ['move','add','connect','join']) $('rt-' + mode).onclick = ()
     rtGhost = { lon, lat, snapped:false };
     redraw();
   }
-  rtControls({move:'Click the map to place this node.', add:'Click the map to add a tributary flowing into the selected node. Repeat to extend upstream.', connect:'Click a downstream node to connect to. The existing main connection will be replaced.',
+  rtControls({move:'Click the map to place this node (or drag the selected node). Its reaches become straight lines.', add:'Click the map to add a tributary flowing into the selected node. Repeat to extend upstream.', connect:'Click a downstream node to connect to. The existing main connection will be replaced.',
     join:'Drag the new junction onto the channel this node should join (or click the channel). Nodes left below it with no inflow are removed.'}[mode]);
 };
 // A deleted node's runoff joins the node that takes over from it: added to that node's share within the same basin, else
@@ -812,7 +872,7 @@ function rtEditedEngine(system, source) {
     const model = {...node.model, lon:node.lon, lat:node.lat};
     const link = graph.links.find(l => l.a.id === node.id && !l.split && l.b);
     model.next = link?.b.id || '';
-    if (link?.edited) model.length = link.km ?? rtLength(link.path);
+    if (link?.edited) model.length = link.km ?? rtLength(link.path);  // a moved, joined or reshaped reach routes over its drawn length
     engine.nodes.push(model);
   }
   const ids = new Set(engine.nodes.map(n => n.id));
@@ -1452,13 +1512,43 @@ function initMap() {
   // the default would cut away the ground right in front of the camera.
   overlay = new deck.MapboxOverlay({ interleaved:false, useDevicePixels:Math.min(devicePixelRatio || 1, 1.5), views:new deck.MapView({ id:'mapbox', nearZMultiplier:.005 }), layers:layers(), effects:[lighting], getTooltip:null, onHover:hover, onClick:info=>{ if (!rtClick(info)) carMechanics.click(info); } });
   map.addControl(overlay);
-  let rtGrab = null;  // a press on the join tool's junction drags the junction, not the map
+  // In the network editor a press drags, instead of the map: the join tool's junction, the selected node, or a reach line (reshaped)
+  let rtGrab = null;
+  const rtPick = (e, layer) => overlay.pickObject({ x:e.point.x, y:e.point.y, radius:8, layerIds:[layer] });
   for (const press of ['mousedown', 'touchstart'])
-    map.on(press, e => { if (rtGhost && overlay.pickObject({ x:e.point.x, y:e.point.y, radius:8, layerIds:['rt-ghost'] })) { e.preventDefault(); rtGrab = { moved:false }; } });
+    map.on(press, e => {
+      if (!RT || rtBusy) return;
+      const ghost = rtGhost && rtPick(e, 'rt-ghost'), node = !ghost && rtSelected && rtPick(e, 'rt-nodes')?.object, line = !ghost && !node?.id && !rtMode && rtPick(e, 'rt-links')?.object;
+      if (ghost) rtGrab = { kind:'ghost' };
+      else if (node?.id === rtSelected) rtGrab = { kind:'node', node };
+      else if (line && !(line.link.split && !line.link.b)) rtGrab = { kind:'line', link:line.link, start:[e.lngLat.lng, e.lngLat.lat] };
+      else return;
+      e.preventDefault(); rtGrab.moved = false; rtGrab.before = rtPack(RT); rtGrab.point = e.point;
+    });
   for (const move of ['mousemove', 'touchmove'])
-    map.on(move, e => { if (rtGrab && rtGhost) { rtGrab.moved = true; rtGhostMove(e.lngLat.lng, e.lngLat.lat); redraw(); } });
+    map.on(move, e => {
+      if (!rtGrab || (!rtGrab.moved && Math.hypot(e.point.x - rtGrab.point.x, e.point.y - rtGrab.point.y) < 4)) return;  // a click, not a drag
+      const lon = e.lngLat.lng, lat = e.lngLat.lat;
+      if (rtGrab.kind === 'ghost') rtGhostMove(lon, lat);
+      else if (rtGrab.kind === 'node') { rtMoveNode(rtGrab.node, lon, lat); rtControls(`Moving ${rtGrab.node.id}; its reaches become straight lines.`); }
+      else {
+        rtGrab.vertex ??= rtGrabLink(rtGrab.link, ...rtGrab.start, rtSnapKm(lat) / 3);
+        rtGrab.link.path[rtGrab.vertex] = [lon, lat];
+        rtControls(rtReachText(rtGrab.link) + ' Release to keep this shape.');
+      }
+      rtGrab.moved = true;
+      RT.nodes = [...RT.nodes]; RT.links = [...RT.links];  // new arrays so the map redraws the moved geometry
+      redraw();
+    });
   for (const release of ['mouseup', 'touchend'])
-    map.on(release, () => { const grab = rtGrab; rtGrab = null; if (grab?.moved && rtGhost) rtJoin(rtGhost.lon, rtGhost.lat); });
+    map.on(release, () => {
+      const grab = rtGrab; rtGrab = null;
+      if (!grab?.moved) return;
+      if (grab.kind === 'ghost') { if (rtGhost) rtJoin(rtGhost.lon, rtGhost.lat); return; }
+      rtHistory.push(grab.before); if (rtHistory.length > 50) rtHistory.shift();
+      rtMode = null; rtSave();
+      rtControls(grab.kind === 'line' ? rtReachText(grab.link) + ' Apply to route over this length.' : `Moved ${grab.node.id}; its reaches are straight lines. Apply to update flows.`);
+    });
   map.on('zoomend', () => overlay.setProps({layers:layers()}));
   map.on('moveend', () => {  // zoomed in on a system: fetch its detail (demo bundle only)
     if (FULL || map.getZoom() < DETAIL_ZOOM) return;

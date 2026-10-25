@@ -124,3 +124,39 @@ assert.ok(after.reachFlow.ra.every(Number.isFinite) && after.reachFlow.ra.some((
 run("rtSelected='a1'"); elements.get('rt-delete').onclick(); // a1 now drains into b1 too, and its share stays with basin A
 assert.ok(Math.abs(run("rtEditedEngine('test',twoBasins)").nodes.filter(n=>n.basin==='A').reduce((s,n)=>s+n.share,0)-1)<1e-12);
 console.log('Basin outlets: shown by their river role, deletable, with basin reporting and runoff moved to the node below.');
+
+// Moving straightens a node's reaches; dragging a reach reshapes it and its drawn length is what the routing uses.
+run(`RT = {nodes:['a','b','c'].map((id,i)=>({id,lon:145+i,lat:-35,model:{id,basin:'basin',share:1/3,area:100,length:10,next:i<2?['b','c'][i]:'',outlet:i===2,river:true}})),links:[]};
+RT.links = [{a:RT.nodes[0],b:RT.nodes[1],path:[[145,-35],[146,-35]],w:3},{a:RT.nodes[1],b:RT.nodes[2],path:[[146,-35],[147,-35]],w:3}]; rtHistory = [];
+RT.links[0].path = [[145,-35],[145.3,-35.2],[145.6,-34.8],[145.9,-35.1],[146,-35]]; RT.links[0].km = 99;`);
+run("rtMoveNode(at('b'),146.5,-35.5)");
+assert.equal(run("JSON.stringify(RT.links.map(l=>l.path))"),'[[[145,-35],[146.5,-35.5]],[[146.5,-35.5],[147,-35]]]');
+assert.equal(run("RT.links[0].km"),undefined); // its stored length is dropped: the straight line's counts
+const straightKm = run("rtLength(RT.links[1].path)");
+const vertex = run("rtGrabLink(RT.links[1],146.75,-35.25,1)");
+assert.equal(vertex,1); // a new bend added where the line was grabbed
+run(`RT.links[1].path[${vertex}] = [146.75,-34.5]`);
+const drawnKm = run("rtLength(RT.links[1].path)");
+assert.ok(drawnKm > straightKm + 50);
+assert.equal(run("rtGrabLink(RT.links[1],146.751,-34.501,1)"),1); // grabbing near an existing bend takes that bend
+assert.ok(Math.abs(run("rtEditedEngine('test',source)").nodes.find(n=>n.id==='b').length - drawnKm) < 1e-9);
+console.log('Reshaping: moved nodes straighten their reaches; dragged reaches route over their drawn length.');
+
+// Detach inflow: a reach becomes a runoff entry, a junction a reach; the detached reach runs on to the node below.
+run(`RT = {nodes:[['x',145,-34.5,'j'],['y',145,-35.5,'j'],['j',146,-35,'z'],['z',147,-35,'']].map(([id,lon,lat,next])=>({id,lon,lat,model:{id,basin:'basin',share:.25,area:50,length:10,next,outlet:id==='z',river:true}})),links:[],redirects:{}};
+RT.links = RT.nodes.filter(n=>n.model.next).map(n=>({a:n,b:at(n.model.next),path:[[n.lon,n.lat],[at(n.model.next).lon,at(n.model.next).lat]],w:3}));
+rtBase = rtPack(RT); rtHistory = []; rtSelected = 'j';`);
+assert.equal(run("rtRole(at('j'))"),'junction');
+elements.get('rt-detach').onclick(); // two inflows: choose one
+run("rtClick({layer:{id:'rt-nodes'},object:at('x')})");
+assert.equal(run("RT.links.find(l=>l.a.id==='x').b.id"),'z');
+assert.equal(run("RT.links.find(l=>l.a.id==='x').km"),20); // its own reach plus the one it now runs down
+assert.equal(run("RT.links.find(l=>l.a.id==='x').path.length"),3);
+assert.equal(run("rtRole(at('j'))"),'reach');
+elements.get('rt-detach').onclick(); // one inflow left: detached at once
+assert.equal(run("RT.links.find(l=>l.a.id==='y').b.id"),'z');
+assert.equal(run("rtRole(at('j'))"),'entry');
+assert.equal(run("$('rt-detach').disabled"),true); // nothing left to detach
+assert.ok(Math.abs(run("rtEditedEngine('test',{...source,nodes:rtPack(rtUnpack(rtBase)).nodes.map(n=>n.model)})").nodes.find(n=>n.id==='x').length-20)<1e-9);
+elements.get('rt-undo').onclick(); assert.equal(run("RT.links.find(l=>l.a.id==='y').b.id"),'j');
+console.log('Detach inflow: reaches become runoff entries, junctions become reaches, detached reaches keep their length.');
