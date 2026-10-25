@@ -395,6 +395,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     cornerStiffnessFront:5, cornerStiffnessRear:5.2, airResist:8.56, rollResist:8 };
   const WHEELBASE=CAR.cgToFrontAxle+CAR.cgToRearAxle, INERTIA=CAR.mass*CAR.inertiaScale;
   const carScale=()=>CHASE.drawPx*chaseMpp()/CAR.length; // map metres per car metre
+  const SPEED_SCALE=2; // the car crosses the map this much faster than its simulated speed: the speedometer and handling stay as they were
   // Game additions on top of the source model:
   //  - Traction control on normal throttle: drive is held inside what the rear tyres can take, so plain driving never
   //    spins the wheels, even wet. Boost (Shift) switches it off.
@@ -411,7 +412,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function fallStep(dt) {
     const c=playerCar;
     c.fallTime+=dt;
-    const S=carScale();
+    const S=carScale()*SPEED_SCALE;
     c.pos[0]+=c.vel[0]*S*dt*metresToLon(c.pos[1]);
     c.pos[1]+=c.vel[1]*S*dt*metresToLat;
     c.fallZ+=c.fallV*dt-.5*c.fallGravity*dt*dt;
@@ -525,7 +526,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     c.speed=fwd;
     const side=c2*c.vel[0]-s2*c.vel[1];
     c.slip=Math.hypot(fwd,side)>1 ? -Math.atan2(side,Math.abs(fwd)) : 0; // nose angle off the direction of travel, + when sliding left
-    const S=carScale(), nLon=c.vel[0]*S*dt*metresToLon(c.pos[1]), nLat=c.vel[1]*S*dt*metresToLat;
+    const S=carScale()*SPEED_SCALE, nLon=c.vel[0]*S*dt*metresToLon(c.pos[1]), nLat=c.vel[1]*S*dt*metresToLat;
     const nextOn=onTerrain(c.pos[0]+nLon,c.pos[1]+nLat);
     if(!nextOn&&!c.offEdge) { // leaving the platform: carry on as a projectile from the current altitude
       c.offEdge=true; c.airZ=terrainHeightAt(c.pos[0],c.pos[1])+c.jump; c.airV=c.jumpV; c.jump=0; c.jumpV=0; c.lastSkid=null;
