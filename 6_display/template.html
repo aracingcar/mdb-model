@@ -1510,7 +1510,7 @@ function initMap() {
   const lighting = new deck.LightingEffect({ ambientLight:new deck.AmbientLight({ color:[255,255,255], intensity:0.75 }), dirLight:new deck.DirectionalLight({ color:[255,248,238], intensity:0.9, direction:[1.0,-1.1,-0.85] }) });
   // The near clipping plane scales with camera altitude, and the exaggerated terrain is kilometres high: close up (the boat)
   // the default would cut away the ground right in front of the camera.
-  overlay = new deck.MapboxOverlay({ interleaved:false, useDevicePixels:Math.min(devicePixelRatio || 1, 1.5), views:new deck.MapView({ id:'mapbox', nearZMultiplier:.005 }), layers:layers(), effects:[lighting], getTooltip:null, onHover:hover, onClick:info=>{ if (!rtClick(info)) carMechanics.click(info); } });
+  overlay = new deck.MapboxOverlay({ interleaved:false, useDevicePixels:Math.min(devicePixelRatio || 1, 1.5), views:new deck.MapView({ id:'mapbox', nearZMultiplier:.005 }), layers:layers(), effects:[lighting], getTooltip:null, onLoad:() => repaint(), onHover:hover, onClick:info=>{ if (!rtClick(info)) carMechanics.click(info); } });
   map.addControl(overlay);
   // In the network editor a press drags, instead of the map: the join tool's junction, the selected node, or a reach line (reshaped)
   let rtGrab = null;
@@ -1557,10 +1557,19 @@ function initMap() {
   });
   carMechanics.start(()=>overlay.setProps({layers:layers()}));
   // deck draws in step with the map's own frames, and the first one can land before the meshes and textures are ready, leaving the
-  // map blank until something moves the camera: repaint as it loads and settles.
-  const repaint = () => { overlay.setProps({ layers:layers() }); map.jumpTo({ zoom:map.getZoom() + 1e-4 }); };
-  map.once('load', repaint); map.once('idle', repaint);
-  for (const ms of [200, 800, 2000]) setTimeout(repaint, ms);
+  // map blank until something moves the camera: repaint once deck is ready (onLoad above), and as the map loads and settles over
+  // the first seconds, which on a first visit (nothing cached, shaders compiling) can take well over the old 2 s.
+  const settle = () => { const t = performance.now(); if (t - started > 10000) map.off('idle', settle); else if (t - lastRepaint > 1000) repaint(); };  // a repaint's own nudge ends in idle too
+  const started = performance.now();
+  map.once('load', repaint); map.on('idle', settle);
+  for (const ms of [200, 800, 2000, 4000, 7000, 10000]) setTimeout(repaint, ms);
+}
+let lastRepaint = 0, nudge = 1e-4;
+function repaint() {
+  if (!overlay || !map) return;
+  lastRepaint = performance.now();
+  overlay.setProps({ layers:layers() });
+  map.jumpTo({ zoom:map.getZoom() + (nudge = -nudge) });  // moving the camera makes deck draw; alternate so the view does not drift
 }
 // The river polygon under a point (the boat's water), or null. Called every physics step, so it keeps the rivers near the
 // last query and tries the last hit first.
