@@ -335,7 +335,10 @@ async function drawRoutingNetwork(fit) {
   const shade = k => { const t = k1 > k0 ? (k - k0) / (k1 - k0) : 0.5, c = (a, b) => Math.round(a + (b - a) * t); return [c(207, 29), c(224, 79), c(238, 124), 255]; };
   const folded = Object.fromEntries(B.filter(b => b.river).map(b => [b.id, { n: 0, area: 0 }]));  // smaller watersheds that join a river node directly, with no channel of their own
   for (const b of B) if (!b.river) { folded[b.next].n++; folded[b.next].area += b.area; }
-  const nodes = B.filter(b => b.river).map(b => ({ id: b.id, lon: b.lon, lat: b.lat, r: b.storage ? 11 : Math.min(8, 3 + Math.sqrt(cum[b.id]) / 40), fill: b.storage ? [230, 140, 30, 255] : shade(K(b)), ring: lossy(b), outlet: !b.next, storage: b.storage,
+  const feeders = Object.fromEntries(B.filter(b => b.river).map(b => [b.id, 0]));
+  for (const b of B) if (b.river && b.next) feeders[b.next]++;
+  const nodes = B.filter(b => b.river).map(b => ({ id: b.id, lon: b.lon, lat: b.lat, r: b.storage ? 11 : feeders[b.id] === 1 && b.next ? 2.5 : Math.min(8, 3 + Math.sqrt(cum[b.id]) / 40),  // a node on a single river is only where a basin's runoff is read off
+    fill: b.storage ? [230, 140, 30, 255] : shade(K(b)), ring: lossy(b), outlet: !b.next, storage: b.storage,
     tip: [b.storage ? `<b>${b.storage}</b>storage · releases up to ${b.maxRelease.toLocaleString()} ML/d, never spills` : `<b>${b.id}</b>${Math.round(cum[b.id]).toLocaleString()} km² drain through here${b.next ? '' : ' · outlet'}`,
       folded[b.id].n ? `${folded[b.id].n} smaller watershed${folded[b.id].n > 1 ? 's' : ''} (${Math.round(folded[b.id].area).toLocaleString()} km²) join the river here` : '',
       `${(b.share * 100).toFixed(0)}% of basin ${b.basin} runoff · reach ${b.length != null ? b.length.toFixed(1) + ' km' : 'unmapped'} · K ${K(b).toFixed(2)} d · x ${p.x}`, lossy(b) ? 'Carries the calibrated miscellaneous loss' : ''].filter(Boolean).join('<br>') }));
