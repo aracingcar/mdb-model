@@ -5,14 +5,15 @@ import rioxarray  # noqa: F401  (registers the .rio accessor)
 from config import NARCLIM_DIR, ROTATED_POLE_CRS, SECONDS_PER_DAY, VARIABLES
 
 
-def load_narclim():
-    """Open the saved NARCliM subsets; return P and PET in mm/day on the rotated-pole grid."""
+def load_year(year):
+    """One year of the saved NARCliM subsets, read into memory; P and PET in mm/day on the rotated-pole grid.
+
+    The 2015-2100 run is reduced a year at a time: the whole 4 km series is several GB per variable, too much for a laptop."""
     arrays = []
     for var, name in VARIABLES.items():
-        files = sorted(NARCLIM_DIR.glob(f"{var}_*.nc"))
-        da = xr.open_mfdataset(files, combine="by_coords")[var] * SECONDS_PER_DAY
-        arrays.append(da.rename(name))
-    ds = xr.merge(arrays)
+        with xr.open_dataset(NARCLIM_DIR / f"{var}_{year}.nc") as f:
+            arrays.append((f[var].load() * SECONDS_PER_DAY).rename(name))
+    ds = xr.merge(arrays, compat="override")
     if ds.time.dtype == object:  # a 365-day calendar (NorESM2-MM): use real dates, with each missing 29 February repeating 28 February
         ds = ds.convert_calendar("standard")
         ds = ds.reindex(time=pd.date_range(ds.time.values[0], ds.time.values[-1], freq="D"), method="ffill")

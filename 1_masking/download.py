@@ -29,7 +29,8 @@ def _fetch(job):
         try:
             ds = xr.open_dataset(url(var, year)).assign_coords(rlon=("rlon", rlon))
             part = out.with_suffix(".part")
-            ds[[var]].isel(rlat=window[0], rlon=window[1]).load().to_netcdf(part)
+            # lossless zlib: ~40% less disk (P halves), for a fraction of a second per file
+            ds[[var]].isel(rlat=window[0], rlon=window[1]).load().to_netcdf(part, encoding={var: {"zlib": True, "complevel": 1, "shuffle": True}})
             part.replace(out)  # a finished file only ever appears whole
             return out.name
         except OSError:

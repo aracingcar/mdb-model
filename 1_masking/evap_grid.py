@@ -17,28 +17,44 @@ BUFFER_DEG = 0.12  # keep pixels this close to the valley
 SCALE = 2  # stored as int8 in half-mm steps
 
 
-def evap_anomaly_grids(ds, outlines):
+def evap_anomaly_grids(pet_years, grid, outlines):
     """Return {key: grid} for every outline in ``outlines`` ({key: GeoDataFrame}), each grid a dict with the raster
     geometry, the stored 4 km anomaly fields and the pixel -> cell mapping. Rasters of different outlines sit on one
-    shared PIXEL_DEG lattice, so the display can merge them."""
-    n = ds.sizes["time"]
-    roll = ds["PET"].transpose("time", "rlat", "rlon").values.astype("float32", copy=False)
-    # In place (the full series is ~2 GB): running sum, then difference with the sum ROLL_DAYS earlier, scaled to mm / 30 days.
-    np.cumsum(roll, axis=0, dtype="float32", out=roll)
-    for t in range(n - 1, ROLL_DAYS - 1, -1):
-        roll[t] -= roll[t - ROLL_DAYS]
-    early = min(ROLL_DAYS, n)  # partial windows are scaled up
-    roll[:early] *= (ROLL_DAYS / (np.arange(early) + 1)).astype("float32")[:, None, None]
-    keys = ds["time"].dt.strftime("%m-%d").values
-    normal = {k: roll[keys == k].mean(axis=0) for k in np.unique(keys)}
+    shared PIXEL_DEG lattice, so the display can merge them.
 
-    times = list(range(0, n, STEP_DAYS))
-    if times[-1] != n - 1:
-        times.append(n - 1)
-    anomaly = np.stack([roll[t] - normal[keys[t]] for t in times])  # (steps, rlat, rlon)
-    del roll
-    dates = [str(ds["time"].values[t])[:10] for t in times]
-    return {key: _raster(ds, anomaly, dates, outline) for key, outline in outlines.items()}
+    ``pet_years`` yields the run's daily PET (time, rlat, rlon) a year at a time, in order, and ``grid`` is a dataset on
+    the same grid. Only the running sum's last ROLL_DAYS days, the day-of-year sums and every STEP_DAYS-th 30-day total
+    are kept, so the full 4 km series (~2 GB) is never in memory at once."""
+    lagged = np.empty((0, grid.sizes["rlat"], grid.sizes["rlon"]), "float32")  # running sum, last ROLL_DAYS days
+    sums, counts = {}, {}  # per day of year: sum of the 30-day totals, and how many
+    samples, dates = [], []
+    n = 0
+    for pet in pet_years:
+        x = pet.transpose("time", "rlat", "rlon").values.astype("float32", copy=False)
+        # Running sum continued from the last day before this year, then difference with the sum ROLL_DAYS earlier.
+        cum = np.cumsum(np.concatenate([lagged[-1:] if n else np.zeros((1, *x.shape[1:]), "float32"), x]), axis=0, dtype="float32")[1:]
+        both = np.concatenate([lagged, cum])
+        roll = both[ROLL_DAYS:] - both[:-ROLL_DAYS]
+        if not n:  # the run's first ROLL_DAYS windows are partial: scaled up to mm / 30 days
+            roll = np.concatenate([cum[:ROLL_DAYS] * (ROLL_DAYS / (np.arange(ROLL_DAYS) + 1)).astype("float32")[:, None, None], roll])
+        lagged = both[-ROLL_DAYS:]
+        keys = pet["time"].dt.strftime("%m-%d").values
+        days = [str(d)[:10] for d in pet["time"].values]
+        for i, k in enumerate(keys):
+            sums[k] = sums[k] + roll[i] if k in sums else roll[i].copy()
+            counts[k] = counts.get(k, 0) + 1
+            if (n + i) % STEP_DAYS == 0:
+                samples.append((roll[i].copy(), k))
+                dates.append(days[i])
+        n += len(keys)
+        last = (roll[-1].copy(), keys[-1], days[-1])
+    if (n - 1) % STEP_DAYS:  # always end on the last day
+        samples.append(last[:2])
+        dates.append(last[2])
+
+    normal = {k: sums[k] / counts[k] for k in sums}
+    anomaly = np.stack([r - normal[k] for r, k in samples])  # (steps, rlat, rlon)
+    return {key: _raster(grid, anomaly, dates, outline) for key, outline in outlines.items()}
 
 
 def _raster(ds, anomaly, dates, outline):

@@ -18,19 +18,22 @@ def cell_weights(ds, gdf):
     return xr.DataArray(flat.reshape(template.shape), coords=template.coords, dims=template.dims)
 
 
-def areal_average(ds, gdf):
-    """Daily area-weighted mean of every variable over the catchment."""
-    weights = cell_weights(ds, gdf)
+def areal_average(ds, weights):
+    """Daily area-weighted mean of every variable over the catchment whose ``cell_weights`` are given."""
     out = ds.weighted(weights).mean(dim=["rlat", "rlon"])
     return out.to_dataframe()[list(ds.data_vars)]
 
 
-def unit_averages(ds, units):
-    """Daily area-weighted means for every unit, with columns ``<unit>_P``, ``<unit>_PET`` (one matrix product per variable)."""
-    names = list(units["subcatchment"])
+def unit_weights(ds, units):
+    """Normalised cell weights for every unit, one row per unit, for ``unit_averages``."""
     weights = np.stack([cell_weights(ds, gpd.GeoDataFrame([u], geometry="geometry", crs=units.crs)).values.ravel()
                         for _, u in units.iterrows()])
-    weights = (weights / weights.sum(axis=1, keepdims=True)).astype("float32")
+    return (weights / weights.sum(axis=1, keepdims=True)).astype("float32")
+
+
+def unit_averages(ds, units, weights):
+    """Daily area-weighted means for every unit, with columns ``<unit>_P``, ``<unit>_PET`` (one matrix product per variable)."""
+    names = list(units["subcatchment"])
     cols = {}
     for var in ds.data_vars:
         x = ds[var].transpose("time", "rlat", "rlon").values.astype("float32", copy=False).reshape(ds.sizes["time"], -1)
