@@ -43,6 +43,7 @@ SDL_UNITS = {
 #   the mean outlet flow matches target_outlet_m3s after channel fluxes. Both None: provisional losses, no fitting.
 # splits: {basin: {to: fraction}} sends that share of a basin's routed outflow to another basin, or out of the river
 #   with to = '' (e.g. into a terminal wetland); the rest goes on to its downstream basin.
+# split_rivers (optional): {basin: river name} the river a split to '' runs down, so the editor can draw it.
 # storages (optional): {name: {lon, lat, max_release_ML_d}} dams, each placed on the routing node containing it. A storage
 #   releases up to max_release_ML_d a day (less if it holds less), keeps the rest and never spills (no capacity limit).
 #   The release caps are indicative placeholders, not operating rules.
@@ -53,7 +54,10 @@ SYSTEMS = {
     "murrumbidgee": {
         "units": ("SS15", "SS1"), "n_subcatchments": 11, "mainstem": "Murrumbidgee River",
         "routing": {"loss_regions": 3, "target_outlet_m3s": 27.0},  # recorded mean at Balranald, ~27 m3/s (Wikipedia, "Murrumbidgee River")
-        "splits": {},
+        # Yanco Creek leaves the river at Narrandera and runs out to the Billabong and Edward systems, outside this system: an
+        # indicative ~8% of the flow there (not a measured allocation)
+        "splits": {"B5080595380": {"": 0.08}},
+        "split_rivers": {"B5080595380": "Yanco Creek"},
         "storages": {"Burrinjuck Dam": {"lon": 148.58, "lat": -35.00, "max_release_ML_d": 8000},
                      "Blowering Dam": {"lon": 148.26, "lat": -35.41, "max_release_ML_d": 12000}},
     },
@@ -126,6 +130,12 @@ THREDDS_DODS = "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-
 MEMBERS = {"ACCESS-ESM1-5": "r6i1p1f1", "EC-Earth3-Veg": "r1i1p1f1", "MPI-ESM1-2-HR": "r1i1p1f1", "NorESM2-MM": "r1i1p1f1"}
 MEMBER = MEMBERS.get(GLOBAL_MODEL, "r1i1p1f1")
 DEFAULT_RUN = ("ACCESS-ESM1-5", "ssp245", "WRF412R5")  # the run published in docs/
+# The climate cases the display offers, best to worst. The middle one is the default run.
+CLIMATE_CASES = (
+    {"id": "best", "label": "Best case", "run": ("NorESM2-MM", "ssp126", "WRF412R3")},
+    {"id": "median", "label": "Median", "run": DEFAULT_RUN},
+    {"id": "worst", "label": "Worst case", "run": ("UKESM1-0-LL", "ssp370", "WRF412R5")},
+)
 RUN_KEY = (GLOBAL_MODEL, SCENARIO, REGIONAL_CONFIG)
 DOWNLOAD_WORKERS = 4  # parallel processes; more than ~4 gave no further speed-up
 RUN = f"NARCliM2-0-SEAus-04/NSW-Government/{GLOBAL_MODEL}/{SCENARIO}/{MEMBER}/NARCliM2-0-{REGIONAL_CONFIG}/v1-r1/day"

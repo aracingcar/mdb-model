@@ -21,7 +21,7 @@ for folder in ("1_masking", "2_rainfall_runoff", "3_routing", "5_outputs"):  # a
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / folder))
 
 from catchment import buffer_outline
-from config import DEFAULT_RUN, DISPLAY_SYSTEMS, SDL_UNITS, SYSTEMS, waterways_file
+from config import CLIMATE_CASES, DEFAULT_RUN, DISPLAY_SYSTEMS, SDL_UNITS, SYSTEMS, waterways_file
 from evap_grid import PIXEL_DEG
 from nodes import build_nodes
 from results_db import load_climate, load_geometry, load_results
@@ -149,6 +149,7 @@ def _engine(system, basins, basin_forcing, regions, rivers):
         "nodes": [{"id": n.id, "basin": n.basin, "share": float(n.share), "area": float(n.area_km2), "length": None if pd.isna(n.length_km) else float(n.length_km),
                    "next": n.next, "lon": n.lon, "lat": n.lat, "outlet": bool(n.outlet), "lossRank": int(n.loss_rank),
                    **({"river": True, **({"path": n.path} if isinstance(n.path, list) else {}), **({"straight": True} if n.straight else {})} if n.river else {}),
+                   **({"splitPath": n.split_path} if isinstance(n.split_path, list) else {}),
                    **({"storage": n.storage, "maxRelease": storages[n.storage]["max_release_ML_d"]} if n.storage else {}),
                    **({"splits": {(outlet[to] if to else ""): f for to, f in splits[n.basin].items()}} if n.outlet and n.basin in splits else {})}
                   for n in nodes.itertuples()],
@@ -342,6 +343,8 @@ def run_display(run=DEFAULT_RUN, methods=(RAINFALL_RUNOFF_MODEL, ROUTING_MODEL))
         "focus": next(iter(geo)),  # the unit whose outlet flow and ecology the page shows first
         "climate": {"globalModel": run[0], "scenario": run[1], "regionalConfig": run[2],
                     "period": f"{all_days[0].year}–{all_days[-1].year}", "source": "NARCliM2.0", "resolution": "4 km", "frequency": "Daily"},
+        "cases": [{"id": c["id"], "label": c["label"], "globalModel": c["run"][0], "scenario": c["run"][1], "regionalConfig": c["run"][2],
+                   "built": tuple(c["run"]) == tuple(run)} for c in CLIMATE_CASES],  # only the run in this build can be shown
         "runoff": {"selected": methods[0], "specs": runoff_specs()},
         "routing": {"selected": methods[1], "specs": routing_specs()},
         "run": "_".join(run),

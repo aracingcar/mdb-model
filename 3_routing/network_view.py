@@ -16,11 +16,11 @@ from scipy.spatial import cKDTree
 from shapely.ops import substring
 
 MAX_OFF_RIVER_KM = 5  # a watershed whose nearest mapped river is further than this has no river to sit on
-BRIDGE_DEG = 0.05  # separate river pieces are joined across gaps up to this (~5 km), nearest first: basin borders, gaps in the mapping
+BRIDGE_DEG = 0.2  # separate river pieces are joined across gaps up to this (~5 km), nearest first: basin borders, gaps in the mapping
 T_JOIN_DEG = 0.01  # a river ending within this (~1 km) of another joins it there
 KM_PER_DEG = 111
 MIN_TRIBUTARY_KM2 = 500  # a branch draining less than this above its mouth is folded into the river it joins
-DETOUR = 2.5  # a river path more than this times longer than the straight line is not the same river: draw the straight line
+DETOUR = 6  # a river path more than this times longer than the straight line is not the same river: draw the straight line
 
 
 def _river_point(line, pt):

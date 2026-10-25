@@ -12,6 +12,7 @@ from config import HYBAS_FILE, HYBAS_NODE_FILE, SYSTEMS, waterways_file
 from network_view import river_view
 from terrain_regions import AREA_CRS
 
+MAX_GAP_KM = 40  # a straight link (no mapped river between two nodes) longer than this is not drawn or routed: the stream ends
 MIN_SHARE = 1e-4  # a level-10 watershed with less than this share of its basin inside the system is dropped
 
 
@@ -129,6 +130,21 @@ def _along_river(nodes, watersheds, system):
     nodes.loc[~nodes["river"], "length_km"] = 0.0
     nodes["path"] = nodes["id"].map(view["path"])
     nodes["straight"] = nodes["id"].isin(view["straight"])
+    cut = nodes["straight"] & (nodes["length_km"] > MAX_GAP_KM)  # a river with no mapped channel to the next one, far off: its water ends here
+    nodes.loc[cut, "next"], nodes.loc[cut, "length_km"], nodes.loc[cut, "straight"] = "", np.nan, False
+    nodes.loc[cut, "path"] = None
+    nodes["split_path"] = None
+    for basin, name in spec.get("split_rivers", {}).items():
+        i = nodes.index[nodes["id"] == outlet[basin]][0]
+        pieces = [list(g.coords) for g in shapely.get_parts(shapely.line_merge(shapely.union_all(ways.geometry[ways["name"] == name].values)))]
+        coords, here = [], (nodes.at[i, "lon"], nodes.at[i, "lat"])
+        while pieces:  # chain the mapped pieces from the one nearest the offtake, each next one by its nearest end
+            gap = lambda c: np.hypot(c[0] - (coords[-1] if coords else here)[0], c[1] - (coords[-1] if coords else here)[1])
+            k, flip = min(((k, f) for k in range(len(pieces)) for f in (0, 1)), key=lambda t: gap(pieces[t[0]][-1 if t[1] else 0]))
+            piece = pieces.pop(k)
+            coords += piece[::-1] if flip else piece
+        line = shapely.LineString(coords)
+        nodes.at[i, "split_path"] = [[round(x, 4), round(y, 4)] for x, y in shapely.simplify(line, 0.001).coords]
     return nodes
 
 

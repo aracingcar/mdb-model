@@ -75,6 +75,14 @@
   #climate-fields label { display:grid; gap:3px; }
   #climate-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
   #climate-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
+  #case-stops { display:flex; justify-content:space-between; margin-top:10px; }
+  #case-stops button { font:inherit; font-size:11px; padding:2px 4px; border:0; border-radius:3px; background:none; color:var(--dim); cursor:pointer; }
+  #case-stops button[aria-pressed="true"] { color:var(--head); font-weight:600; }
+  #case-stops button:focus-visible, #case-slider:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
+  #case-slider { width:100%; margin:4px 0 0; }
+  #case-details { margin:8px 0 0; display:grid; grid-template-columns:auto 1fr; gap:2px 10px; }
+  #case-details dt { color:var(--dim); } #case-details dd { margin:0; color:var(--ink); }
+  #case-note { margin:6px 0 0; color:var(--dim); line-height:1.4; }
   #climate-meta { margin:8px 0 0; color:var(--dim); line-height:1.4; }
   #runoff-panel { width:200px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
   #runoff-panel summary { cursor:pointer; font-weight:600; color:var(--head); }
@@ -161,9 +169,10 @@
 <details id="climate-panel">
   <summary>Climate model</summary>
   <div id="climate-fields">
-    <label for="climate-global">Global model<select id="climate-global"></select></label>
-    <label for="climate-scenario">Scenario<select id="climate-scenario"></select></label>
-    <label for="climate-regional">Regional configuration<select id="climate-regional"></select></label>
+    <div id="case-stops"></div>
+    <input id="case-slider" type="range" min="0" max="2" step="1" value="1" aria-label="Climate case, best to worst">
+    <dl id="case-details"></dl>
+    <p id="case-note"></p>
   </div>
   <p id="climate-meta"></p>
 </details>
@@ -187,7 +196,7 @@
 <label id="detail-toggle" for="detailIn"><span>Roads</span><input id="detailIn" type="checkbox" role="switch"></label>
 <label id="sdl-toggle" for="sdlIn"><span>SDL units</span><input id="sdlIn" type="checkbox" role="switch"></label>
 <div id="rt-editor" role="dialog" aria-label="Routing network">
-  <div id="rt-head"><b id="rt-title">Routing network</b><label>River system <select id="rt-system"></select></label><label><input type="checkbox" id="rt-terrain" checked> Terrain</label><label><input type="checkbox" id="rt-rivers" checked> Rivers</label><span class="grow" id="rt-sub"></span><button type="button" id="rt-close">Close</button></div>
+  <div id="rt-head"><b id="rt-title">Routing network</b><label>River system <select id="rt-system"></select></label><label><input type="checkbox" id="rt-terrain" checked> Terrain</label><label><input type="checkbox" id="rt-rivers" checked> Rivers</label><label><input type="checkbox" id="rt-borders" checked> Planning unit borders</label><span class="grow" id="rt-sub"></span><button type="button" id="rt-close">Close</button></div>
   <div id="rt-foot"></div>
 </div>
 <div id="tip"></div>
@@ -222,9 +231,22 @@ if (typeof maplibregl === 'undefined' || typeof deck === 'undefined') document.g
 const BF = {};
 for (const id in D.riverFlow) { const bin = atob(D.riverFlow[id]), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); BF[id] = new Uint16Array(u8.buffer); }
 const N = D.days.length, $ = id => document.getElementById(id);
-// Only the dataset embedded in this build is selectable; empty input folders are not available runs.
-for (const [id, key] of [['climate-global', 'globalModel'], ['climate-scenario', 'scenario'], ['climate-regional', 'regionalConfig']]) {
-  $(id).add(new Option(D.climate[key], D.climate[key]));
+// Climate cases, best to worst: a slider and a button per stop; the selected stop's SSP, global and regional model are listed.
+// Only the run embedded in this build can be shown; the other stops describe their run but are not built yet.
+{
+  const cases = D.cases, slider = $('case-slider'), ssp = c => c.scenario.replace(/^ssp(\d)(\d+)$/, (_, a, b) => `SSP${a}-${b[0]}.${b.slice(1)}`);
+  const show = i => {
+    const c = cases[i];
+    slider.value = i;
+    for (const b of $('case-stops').children) b.setAttribute('aria-pressed', b.dataset.i == i);
+    $('case-details').replaceChildren(...[['Scenario', ssp(c)], ['Global model', c.globalModel], ['Regional model', c.regionalConfig.replace('WRF412', 'WRF412-')]].flatMap(([k, v]) => {
+      const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; return [dt, dd];
+    }));
+    $('case-note').textContent = c.built ? '' : 'This case is not built into this page yet; the map shows the median.';
+  };
+  cases.forEach((c, i) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.i = i; b.textContent = c.label; b.onclick = () => show(i); $('case-stops').append(b); });
+  slider.oninput = () => show(+slider.value);
+  show(Math.max(0, cases.findIndex(c => c.built)));
 }
 // Same for rainfall-runoff: only methods run in this build are listed.
 for (const [id, s] of Object.entries(D.runoff.specs)) $('runoff-model').add(new Option(s.label, id));
@@ -311,7 +333,7 @@ const rtEngine = sys => rtEngines[sys] ||= fetch(D.engines[sys]).then(r => { if 
 const prettySystem = s => s.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
 for (const s of Object.keys(D.engines)) $('rt-system').add(new Option(prettySystem(s), s));
 let RT = null;  // { nodes, links } while the editor is open; rtLayers() draws them
-const rtShow = { terrain: true, rivers: true }, rtShows = k => !RT || rtShow[k];  // the editor can hide the terrain and the rivers under its network
+const rtShow = { terrain: true, rivers: true, borders: true }, rtShows = k => !RT || rtShow[k];  // the editor can hide the terrain and the rivers under its network
 const redraw = () => overlay?.setProps({ layers:layers() });
 async function drawRouting(fit) {
   try { await drawRoutingNetwork(fit); } catch (e) { console.error(e); $('rt-sub').textContent = 'Could not draw the network: ' + e.message; }
@@ -331,7 +353,7 @@ async function drawRoutingNetwork(fit) {
   const lossy = b => b.lossRank >= 1 && b.lossRank <= (p.loss_regions || 0);
   const cum = {}, total = id => cum[id] ??= byId[id].area + kids[id].reduce((a, c) => a + total(c), 0);
   B.forEach(b => total(b.id));
-  const roots = B.filter(b => !b.next).map(b => b.id), maxCum = Math.max(...roots.map(id => cum[id])), Ks = B.filter(b => b.river).map(K), k0 = Math.min(...Ks), k1 = Math.max(...Ks);
+  const sysOutlets = new Set(eng.basins.filter(x => !x.next).map(x => x.id)), roots = B.filter(b => !b.next && sysOutlets.has(b.basin)).map(b => b.id), maxCum = Math.max(...roots.map(id => cum[id])), Ks = B.filter(b => b.river).map(K), k0 = Math.min(...Ks), k1 = Math.max(...Ks);
   const shade = k => { const t = k1 > k0 ? (k - k0) / (k1 - k0) : 0.5, c = (a, b) => Math.round(a + (b - a) * t); return [c(207, 29), c(224, 79), c(238, 124), 255]; };
   const folded = Object.fromEntries(B.filter(b => b.river).map(b => [b.id, { n: 0, area: 0 }]));  // smaller watersheds that join a river node directly, with no channel of their own
   for (const b of B) if (!b.river) { folded[b.next].n++; folded[b.next].area += b.area; }
@@ -342,8 +364,11 @@ async function drawRoutingNetwork(fit) {
     tip: [b.storage ? `<b>${b.storage}</b>storage · releases up to ${b.maxRelease.toLocaleString()} ML/d, never spills` : `<b>${b.id}</b>${Math.round(cum[b.id]).toLocaleString()} km² drain through here${b.next ? '' : ' · outlet'}`,
       folded[b.id].n ? `${folded[b.id].n} smaller watershed${folded[b.id].n > 1 ? 's' : ''} (${Math.round(folded[b.id].area).toLocaleString()} km²) join the river here` : '',
       `${(b.share * 100).toFixed(0)}% of basin ${b.basin} runoff · reach ${b.length != null ? b.length.toFixed(1) + ' km' : 'unmapped'} · K ${K(b).toFixed(2)} d · x ${p.x}`, lossy(b) ? 'Carries the calibrated miscellaneous loss' : ''].filter(Boolean).join('<br>') }));
-  const at = Object.fromEntries(nodes.map(n => [n.id, n])), links = B.filter(b => b.river && b.next).map(b => ({ a: at[b.id], b: at[b.next], path: b.path, straight: b.straight, w: 1 + 4 * Math.sqrt(cum[b.id] / maxCum) }));
-  for (const b of B) for (const [to] of Object.entries(b.splits || {})) if (to && at[b.id] && at[to]) links.push({ a: at[b.id], b: at[to], path: [[at[b.id].lon, at[b.id].lat], [at[to].lon, at[to].lat]], w: 2, split: true });  // flow sent somewhere other than downstream
+  const at = Object.fromEntries(nodes.map(n => [n.id, n])), links = B.filter(b => b.river && b.next).map(b => ({ a: at[b.id], b: at[b.next], path: smooth(b.path), straight: b.straight, w: 2.5 + 1.5 * Math.sqrt(cum[b.id] / maxCum) }));
+  for (const b of B) for (const [to] of Object.entries(b.splits || {})) {
+    if (to && at[b.id] && at[to]) links.push({ a: at[b.id], b: at[to], path: [[at[b.id].lon, at[b.id].lat], [at[to].lon, at[to].lat]], w: 3, split: true });
+    else if (!to && b.splitPath) links.push({ a: at[b.id], path: smooth([[at[b.id].lon, at[b.id].lat], ...b.splitPath]), w: 3, split: true });  // a diversion that leaves the system down its own river
+  }  // flow sent somewhere other than downstream
   RT = { nodes, links };
   const lossN = nodes.filter(n => n.ring).length, dams = B.filter(b => b.storage).length;
   $('rt-sub').textContent = `${nodes.length} river nodes (of ${B.length} watersheds) in ${eng.basins.length} basins, ${roots.length} outlet${roots.length > 1 ? 's' : ''}${dams ? `, ${dams} storage${dams > 1 ? 's' : ''} (orange)` : ''}. Editing is not available yet.`;
@@ -363,6 +388,14 @@ function groundZ(lon, lat) {  // terrain height under a point, as the roads are 
   const c = Math.round((lon - T.x0) / T.step), r = Math.round((T.y0 - lat) / T.step), z = c >= 0 && c < NC && r >= 0 && r < NR ? GZ[r * NC + c] : 0;
   return isNaN(z) ? 0 : z;
 }
+function smooth(path, rounds = 3) {  // Chaikin corner cutting, ends kept: the river's jagged vertices become a flowing curve
+  for (let r = 0; r < rounds && path.length > 2; r++) {
+    const out = [path[0]];
+    for (let i = 0; i < path.length - 1; i++) { const [a, b] = [path[i], path[i + 1]]; out.push([.75 * a[0] + .25 * b[0], .75 * a[1] + .25 * b[1]], [.25 * a[0] + .75 * b[0], .25 * a[1] + .75 * b[1]]); }
+    path = [...out, path[path.length - 1]];
+  }
+  return path;
+}
 function rtLayers() {
   if (!RT) return [];
   const blend = { depthWriteEnabled:false, depthCompare:'always' }, at = n => [n.lon, n.lat, rtShow.terrain ? groundZ(n.lon, n.lat) * TERR + 1400 : 0], trig = [relief, meshGen, rtShow.terrain];
@@ -379,7 +412,7 @@ function rtLayers() {
 $('routing-edit').onclick = () => { $('rt-system').value = SYSTEM_OF[focus] in D.engines ? SYSTEM_OF[focus] : $('rt-system').options[0].value; $('rt-editor').classList.add('open'); drawRouting(true); };
 $('rt-close').onclick = () => { $('rt-editor').classList.remove('open'); RT = null; $('tip').style.display = 'none'; redraw(); $('routing-edit').focus(); };
 $('rt-system').onchange = () => drawRouting(true);
-for (const k of ['terrain', 'rivers']) $('rt-' + k).onchange = e => { rtShow[k] = e.target.checked; redraw(); };
+for (const k of ['terrain', 'rivers', 'borders']) $('rt-' + k).onchange = e => { rtShow[k] = e.target.checked; redraw(); };
 $('routing-model').addEventListener('change', () => { if ($('rt-editor').classList.contains('open')) drawRouting(false); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('rt-editor').classList.contains('open')) $('rt-close').click(); });
 $('cache-clear').onclick = async () => { await idb.clear(); say('Saved results cleared.'); };
@@ -937,7 +970,7 @@ function layers() {
     ...(showDetail ? [new deck.SolidPolygonLayer({ id:'roads', data:roadsNow(), getPolygon:d => d.r.map(p => [p[0], p[1], p[2] * TERR]), extruded:true, getElevation:ROAD_RAISE * relief,
       getFillColor:d => [...ROAD_FILL[d.cls], 245], material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:false, updateTriggers:{getPolygon:relief, getElevation:relief} })] : []),
     new deck.PolygonLayer({ id:'units', data:polys, getPolygon:d => d.r.map(p => [p[0], p[1], 0]), getFillColor:[0,0,0,2], stroked:false, pickable:true }),
-    new deck.PathLayer({ id:'bounds', data:bounds, getPath:d => d.path, getColor:[70,76,86,90], getWidth:0.9, widthUnits:'pixels', pickable:false }),
+    new deck.PathLayer({ id:'bounds', visible:rtShows('borders'), data:bounds, getPath:d => d.path, getColor:[70,76,86,90], getWidth:0.9, widthUnits:'pixels', pickable:false }),
     // SDL resource unit borders: a dark line on a white halo, so they read apart from the thin reach borders
     new deck.PathLayer({ id:'outline-buffer', data:bufZ, getPath:d => d.path, getColor:[74,120,160,120], getWidth:1.5, widthUnits:'pixels', jointRounded:true, pickable:false }),
     new deck.PathLayer({ id:'sdl-halo', visible:showSdl, data:sdlZ, getPath:d => d.path, getColor:[255,255,255,190], getWidth:7, widthUnits:'pixels', jointRounded:true, capRounded:true, pickable:false }),

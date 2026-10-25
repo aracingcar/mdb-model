@@ -1,4 +1,4 @@
-"""Fill the database with climate runs: python run_climates.py [model[/scenario[/config]] ...]  (default: every known run).
+"""Fill the database with climate runs: python run_climates.py [model[/scenario[/config]] ...]  (default: the best, median and worst climate cases).
 
 Each missing run is downloaded (in parallel), reduced into data/results.db, run through the model with the default
 methods, and its raw files are deleted. Runs already in the database for every displayed SDL unit are skipped.
@@ -14,7 +14,7 @@ ROOT = Path(__file__).parent
 for folder in ("1_masking", "5_outputs"):
     sys.path.insert(0, str(ROOT / folder))
 
-from config import DISPLAY_SYSTEMS, MEMBERS, SYSTEMS
+from config import CLIMATE_CASES, DISPLAY_SYSTEMS, MEMBERS, SYSTEMS
 from results_db import stored_runs
 
 UNITS = [u for s in DISPLAY_SYSTEMS for u in SYSTEMS[s]["units"]]
@@ -24,7 +24,7 @@ CONFIGS = ("WRF412R3", "WRF412R5")
 
 
 def main(selectors):
-    runs = list(itertools.product(MEMBERS, SCENARIOS, CONFIGS))
+    runs = [tuple(c["run"]) for c in CLIMATE_CASES] if not selectors else list(itertools.product(MEMBERS, SCENARIOS, CONFIGS))
     if selectors:
         runs = [r for r in runs if any(r[: len(s)] == tuple(s) for s in (x.split("/") for x in selectors))]
     todo = [r for r in runs if r not in stored_runs(UNITS)]
