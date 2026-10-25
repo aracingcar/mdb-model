@@ -7,6 +7,7 @@ series (with each unit's evaporation values), the flow results and the browser e
 import base64
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -121,6 +122,15 @@ def _quantised(basin_forcing, names, var):
     """Basin series as base64 little-endian uint16 in hundredths of a mm/day, basin-major."""
     a = np.stack([basin_forcing[f"{n}_{var}"].to_numpy() for n in names])
     return base64.b64encode(np.clip(np.round(a * 100), 0, 65535).astype("<u2").tobytes()).decode()
+
+
+LONG_FLOAT = re.compile(r"(?<![\w.])(-?\d+\.\d{7,})(?![\w.])")
+
+
+def compact_floats(text):
+    """float32 values arrive as 17-digit doubles (0.20000000298023224); six decimals is finer than any display or
+    routing use, and shrinks the climate and engine files several-fold."""
+    return LONG_FLOAT.sub(lambda m: repr(round(float(m.group(1)), 6)), text)
 
 
 def _engine(system, basins, basin_forcing, regions, rivers):
@@ -324,7 +334,7 @@ def run_display(run=DEFAULT_RUN, methods=(RAINFALL_RUNOFF_MODEL, ROUTING_MODEL))
         d.rmdir()
     for name, payload in files.items():
         (DATA_DIR / name).parent.mkdir(parents=True, exist_ok=True)
-        (DATA_DIR / name).write_text(json.dumps(payload, separators=(",", ":"), allow_nan=False))
+        (DATA_DIR / name).write_text(compact_floats(json.dumps(payload, separators=(",", ":"), allow_nan=False)))
     names = [SDL_UNITS[u]["name"] for u in geo]
     title = ", ".join(names[:-1]) + " and " + names[-1] if len(names) > 1 else names[0]
     meta = {
