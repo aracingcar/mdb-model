@@ -6,7 +6,7 @@ import warnings
 from channel_fluxes import channel_inputs
 
 from config import LINKS, RUN_KEY, SYSTEM, SYSTEM_ID
-from nodes import build_nodes
+from nodes import basin_outlets, build_nodes
 from results_db import load_link_flow
 from river_flows import river_flows
 from routing import route_network
@@ -61,7 +61,7 @@ def link_flow(link, index):
 def _inflows(nodes, index):
     """{node: daily inflow (m3/s)} from the other river systems feeding this one (config.LINKS), each entering the outlet
     node of its ``into`` basin. A link with spill_above_ML_d only passes the flow above that."""
-    outlet = dict(zip(nodes.loc[nodes["outlet"], "basin"], nodes.loc[nodes["outlet"], "id"]))
+    outlet = basin_outlets(nodes)
     inflow = {}
     for link in LINKS:
         if link["to"] != SYSTEM_ID:
@@ -80,7 +80,7 @@ def _storage_caps(nodes):
 
 def _splits(nodes):
     """The system's basin splits as node splits: from a basin's outlet node to the target basin's outlet node ('' leaves the river)."""
-    outlet = dict(zip(nodes.loc[nodes["outlet"], "basin"], nodes.loc[nodes["outlet"], "id"]))
+    outlet = basin_outlets(nodes)
     return {outlet[b]: {outlet[to] if to else "": f for to, f in targets.items()} for b, targets in SPLITS.items()}
 
 
@@ -128,7 +128,7 @@ def route(runoff, basins, subcatchments, p=PARAMS, *, basin_forcing=None):
     """
     p = {**p, **CALIBRATION}
     nodes = build_nodes(basins, SYSTEM_ID)
-    outlet_node = dict(zip(nodes.loc[nodes["outlet"], "basin"], nodes.loc[nodes["outlet"], "id"]))
+    outlet_node = basin_outlets(nodes)
     outlet = outlet_node[basins.loc[basins["next_id"] == "", "subcatchment"].iloc[0]]
     local, fluxes = channel_inputs(runoff, nodes, basins, basin_forcing, p, delivery)
     inflow = _inflows(nodes, runoff.index)

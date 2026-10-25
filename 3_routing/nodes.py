@@ -3,17 +3,32 @@
 Rainfall-runoff still runs once per basin; its runoff is shared out to the basin's nodes by area, and each node's share
 enters the river where that node's watershed drains into the next one down. Storages sit on the node containing them.
 """
+import json
+
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import shapely
 
-from config import HYBAS_FILE, HYBAS_NODE_FILE, SYSTEMS, waterways_file
+from config import DATA, HYBAS_FILE, HYBAS_NODE_FILE, SYSTEMS, waterways_file
 from network_view import river_view
 from terrain_regions import AREA_CRS
 
 MAX_GAP_KM = 40  # a straight link (no mapped river between two nodes) longer than this is not drawn or routed: the stream ends
 MIN_SHARE = 1e-4  # a level-10 watershed with less than this share of its basin inside the system is dropped
+NETWORKS_DIR = DATA.parent / "river_systems"  # <system>-network.json: each system's river network, in the format the page's routing editor exports
+
+
+def network_file(system):
+    return NETWORKS_DIR / f"{system}-network.json"
+
+
+def basin_outlets(nodes):
+    """{basin: the node its flow is read at}: its outlet node, or a node that took over its reporting (``reports``, from an edit)."""
+    out = dict(zip(nodes.loc[nodes["outlet"], "basin"], nodes.loc[nodes["outlet"], "id"]))
+    for i, reports in zip(nodes["id"], nodes.get("reports", pd.Series(None, index=nodes.index))):
+        out.update({b: i for b in reports} if isinstance(reports, list) else {})
+    return out
 
 
 def _outlet_points(geoms, next_geoms):
@@ -102,7 +117,7 @@ def build_nodes(basins, system):
     _place_storages(nodes, fine_deg, ids, storages)
     plains = basins[basins["subcatchment"].str.startswith("LOWLAND")].to_crs("EPSG:4326")
     watersheds = pd.concat([pd.Series(fine_deg.geometry.values, index=[ids[i] for i in fine_deg.index]), pd.Series(plains.geometry.values, index=plains["subcatchment"].values)])
-    return _along_river(nodes, watersheds, system)
+    return apply_network(_along_river(nodes, watersheds, system), system)
 
 
 def _along_river(nodes, watersheds, system):
@@ -136,6 +151,7 @@ def _along_river(nodes, watersheds, system):
     nodes.loc[cut, "next"], nodes.loc[cut, "length_km"], nodes.loc[cut, "straight"] = "", np.nan, False
     nodes.loc[cut, "path"] = None
     nodes["split_path"] = None
+    nodes["reports"] = None
     for basin, name in spec.get("split_rivers", {}).items():
         i = nodes.index[nodes["id"] == outlet[basin]][0]
         pieces = [list(g.coords) for g in shapely.get_parts(shapely.line_merge(shapely.union_all(ways.geometry[ways["name"] == name].values)))]
@@ -167,3 +183,90 @@ def _place_storages(nodes, fine, ids, storages):
         if nodes.at[row[0], "storage"]:
             raise ValueError(f"storages {nodes.at[row[0], 'storage']} and {name} fall in the same node")
         nodes.at[row[0], "storage"] = name
+
+
+def _km(path):
+    """Great-circle length of a [lon, lat] path in km, as the page's editor measures a drawn reach."""
+    xy = np.radians(np.asarray(path, dtype=float))
+    a = np.sin(np.diff(xy[:, 1]) / 2) ** 2 + np.cos(xy[:-1, 1]) * np.cos(xy[1:, 1]) * np.sin(np.diff(xy[:, 0]) / 2) ** 2
+    return float((6371 * 2 * np.arcsin(np.sqrt(np.minimum(1, a)))).sum())
+
+
+def apply_network(nodes, system):
+    """Set the river nodes from the system's network file (``network_file``), if any, as the page's editor runs a draft.
+
+    Each draft node sets its river node's position, runoff share, area, outlet flag, basins reported and its main
+    connection; an edited reach's length is the draft's (a split reach) or its drawn line's. New nodes (added junctions and
+    tributaries) are added; a deleted node whose runoff stayed in its basin as a watershed of its own (``folded``) joins its
+    node directly, others are gone, their runoff already in another node. Connections to deleted nodes follow ``redirects``.
+    """
+    path = network_file(system)
+    if not path.exists():
+        return nodes
+    draft = json.loads(path.read_text())
+    if draft.get("system") != system:
+        raise ValueError(f"{path} is a draft for {draft.get('system')}, not {system}")
+    redirects, folded = draft.get("redirects") or {}, draft.get("folded") or {}
+
+    def resolve(i):
+        seen = set()
+        while i in redirects:
+            if i in seen:
+                raise ValueError(f"{path}: deleted nodes redirect in a loop through {i}")
+            seen.add(i)
+            i = redirects[i]
+        return i
+
+    river = set(nodes.loc[nodes["river"], "id"])
+    drafted = {n["id"]: n for n in draft["nodes"]}
+    missing = [i for i in drafted if not i.startswith(("junction-", "tributary-")) and i not in river]
+    if missing:
+        raise ValueError(f"{path} edits nodes the network no longer has ({', '.join(missing[:5])}): export the draft again from the current page")
+    main = {l["a"]: l for l in draft["links"] if l.get("b") and not l.get("split")}
+    nodes = nodes.copy()
+    totals = nodes.groupby("basin")["share"].sum()
+    rows = []
+    for i, n in drafted.items():
+        m, link = n["model"], main.get(i)
+        length = (link["km"] if link.get("km") is not None else _km(link["path"])) if link and link.get("edited") else m.get("length")
+        row = {"id": i, "basin": m["basin"], "share": m["share"], "area_km2": m["area"], "length_km": np.nan if length is None else float(length),
+               "next": link["b"] if link else "", "lon": n["lon"], "lat": n["lat"], "outlet": bool(m.get("outlet")), "loss_rank": int(m.get("lossRank") or 0),
+               "storage": m.get("storage") or "", "river": True, "path": link["path"] if link else None, "straight": bool(link and link.get("straight")),
+               "reports": list(m["reports"]) if m.get("reports") else None}
+        if i in river:
+            at = nodes.index[nodes["id"] == i][0]
+            for k, v in row.items():
+                if k not in ("storage", "loss_rank"):  # dams and calibration nodes are protected in the editor
+                    nodes.at[at, k] = v
+        else:
+            rows.append({**row, "split_path": None})
+    for i in river - set(drafted):
+        at = nodes.index[nodes["id"] == i][0]
+        if i not in folded:
+            nodes = nodes.drop(at)
+            continue
+        f = folded[i]
+        nodes.loc[at, ["share", "area_km2", "length_km", "next", "outlet", "loss_rank", "river", "straight"]] = [f["share"], f["area"], 0.0, f["next"], False, 0, False, False]
+        nodes.at[at, "path"] = None
+    nodes = pd.concat([nodes, pd.DataFrame(rows)], ignore_index=True) if rows else nodes.reset_index(drop=True)
+    nodes["next"] = [resolve(i) if i else "" for i in nodes["next"]]
+    ids = set(nodes["id"])
+    if bad := [i for i in nodes["next"] if i and i not in ids]:
+        raise ValueError(f"{path}: connections to nodes that do not exist ({', '.join(bad[:5])})")
+    after = nodes.groupby("basin")["share"].sum()
+    if not np.allclose(after.reindex(totals.index).fillna(0), totals, atol=1e-9):
+        raise ValueError(f"{path}: the draft changes a basin's total runoff share")
+    if lost := set(totals.index) - set(basin_outlets(nodes)):
+        raise ValueError(f"{path}: basins with no node reporting their flow ({', '.join(sorted(lost)[:5])})")
+    return nodes
+
+
+def network_json(nodes, system):
+    """The river nodes as a network file: the routing editor's draft format, so an exported draft can replace it."""
+    river = nodes[nodes["river"]]
+    model = lambda n: {"id": n.id, "basin": n.basin, "share": float(n.share), "area": float(n.area_km2), "length": None if pd.isna(n.length_km) else float(n.length_km),
+                       "next": n.next, "lon": n.lon, "lat": n.lat, "outlet": bool(n.outlet), "lossRank": int(n.loss_rank), "river": True,
+                       **({"storage": n.storage} if n.storage else {}), **({"reports": n.reports} if isinstance(n.reports, list) else {})}
+    return {"version": 2, "kind": "hydrology-network-draft", "system": system, "redirects": {}, "folded": {},
+            "nodes": [{"id": n.id, "lon": n.lon, "lat": n.lat, "model": model(n)} for n in river.itertuples()],
+            "links": [{"a": n.id, "b": n.next, "path": n.path, **({"straight": True} if n.straight else {})} for n in river.itertuples() if n.next and isinstance(n.path, list)]}

@@ -19,6 +19,7 @@ from run_rainfall_runoff import model_specs as rr_specs, run_rainfall_runoff
 from run_routing import model_specs as routing_specs
 import muskingum
 from channel_fluxes import channel_inputs
+from nodes import basin_outlets
 
 
 def check():
@@ -40,7 +41,7 @@ def check():
             climate[b][var] = data[i].tolist()
     forcing = pd.DataFrame(columns, index=pd.RangeIndex(n))
     outlet = next(b['id'] for b in e['basins'] if not b['next'])
-    outlets = {r.basin:r.id for r in nodes.itertuples() if r.outlet}
+    outlets = basin_outlets(nodes)
     for rr, rt in itertools.product(rr_specs(), routing_specs()):
         runoff = run_rainfall_runoff(forcing, basins, rr)
         p = {**routing_specs()[rt]['params'], **e['calibration']}

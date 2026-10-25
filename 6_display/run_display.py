@@ -23,7 +23,7 @@ for folder in ("1_masking", "2_rainfall_runoff", "3_routing", "5_outputs"):  # a
 from catchment import buffer_outline
 from config import CLIMATE_CASES, DEFAULT_RUN, DISPLAY_SYSTEMS, LINKS, SDL_UNITS, SYSTEMS, waterways_file
 from evap_grid import PIXEL_DEG
-from nodes import build_nodes
+from nodes import basin_outlets, build_nodes
 from results_db import load_climate, load_geometry, load_results
 from run_rainfall_runoff import RAINFALL_RUNOFF_MODEL, model_specs as runoff_specs
 from run_routing import ROUTING_MODEL, model_specs as routing_specs
@@ -174,7 +174,7 @@ def _engine(system, basins, basin_forcing, regions, rivers):
     splits = SYSTEMS[system]["splits"]
     nodes = build_nodes(basins, system)
     storages = SYSTEMS[system].get("storages", {})
-    outlet = dict(zip(nodes.loc[nodes["outlet"], "basin"], nodes.loc[nodes["outlet"], "id"]))
+    outlet = basin_outlets(nodes)
     return {
         "scale": 100,
         "basins": [{"id": b.subcatchment, "area": float(b.area_km2), "next": b.next_id, "lossRank": int(b.from_outlet),
@@ -185,6 +185,7 @@ def _engine(system, basins, basin_forcing, regions, rivers):
                    "next": n.next, "lon": n.lon, "lat": n.lat, "outlet": bool(n.outlet), "lossRank": int(n.loss_rank),
                    **({"river": True, **({"path": n.path} if isinstance(n.path, list) else {}), **({"straight": True} if n.straight else {})} if n.river else {}),
                    **({"splitPath": n.split_path} if isinstance(n.split_path, list) else {}),
+                   **({"reports": n.reports} if isinstance(n.reports, list) else {}),  # basins whose flow is read here (an applied editor draft)
                    **({"storage": n.storage, "maxRelease": storages[n.storage]["max_release_ML_d"]} if n.storage else {}),
                    **({"splits": {(outlet[to] if to else ""): f for to, f in splits[n.basin].items()}} if n.outlet and n.basin in splits else {})}
                   for n in nodes.itertuples()],

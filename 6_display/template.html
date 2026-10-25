@@ -834,7 +834,7 @@ $('rt-export').onclick = () => {
   if (!RT) return;
   const payload = { version:2, kind:'hydrology-network-draft', system:rtSystem, engineHash:D.engineHash, hydrologyParametersUnchanged:true, ...rtPack(RT) };
   const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'}));
-  const a = document.createElement('a'); a.href = url; a.download = rtSystem + '-network-draft.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const a = document.createElement('a'); a.href = url; a.download = rtSystem + '-network.json';  // drop it into river_systems/ to make it the model's network a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 function rtProtected(node) {
   if (!node?.model) return 'This node has no catchment source.';
