@@ -395,7 +395,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     cornerStiffnessFront:5, cornerStiffnessRear:5.2, airResist:8.56, rollResist:8 };
   const WHEELBASE=CAR.cgToFrontAxle+CAR.cgToRearAxle, INERTIA=CAR.mass*CAR.inertiaScale;
   const carScale=()=>CHASE.drawPx*chaseMpp()/CAR.length; // map metres per car metre
-  const SPEED_SCALE=2; // the car crosses the map this much faster than its simulated speed: the speedometer and handling stay as they were
+  const SPEED_SCALE=4; // the car crosses the map this much faster than its simulated speed: the speedometer and handling stay as they were
   // Game additions on top of the source model:
   //  - Traction control on normal throttle: drive is held inside what the rear tyres can take, so plain driving never
   //    spins the wheels, even wet. Boost (Shift) switches it off.
