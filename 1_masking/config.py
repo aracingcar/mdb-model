@@ -16,6 +16,15 @@ OUTLINE_BUFFER_CRS = "EPSG:3577"  # Australian Albers
 # Everything stored in results.db is keyed by unit. ecology: flow thresholds (ML/d) for the indicators scored at the
 # unit's outlet; leave an indicator out, or set ecology to None, to skip it.
 SDL_FILE = INPUT / "sdl" / "Surface Water SDL Resource Units.shp"
+# The MDBA layer ends the NSW Murray (SS14) at Tooleybuc and gives the river below it to the Lower Darling (SS18) and the Mallee
+# plain (SS9), but the NSW Murray runs to the South Australian border (NSW Murray and Lower Darling Water Resource Plan, status and
+# issues paper, 2017). So the HydroBASINS basins ``basins`` of the Murray from Boundary Bend to the border move from the units in
+# ``from`` into ``unit``, west of ``west_lon`` (the border) cut off.
+MURRAY_CORRIDOR = {
+    "unit": "SS14", "from": ("SS18", "SS9"), "west_lon": 141.0,
+    "basins": (5080595640, 5080595260, 5080595320, 5080594890, 5080595020, 5080593440, 5080591050, 5080590940, 5080591290,
+               5080590720, 5080590470, 5080589480),
+}
 SDL_UNITS = {
     "SS15": {
         "name": "Murrumbidgee", "system": "murrumbidgee",
@@ -72,14 +81,16 @@ SYSTEMS = {
         "splits": {},
         "storages": {"Wyangala Dam": {"lon": 148.97, "lat": -33.97, "max_release_ML_d": 6000}},
     },
-    # Local runoff only: the Darling's inflow from the Barwon-Darling (SS19) and the northern Basin is not modelled.
+    # Local runoff only: the Darling's inflow from the Barwon-Darling (SS19) and the northern Basin is not modelled. The Murray below
+    # Tooleybuc is in the murray system (MURRAY_CORRIDOR), so the Darling ends at its junction and joins it through LINKS.
     "lower_darling": {
         "units": ("SS18",), "n_subcatchments": 11, "mainstem": "Darling River", "other_rivers": ("Murray River",),
         "routing": {"loss_regions": None, "target_outlet_m3s": None},  # no calibration gauge chosen yet
         "splits": {},
     },
-    # The Murray with its Victorian tributaries the Kiewa and Ovens, routed into it through HydroBASINS' downstream links.
-    # Local runoff only: the Murrumbidgee and Darling, Snowy releases and regulation are not routed in, so the flows are
+    # The Murray with its Victorian tributaries the Kiewa and Ovens, routed into it through HydroBASINS' downstream links, from
+    # Hume to the South Australian border (the corridor below Tooleybuc is moved into SS14, see MURRAY_CORRIDOR). Local runoff
+    # plus the Goulburn, Murrumbidgee and Lower Darling through LINKS: Snowy releases and regulation are not routed in, so the flows are
     # uncalibrated. The Goulburn-Broken is its own system (below) that drains into the Murray; its outflow is not added
     # to the Murray's flow here.
     "murray": {
@@ -130,12 +141,10 @@ LINKS = (
     {"from": "goulburn_broken", "basin": "B5080603740", "to": "murray", "into": "B5080603920"},
     # Campaspe River at Echuca.
     {"from": "goulburn_broken", "basin": "B5080603970", "to": "murray", "into": "B5080603900"},
-    # River Murray at Tooleybuc and Wakool River (with the Edward) leave the Murray system; the Murray carries on past Boundary
-    # Bend (Murrumbidgee junction), Euston and Mildura to Wentworth, where the Lower Darling system's Murray reach starts.
-    {"from": "murray", "basin": "B5080596490", "to": "lower_darling", "into": "B5080591050"},
-    {"from": "murray", "basin": "B5080596500", "to": "lower_darling", "into": "B5080591050"},
-    # Murrumbidgee River at Balranald joins the Murray near Boundary Bend, upstream of Euston / Robinvale and of Wentworth.
-    {"from": "murrumbidgee", "basin": "B5080595630", "to": "lower_darling", "into": "B5080591050"},
+    # Lower Darling at Wentworth: the Darling's last basin joins the Murray just below the junction, inside the Murray corridor.
+    {"from": "lower_darling", "basin": "B5080591010", "to": "murray", "into": "B5080590940"},
+    # Murrumbidgee River at Balranald joins the Murray near Boundary Bend, inside the Murray corridor.
+    {"from": "murrumbidgee", "basin": "B5080595630", "to": "murray", "into": "B5080595260"},
 )
 
 

@@ -37,7 +37,7 @@ def terrain_regions(units, hybas_file, n=12, min_network_km2=None, joins=None):
     basins = gpd.read_file(hybas_file).to_crs(AREA_CRS)
     basins = basins[basins.intersects(system)].copy()
     full = basins.geometry.area
-    basins["geometry"] = basins.geometry.intersection(system)
+    basins["geometry"] = [shapely.union_all([p for p in shapely.get_parts(g) if p.geom_type == "Polygon"]) for g in basins.geometry.intersection(system)]  # not the lines where a basin's edge lies on the system's
     basins["area"] = basins.geometry.area
     basins = basins[basins["area"] / full >= MIN_OVERLAP].set_index("HYBAS_ID")
     basins["sdl_unit"] = pd.DataFrame({u: basins.geometry.intersection(g).area for u, g in polys.items()}).idxmax(axis=1)

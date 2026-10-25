@@ -1,12 +1,29 @@
 import geopandas as gpd
+import shapely
 
-from config import OUTLINE_BUFFER_CRS, OUTLINE_BUFFER_KM, SDL_FILE, UNITS
+from config import HYBAS_FILE, MURRAY_CORRIDOR, OUTLINE_BUFFER_CRS, OUTLINE_BUFFER_KM, SDL_FILE, UNITS
+
+
+def _move_murray_corridor(gdf):
+    """``gdf`` (EPSG:4326, indexed by unit) with the MURRAY_CORRIDOR basins' area moved into the corridor's unit."""
+    c = MURRAY_CORRIDOR
+    basins = gpd.read_file(HYBAS_FILE, bbox=(c["west_lon"] - 0.1, -35.5, 143.8, -33.5)).set_index("HYBAS_ID").loc[list(c["basins"])]
+    corridor = shapely.intersection(basins.geometry.union_all(), shapely.box(c["west_lon"], -90, 180, 90))
+    moved = shapely.union_all([shapely.make_valid(gdf.at[u, "geometry"]) for u in c["from"]]).intersection(corridor)
+    area_only = lambda g: shapely.union_all([p for p in shapely.get_parts(g) if p.geom_type == "Polygon"])  # drop the slivers' stray lines
+    gdf = gdf.copy()
+    gdf.at[c["unit"], "geometry"] = area_only(shapely.make_valid(gdf.at[c["unit"], "geometry"]).union(moved))
+    for u in c["from"]:
+        gdf.at[u, "geometry"] = area_only(shapely.make_valid(gdf.at[u, "geometry"]).difference(corridor))
+    return gdf
 
 
 def load_units(units=UNITS):
-    """The SDL units' outlines (MDBA surface water SDL resource units), indexed by unit ID, in EPSG:4326."""
-    gdf = gpd.read_file(SDL_FILE).set_index("SWSDLID").rename_axis("sdl_unit").loc[list(units)]
-    return gdf.rename(columns={"SWSDLName": "sdl_name"})[["sdl_name", "geometry"]].to_crs("EPSG:4326")
+    """The SDL units' outlines (MDBA surface water SDL resource units, with the Murray corridor moved into the NSW Murray),
+    indexed by unit ID, in EPSG:4326."""
+    gdf = gpd.read_file(SDL_FILE).set_index("SWSDLID").rename_axis("sdl_unit").to_crs("EPSG:4326")
+    gdf = _move_murray_corridor(gdf).loc[list(units)]
+    return gdf.rename(columns={"SWSDLName": "sdl_name"})[["sdl_name", "geometry"]]
 
 
 def load_catchment():

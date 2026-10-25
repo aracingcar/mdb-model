@@ -1,4 +1,4 @@
-import numpy as np
+import pandas as pd
 import xarray as xr
 import rioxarray  # noqa: F401  (registers the .rio accessor)
 
@@ -13,8 +13,9 @@ def load_narclim():
         da = xr.open_mfdataset(files, combine="by_coords")[var] * SECONDS_PER_DAY
         arrays.append(da.rename(name))
     ds = xr.merge(arrays)
-    if ds.time.dtype == object:  # a 365-day calendar (NorESM2-MM): use real dates, and fill each missing 29 February from its neighbours
-        ds = ds.convert_calendar("standard", missing=np.nan).chunk({"time": -1}).interpolate_na("time")
+    if ds.time.dtype == object:  # a 365-day calendar (NorESM2-MM): use real dates, with each missing 29 February repeating 28 February
+        ds = ds.convert_calendar("standard")
+        ds = ds.reindex(time=pd.date_range(ds.time.values[0], ds.time.values[-1], freq="D"), method="ffill")
     ds["time"] = ds.time.dt.floor("D")  # daily means are stamped at 12:00
     ds = ds.assign_coords(rlon=ds.rlon % 360 - 180)  # into ROTATED_POLE_CRS's half-turned frame, where rlon never wraps
     ds = ds.rio.set_spatial_dims(x_dim="rlon", y_dim="rlat").rio.write_crs(ROTATED_POLE_CRS)
