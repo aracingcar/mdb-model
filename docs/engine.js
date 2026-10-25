@@ -56,7 +56,7 @@ const ROUTING = {
       if (!Number.isFinite(p[key]) || p[key] < 0) throw new Error(`Invalid ${key}`);
     }
     if (!climate) throw new Error('Channel fluxes require P/PET forcing');
-    const lengths = nodes.map(n => n.length > 0 ? n.length : 1.5 * Math.sqrt(n.area));
+    const lengths = nodes.map(n => n.length != null ? n.length : 1.5 * Math.sqrt(n.area));
     const channelLengths = nodes.map((n, i) => n.basin.startsWith('LOWLAND') ? 0 : lengths[i]);
     const surface = nodes.map((n, i) => Math.min(channelLengths[i] * p.channel_width_m / 1000, basins[bidx[n.basin]].area * n.share));
     const lateral = nodes.map((n, i) => runoffM3s[bidx[n.basin]].map(v =>

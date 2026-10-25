@@ -14,6 +14,8 @@
   #map { position:absolute; left:400px; right:0; top:0; bottom:74px; }
   .maplibregl-ctrl-bottom-right,.maplibregl-ctrl-bottom-left { display:none; }
   #side { position:absolute; left:0; top:0; bottom:74px; width:400px; padding:30px 34px 14px 54px; overflow:hidden; display:flex; flex-direction:column; }
+  #kicker select { appearance:none; -webkit-appearance:none; margin:0; padding:0; border:0; border-bottom:1px dotted transparent; border-radius:0; background:transparent; color:inherit; font:inherit; letter-spacing:inherit; text-transform:inherit; cursor:pointer; }
+  #kicker select:hover, #kicker select:focus-visible { border-bottom-color:currentColor; outline:none; }
   #kicker { font-weight:700; font-size:17px; letter-spacing:.01em; text-transform:uppercase; color:var(--head); }
   h1 { margin:20px 0 0; font-weight:300; font-size:33px; line-height:1.18; color:var(--head); letter-spacing:-.005em; }
   #desc { margin-top:14px; font-size:14px; line-height:1.4; color:var(--dim); font-weight:400; }
@@ -71,7 +73,6 @@
   #climate-panel summary { cursor:pointer; font-weight:600; color:var(--head); }
   #climate-fields { display:grid; gap:8px; margin-top:12px; }
   #climate-fields label { display:grid; gap:3px; }
-  #climate-fields .years { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   #climate-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
   #climate-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
   #climate-meta { margin:8px 0 0; color:var(--dim); line-height:1.4; }
@@ -136,7 +137,7 @@
 </details>
 <div id="map"></div>
 <div id="side">
-  <div id="kicker">__TITLE__ / 2027&ndash;2036</div>
+  <div id="kicker"><span id="kicker-title">__TITLE__</span> / <select id="climate-start" aria-label="Start year" title="Start year"><option>2027</option></select>&ndash;<select id="climate-end" aria-label="End year" title="End year"><option>2036</option></select></div>
   <h1>Water on the land,<br>day by day</h1>
   <div id="desc">Rolling 30-day potential evaporation on the native 4 km grid, minus its normal for that day of the year, smoothed over the land&rsquo;s own terrain, with rivers at their routed flow.</div>
   <div id="wd"></div>
@@ -163,10 +164,6 @@
     <label for="climate-global">Global model<select id="climate-global"></select></label>
     <label for="climate-scenario">Scenario<select id="climate-scenario"></select></label>
     <label for="climate-regional">Regional configuration<select id="climate-regional"></select></label>
-    <div class="years">
-      <label for="climate-start">Start year<select id="climate-start"></select></label>
-      <label for="climate-end">End year<select id="climate-end"></select></label>
-    </div>
   </div>
   <p id="climate-meta"></p>
 </details>
@@ -317,6 +314,9 @@ let RT = null;  // { nodes, links } while the editor is open; rtLayers() draws t
 const rtShow = { terrain: true, rivers: true }, rtShows = k => !RT || rtShow[k];  // the editor can hide the terrain and the rivers under its network
 const redraw = () => overlay?.setProps({ layers:layers() });
 async function drawRouting(fit) {
+  try { await drawRoutingNetwork(fit); } catch (e) { console.error(e); $('rt-sub').textContent = 'Could not draw the network: ' + e.message; }
+}
+async function drawRoutingNetwork(fit) {
   const sys = $('rt-system').value, spec = D.routing.specs[$('routing-model').value];
   $('rt-title').textContent = `Routing network · ${spec.label}`;
   $('rt-sub').textContent = 'Loading…';
@@ -327,28 +327,28 @@ async function drawRouting(fit) {
   const kids = Object.fromEntries(B.map(b => [b.id, []]));
   for (const b of B) if (b.next) kids[b.next].push(b.id);
   // channel travel time K as the routing computes it (length / wave speed, at most 2.4 days; a reach under 0.7 days is a fractional-day lag)
-  const K = b => Math.min(2.4, (b.length > 0 ? b.length : 1.5 * Math.sqrt(b.area)) / p.velocity_km_day);
+  const K = b => Math.min(2.4, (b.length != null ? b.length : 1.5 * Math.sqrt(b.area)) / p.velocity_km_day);
   const lossy = b => b.lossRank >= 1 && b.lossRank <= (p.loss_regions || 0);
   const cum = {}, total = id => cum[id] ??= byId[id].area + kids[id].reduce((a, c) => a + total(c), 0);
   B.forEach(b => total(b.id));
-  const roots = B.filter(b => !b.next).map(b => b.id), maxCum = Math.max(...roots.map(id => cum[id])), Ks = B.map(K), k0 = Math.min(...Ks), k1 = Math.max(...Ks);
+  const roots = B.filter(b => !b.next).map(b => b.id), maxCum = Math.max(...roots.map(id => cum[id])), Ks = B.filter(b => b.river).map(K), k0 = Math.min(...Ks), k1 = Math.max(...Ks);
   const shade = k => { const t = k1 > k0 ? (k - k0) / (k1 - k0) : 0.5, c = (a, b) => Math.round(a + (b - a) * t); return [c(207, 29), c(224, 79), c(238, 124), 255]; };
-  const nodes = B.map(b => ({ id: b.id, lon: b.lon, lat: b.lat, r: b.storage ? 11 : Math.min(8, 2.5 + Math.sqrt(b.area) / 9), fill: b.storage ? [230, 140, 30, 255] : shade(K(b)), ring: lossy(b), outlet: !b.next, storage: b.storage,
-    tip: [b.storage ? `<b>${b.storage}</b>storage · releases up to ${b.maxRelease.toLocaleString()} ML/d, never spills` : `<b>${b.id}</b>${Math.round(b.area).toLocaleString()} km² · ${b.next ? 'drains to ' + b.next : 'outlet'}`,
-      `${(b.share * 100).toFixed(0)}% of basin ${b.basin} runoff · K ${K(b).toFixed(2)} d · x ${p.x}`, lossy(b) ? 'Carries the calibrated miscellaneous loss' : ''].filter(Boolean).join('<br>') }));
-  const at = Object.fromEntries(nodes.map(n => [n.id, n])), links = [];
-  for (const b of B) {
-    if (b.next) links.push({ a: at[b.id], b: at[b.next], w: 1 + 4 * Math.sqrt(cum[b.id] / maxCum) });
-    for (const [to, share] of Object.entries(b.splits || {})) if (to) links.push({ a: at[b.id], b: at[to], w: 2, split: true });  // flow sent somewhere other than downstream
-  }
+  const folded = Object.fromEntries(B.filter(b => b.river).map(b => [b.id, { n: 0, area: 0 }]));  // smaller watersheds that join a river node directly, with no channel of their own
+  for (const b of B) if (!b.river) { folded[b.next].n++; folded[b.next].area += b.area; }
+  const nodes = B.filter(b => b.river).map(b => ({ id: b.id, lon: b.lon, lat: b.lat, r: b.storage ? 11 : Math.min(8, 3 + Math.sqrt(cum[b.id]) / 40), fill: b.storage ? [230, 140, 30, 255] : shade(K(b)), ring: lossy(b), outlet: !b.next, storage: b.storage,
+    tip: [b.storage ? `<b>${b.storage}</b>storage · releases up to ${b.maxRelease.toLocaleString()} ML/d, never spills` : `<b>${b.id}</b>${Math.round(cum[b.id]).toLocaleString()} km² drain through here${b.next ? '' : ' · outlet'}`,
+      folded[b.id].n ? `${folded[b.id].n} smaller watershed${folded[b.id].n > 1 ? 's' : ''} (${Math.round(folded[b.id].area).toLocaleString()} km²) join the river here` : '',
+      `${(b.share * 100).toFixed(0)}% of basin ${b.basin} runoff · reach ${b.length != null ? b.length.toFixed(1) + ' km' : 'unmapped'} · K ${K(b).toFixed(2)} d · x ${p.x}`, lossy(b) ? 'Carries the calibrated miscellaneous loss' : ''].filter(Boolean).join('<br>') }));
+  const at = Object.fromEntries(nodes.map(n => [n.id, n])), links = B.filter(b => b.river && b.next).map(b => ({ a: at[b.id], b: at[b.next], path: b.path, straight: b.straight, w: 1 + 4 * Math.sqrt(cum[b.id] / maxCum) }));
+  for (const b of B) for (const [to] of Object.entries(b.splits || {})) if (to && at[b.id] && at[to]) links.push({ a: at[b.id], b: at[to], path: [[at[b.id].lon, at[b.id].lat], [at[to].lon, at[to].lat]], w: 2, split: true });  // flow sent somewhere other than downstream
   RT = { nodes, links };
-  const lossN = B.filter(lossy).length, dams = B.filter(b => b.storage).length;
-  $('rt-sub').textContent = `${B.length} nodes in ${eng.basins.length} basins, ${roots.length} outlet${roots.length > 1 ? 's' : ''}${dams ? `, ${dams} storage${dams > 1 ? 's' : ''} (orange)` : ''}. Editing is not available yet.`;
+  const lossN = nodes.filter(n => n.ring).length, dams = B.filter(b => b.storage).length;
+  $('rt-sub').textContent = `${nodes.length} river nodes (of ${B.length} watersheds) in ${eng.basins.length} basins, ${roots.length} outlet${roots.length > 1 ? 's' : ''}${dams ? `, ${dams} storage${dams > 1 ? 's' : ''} (orange)` : ''}. Editing is not available yet.`;
   $('rt-foot').replaceChildren(
     ...[`Muskingum x ${p.x}`, `wave speed ${p.velocity_km_day} km/d`, `channel width ${p.channel_width_m} m; evaporation ${p.pet_factor} × PET`,
         `seepage ${p.seepage_ML_day_km} ML/day/km; provisional misc coefficient ${p.misc_loss_per_km}/km`, `K ${k0.toFixed(1)}–${k1.toFixed(1)} d`,
         p.target_outlet_m3s != null ? `misc loss over the last ${p.loss_regions} reaches (${lossN} nodes, red ring), fitted to ${(p.target_outlet_m3s * p.target_scale).toFixed(1)} m³/s at the outlet` : 'no outlet loss calibration',
-        'node size: watershed area', 'link width: area drained above it'].map(t => { const s = document.createElement('span'); s.textContent = t; return s; }),
+        'node size: area drained', 'link width: area drained above it'].map(t => { const s = document.createElement('span'); s.textContent = t; return s; }),
     Object.assign(document.createElement('span'), { className: 'ramp', title: 'node colour: K, light = short, dark = long' }));
   redraw();
   if (fit && map) {
@@ -364,7 +364,7 @@ function rtLayers() {
   if (!RT) return [];
   const blend = { depthWriteEnabled:false, depthCompare:'always' }, at = n => [n.lon, n.lat, rtShow.terrain ? groundZ(n.lon, n.lat) * TERR + 1400 : 0], trig = [relief, meshGen, rtShow.terrain];
   return [
-    new deck.PathLayer({ id:'rt-links', data:RT.links, getPath:d => [at(d.a), at(d.b)], getColor:d => d.split ? [192,86,42,235] : [28,52,92,215], getWidth:d => d.w, widthUnits:'pixels', capRounded:true,
+    new deck.PathLayer({ id:'rt-links', data:RT.links, getPath:d => d.path.map(([x, y]) => at({ lon:x, lat:y })), getColor:d => d.split ? [192,86,42,235] : d.straight ? [28,52,92,110] : [28,52,92,215], getWidth:d => d.w, widthUnits:'pixels', capRounded:true,
       pickable:false, parameters:blend, updateTriggers:{ getPath:trig } }),
     new deck.ScatterplotLayer({ id:'rt-nodes', data:RT.nodes, getPosition:at, getRadius:d => d.r, radiusUnits:'pixels', getFillColor:d => d.fill, stroked:true,
       getLineColor:d => d.ring ? [192,57,43,255] : [255,255,255,240], getLineWidth:d => d.ring ? 2.5 : 1, lineWidthUnits:'pixels', billboard:true, pickable:true, parameters:blend, updateTriggers:{ getPosition:trig } }),
@@ -399,7 +399,7 @@ function setPeriod() {
   fillYears('climate-start', FIRST_YEAR, b - 1, a);
   fillYears('climate-end', a + 1, LAST_YEAR, b);
   W0 = D.days.indexOf(`${a}-01-01`); W1 = D.days.indexOf(`${b}-12-31`);
-  $('kicker').textContent = `${D.title} / ${a}\u2013${b}`;
+  $('kicker-title').textContent = D.title;
   if (day < W0 || day > W1) day = W0;
   update();
 }

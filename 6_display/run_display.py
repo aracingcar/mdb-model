@@ -127,7 +127,7 @@ def _engine(system, basins, basin_forcing, regions, rivers):
     """Everything the browser needs to re-run one river system's rainfall-runoff, routing, river flows and ecology on another method pair."""
     names = list(basins["subcatchment"])
     splits = SYSTEMS[system]["splits"]
-    nodes = build_nodes(basins, SYSTEMS[system].get("storages"))
+    nodes = build_nodes(basins, system)
     storages = SYSTEMS[system].get("storages", {})
     outlet = dict(zip(nodes.loc[nodes["outlet"], "basin"], nodes.loc[nodes["outlet"], "id"]))
     return {
@@ -135,9 +135,10 @@ def _engine(system, basins, basin_forcing, regions, rivers):
         "basins": [{"id": b.subcatchment, "area": float(b.area_km2), "next": b.next_id, "lossRank": int(b.from_outlet),
                     "lon": round(b.geometry.representative_point().x, 4), "lat": round(b.geometry.representative_point().y, 4)}
                    for b in basins.itertuples()],
-        # routing nodes: where each basin's runoff (its area share) joins the river, linked downstream through the terrain
+        # routing nodes: where each basin's runoff (its area share) joins the river. River nodes (river: true) are linked along the river by ``path``; the others join the river node below them directly
         "nodes": [{"id": n.id, "basin": n.basin, "share": float(n.share), "area": float(n.area_km2), "length": None if pd.isna(n.length_km) else float(n.length_km),
                    "next": n.next, "lon": n.lon, "lat": n.lat, "outlet": bool(n.outlet), "lossRank": int(n.loss_rank),
+                   **({"river": True, **({"path": n.path} if isinstance(n.path, list) else {}), **({"straight": True} if n.straight else {})} if n.river else {}),
                    **({"storage": n.storage, "maxRelease": storages[n.storage]["max_release_ML_d"]} if n.storage else {}),
                    **({"splits": {(outlet[to] if to else ""): f for to, f in splits[n.basin].items()}} if n.outlet and n.basin in splits else {})}
                   for n in nodes.itertuples()],

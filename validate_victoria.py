@@ -61,7 +61,7 @@ for u, series in unit_flow.items():
 sinks = basins.loc[basins.next_id == '', 'subcatchment'].tolist()
 from channel_fluxes import channel_inputs
 from nodes import build_nodes
-nodes = build_nodes(basins, SYSTEM.get('storages'))
+nodes = build_nodes(basins, SYSTEM_ID)
 local, _ = channel_inputs(runoff, nodes, basins, pd.concat(forcing, axis=1), PARAMS, delivery)
 lateral = sum(float(v.sum()) for v in local.values()) * M3S_TO_ML_DAY
 budget = flow.attrs['channel_budget_ML'].sum()

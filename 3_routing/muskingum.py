@@ -101,7 +101,7 @@ def route(runoff, basins, subcatchments, p=PARAMS, *, basin_forcing=None):
     ["storages"] holds each storage's daily inflow-routed release and stored volume (ML/d, ML).
     """
     p = {**p, **CALIBRATION}
-    nodes = build_nodes(basins, SYSTEM.get("storages"))
+    nodes = build_nodes(basins, SYSTEM_ID)
     outlet_node = dict(zip(nodes.loc[nodes["outlet"], "basin"], nodes.loc[nodes["outlet"], "id"]))
     outlet = outlet_node[basins.loc[basins["next_id"] == "", "subcatchment"].iloc[0]]
     channel = channel_inputs(runoff, nodes, basins, basin_forcing, p, delivery)
