@@ -76,6 +76,36 @@ def _ribbon(line, mean_flow, peak, dem):
     return None if ribbon.is_empty else _rings(ribbon, dem)
 
 
+GAP_DEG = 0.4  # main-stem mapping gaps up to this (~45 km, Lake Hume) are drawn across
+
+
+def _gap_links(rivers, max_deg=GAP_DEG):
+    """Straight pieces across the gaps in a main stem's mapping (OSM has none across lakes, forests and anabranches): for each
+    main-stem river, the nearest ends of unjoined pieces within max_deg are linked, nearest first.
+    Returns [(line, river_id of one side, river_id of the other)]."""
+    links = []
+    for name in {s["mainstem"] for s in SYSTEMS.values()}:
+        parts = [(g, r.river_id) for r in rivers[rivers["name"] == name].itertuples() for g in shapely.get_parts(r.geometry)]
+        lines = np.array([g for g, _ in parts], dtype=object)
+        parent = list(range(len(parts)))
+
+        def root(i):
+            while parent[i] != i:
+                i = parent[i]
+            return i
+
+        for i, j in shapely.STRtree(lines).query(lines, predicate="dwithin", distance=1e-4).T:
+            parent[root(i)] = root(j)
+        ends = [(shapely.Point(c), i) for i, g in enumerate(lines) for c in (g.coords[0][:2], g.coords[-1][:2])]
+        pairs = sorted((a.distance(b), n, m) for n, (a, i) in enumerate(ends) for m, (b, j) in enumerate(ends) if n < m and i != j and a.distance(b) <= max_deg)
+        for _, n, m in pairs:
+            (a, i), (b, j) = ends[n], ends[m]
+            if root(i) != root(j):
+                parent[root(i)] = root(j)
+                links.append((shapely.LineString([a, b]), parts[i][1], parts[j][1]))
+    return links
+
+
 def _rivers(rivers, mean_flow, dem):
     """Ribbons (width grows with mean flow) for every river segment, plus thin context lines for unrouted rivers."""
     peak = mean_flow.max()
@@ -84,6 +114,11 @@ def _rivers(rivers, mean_flow, dem):
         rings = _ribbon(r.geometry, mean_flow[r.river_id], peak, dem)
         if rings:
             reaches.append({"unit": r.river_id, "name": r.name, "kind": r.kind, "rings": rings})
+    for line, a, b in _gap_links(rivers):  # drawn with the flow of whichever side carries more
+        rings = _ribbon(line, max(mean_flow[a], mean_flow[b]), peak, dem)
+        if rings:
+            side = rivers[rivers["river_id"] == a].iloc[0]
+            reaches.append({"unit": a, "name": side["name"], "kind": side["kind"], "rings": rings})
     ways = pd.concat([gpd.read_file(waterways_file(s)) for s in DISPLAY_SYSTEMS], ignore_index=True)
     ways = ways[(ways.waterway == "river") & (ways.name != "") & (~ways.name.isin(set(rivers["name"])))].drop_duplicates("osm_id")
     top = ways.assign(len=ways.length).sort_values("len", ascending=False).head(CONTEXT_RIVERS * len(DISPLAY_SYSTEMS))
