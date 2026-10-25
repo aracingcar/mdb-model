@@ -47,7 +47,7 @@ const ROUTING = {
   // Muskingum down the node network (the finer watersheds inside each basin) with explicit channel fluxes, residual miscellaneous loss, optional flow
   // splits and storages, as in 3_routing/muskingum.py. A node takes its share of its basin's delivered runoff; its K is
   // channel length / wave speed, and a reach shorter than MIN_K days is a fractional-day lag instead of a Muskingum reach.
-  muskingum(runoffM3s, basins, p, nodes, climate, recordBudget = false) {
+  muskingum(runoffM3s, basins, p, nodes, climate, recordBudget = false, inflows = {}) {
     const MIN_K = 0.7;
     const bidx = Object.fromEntries(basins.map((b, i) => [b.id, i])), idx = Object.fromEntries(nodes.map((n, i) => [n.id, i]));
     const nDays = runoffM3s[0].length;
@@ -61,6 +61,8 @@ const ROUTING = {
     const surface = nodes.map((n, i) => Math.min(channelLengths[i] * p.channel_width_m / 1000, basins[bidx[n.basin]].area * n.share));
     const lateral = nodes.map((n, i) => runoffM3s[bidx[n.basin]].map(v =>
       v * delivery(n.basin) * n.share * (1 - surface[i] / (basins[bidx[n.basin]].area * n.share))));
+    // what other river systems send in (m3/s per node id) joins the node's own runoff, but is not the basin's own lateral inflow
+    const supply = lateral.map((a, i) => { const q = inflows[nodes[i].id]; return q ? a.map((v, t) => v + q[t]) : a; });
     const lateralBasin = basins.map(() => new Float64Array(nDays));
     nodes.forEach((n, i) => { for (let t = 0; t < nDays; t++) lateralBasin[bidx[n.basin]][t] += lateral[i][t]; });
     for (const b of basins) for (const variable of ['P', 'PET']) {
@@ -88,7 +90,7 @@ const ROUTING = {
     const route = (loss, recordBudget = false) => {
       const out = new Array(nodes.length), budgets = {};
       for (const i of order) {
-        const inflow = Float64Array.from(lateral[i]);
+        const inflow = Float64Array.from(supply[i]);
         for (const [c, share] of feeds[i]) { const o = out[c]; for (let t = 0; t < nDays; t++) inflow[t] += o[t] * share; }
         const x = p.x, kk = k[i], dt = 1;
         const y = new Float64Array(nDays);
@@ -229,9 +231,11 @@ function b64ToU16(b64) {
   const buf = Buffer.from(b64, 'base64'); return new Uint16Array(buf.buffer, buf.byteOffset, buf.length / 2).slice();
 }
 
-/** engine: one river system's engine data file; days: the date strings; rr / routing: {algorithm, params}. Returns the
- * reach and river flows plus, per SDL unit, the flow at its outlet and its ecology scores. */
-function run(engine, days, rr, routing) {
+/** engine: one river system's engine data file; days: the date strings; rr / routing: {algorithm, params}; upstream:
+ * {system: {basin: ML/d series}}, the outflows other systems returned (engine.inflows names the ones this system takes).
+ * Returns the reach and river flows plus, per SDL unit, the flow at its outlet and its ecology scores, and the outflow of
+ * every basin other systems take water from (engine.exports). */
+function run(engine, days, rr, routing, upstream = {}) {
   const nb = engine.basins.length, n = days.length;
   const P = b64ToU16(engine.P), PET = b64ToU16(engine.PET), sc = engine.scale;
   const simulate = RAINFALL_RUNOFF[rr.algorithm], route = ROUTING[routing.algorithm];
@@ -244,7 +248,14 @@ function run(engine, days, rr, routing) {
     const depth = simulate(p, e, rr.params);
     return depth.map(v => v * b.area * 1000 / 86400);  // mm/day over km2 -> m3/s
   });
-  const { basinFlow, lateralMLd } = route(runoff, engine.basins, { ...routing.params, ...engine.calibration }, engine.nodes, climate);
+  const inflows = {};
+  for (const { node, from, basin, above = 0 } of engine.inflows || []) {  // a spill link only passes the flow above its threshold
+    const series = upstream[from]?.[basin];
+    if (!series || series.length !== n) throw new Error(`No flow from ${from} ${basin}`);
+    const q = inflows[node] ||= new Float64Array(n);
+    for (let t = 0; t < n; t++) q[t] += Math.max(series[t] - above, 0) / ML_PER_M3S_DAY;
+  }
+  const { basinFlow, lateralMLd } = route(runoff, engine.basins, { ...routing.params, ...engine.calibration }, engine.nodes, climate, false, inflows);
   const at = Object.fromEntries(engine.basins.map((b, i) => [b.id, i]));
 
   const reachFlow = {};
@@ -263,7 +274,8 @@ function run(engine, days, rr, routing) {
     const flow = basinFlow[at[outlet]];
     sdl[unit] = { flow: Array.from(flow, v => Math.round(v)), ...ecology(flow, days, thresholds) };
   }
-  return { reachFlow, riverFlow, sdl };
+  const outflows = Object.fromEntries((engine.exports || []).map(basin => [basin, Array.from(basinFlow[at[basin]])]));
+  return { reachFlow, riverFlow, sdl, outflows };
 }
 
 if (typeof module !== 'undefined') module.exports = { run, ecology, RAINFALL_RUNOFF, ROUTING };
@@ -272,7 +284,7 @@ if (typeof module !== 'undefined') module.exports = { run, ecology, RAINFALL_RUN
 if (typeof self !== 'undefined' && typeof self.postMessage === 'function' && typeof window === 'undefined') {
   self.onmessage = ({ data }) => {
     try {
-      const result = run(data.engine, data.days, data.rr, data.routing);
+      const result = run(data.engine, data.days, data.rr, data.routing, data.upstream);
       self.postMessage({ id: data.id, result }, Object.values(result.riverFlow).map(a => a.buffer));
     } catch (error) { self.postMessage({ id: data.id, error: String(error) }); }
   };

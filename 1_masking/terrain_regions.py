@@ -17,7 +17,7 @@ def _project_polygons(frame, crs):
     return frame
 
 
-def terrain_regions(units, hybas_file, n=12, min_network_km2=None):
+def terrain_regions(units, hybas_file, n=12, min_network_km2=None, joins=None):
     """Aggregate the HydroBASINS watersheds of a river system into reaches, each inside one SDL unit, plus one lowland
     unit per SDL unit for the plains HydroBASINS has no drainage for. ``units`` are the system's SDL unit outlines,
     indexed by unit ID. Returns (regions, basins): the reaches and lowlands, and the individual watersheds with their
@@ -30,6 +30,7 @@ def terrain_regions(units, hybas_file, n=12, min_network_km2=None):
     from_outlet numbers the main-stem reaches from the system outlet (1 = the outlet reach); other basins get 0.
     Other drainage networks (draining out of the system elsewhere) join the lowland, unless min_network_km2 is set:
     then each one at least that big is kept as a reach of its own, ending where it leaves the system.
+    ``joins`` ({basin: downstream basin}) then replaces those basins' downstream links; the reaches stay as grouped.
     """
     polys = units.to_crs(AREA_CRS).geometry
     system = polys.union_all()
@@ -125,6 +126,11 @@ def terrain_regions(units, hybas_file, n=12, min_network_km2=None):
         kept = kept.loc[[outlet] + [i for i in kept.index if i != outlet]]
     kept["subcatchment"] = [f"B{i}" for i in kept.index]
     kept["next_id"] = [f"B{nxt[i]}" if i in nxt else "" for i in kept.index]
+    names = {f"B{i}": i for i in kept.index}
+    for basin, down in (joins or {}).items():
+        if basin not in names or down not in names:
+            raise ValueError(f"join {basin} -> {down} names a basin that is not in the system")
+        kept.loc[names[basin], "next_id"] = down
     kept["from_outlet"] = kept["region"].map(lambda o: from_outlet.get(o, 0)).astype(int)
     kept["region"] = kept["region"].map(code)
     kept["area_km2"] = kept.geometry.area / 1e6

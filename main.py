@@ -7,8 +7,9 @@ ROOT = Path(__file__).parent
 for folder in ("1_masking", "2_rainfall_runoff", "3_routing", "4_ecology", "5_outputs", "6_display"):
     sys.path.insert(0, str(ROOT / folder))
 
-from config import DEFAULT_RUN, DISPLAY_SYSTEMS, RUN_KEY, SDL_UNITS, UNITS
+from config import DEFAULT_RUN, LINKS, RUN_KEY, RUN_ORDER, SDL_UNITS, SYSTEM_ID, UNITS
 from outputs_io import write_data
+from results_db import save_link_flows
 from run_display import run_display
 from run_ecology import run_ecology
 from run_masking import run_masking
@@ -21,6 +22,7 @@ def run_system():
     units, subcatchments, basins, basin_forcing = run_masking()
     runoff = run_rainfall_runoff(basin_forcing, basins)
     unit_flow, reach_flow, basin_flow, rivers, river_flow = run_routing(runoff, basins, subcatchments, basin_forcing=basin_forcing)
+    save_link_flows(SYSTEM_ID, RUN_KEY, {l["basin"]: basin_flow[l["basin"]] for l in LINKS if l["from"] == SYSTEM_ID})  # for the systems they feed
     for u in UNITS:
         of = lambda frame: frame[frame["sdl_unit"] == u]
         regions, unit_rivers = of(subcatchments), of(rivers)
@@ -33,7 +35,7 @@ if __name__ == "__main__":
     if "SYSTEM" in os.environ:
         run_system()
     else:  # each system in its own process (config is per system), then the page shows them all
-        for system in DISPLAY_SYSTEMS:
+        for system in RUN_ORDER:  # a system after those that feed it
             subprocess.run([sys.executable, __file__], env={**os.environ, "SYSTEM": system}, check=True)
         if RUN_KEY == DEFAULT_RUN:  # docs/ shows the default run only
             run_display()

@@ -40,7 +40,7 @@ def run_masking():
     reaches (and lowlands) for display. Each unit's reduced climate is stored in the database under its SDL unit.
     """
     units = load_units()
-    subcatchments, basins = terrain_regions(units, HYBAS_FILE, n=N_SUBCATCHMENTS, min_network_km2=SYSTEM.get("min_network_km2"))
+    subcatchments, basins = terrain_regions(units, HYBAS_FILE, n=N_SUBCATCHMENTS, min_network_km2=SYSTEM.get("min_network_km2"), joins=SYSTEM.get("joins"))
     of = lambda frame, u: frame[frame["sdl_unit"] == u]
     if any(load_climate(u, RUN_KEY, of(subcatchments, u), of(basins, u)) is None for u in UNITS):
         print(f"1_masking: no stored climate for {SYSTEM_ID} {'/'.join(RUN_KEY)}, reducing NARCliM")

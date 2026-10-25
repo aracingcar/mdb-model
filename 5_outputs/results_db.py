@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "1_masking"))
 from config import DB_FILE
 
 CLIMATE_BLOBS = ("forcing", "subcatchment_forcing", "basin_forcing", "evap_grid")
+LEGACY_TABLES = ("climate", "geometry", "results")  # the tables that predate the SDL unit key
 RESULT_BLOBS = ("flow", "reach_flow", "river_flow", "fish", "birds", "gum")  # an ecology table is NULL when the unit has no thresholds for it
 TABLES = {
     "climate": f"""sdl_unit TEXT NOT NULL, global_model TEXT, scenario TEXT, regional_config TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -28,13 +29,15 @@ TABLES = {
     "results": f"""sdl_unit TEXT NOT NULL, global_model TEXT, scenario TEXT, regional_config TEXT, rainfall_runoff TEXT, routing TEXT,
         created TEXT DEFAULT CURRENT_TIMESTAMP, {", ".join(f"{b} BLOB" for b in RESULT_BLOBS)},
         PRIMARY KEY (sdl_unit, global_model, scenario, regional_config, rainfall_runoff, routing)""",
+    # routed outflow (ML/d) of the basins where one river system's water enters another (config.LINKS), from the default methods
+    "link_flows": "system TEXT NOT NULL, global_model TEXT, scenario TEXT, regional_config TEXT, basin TEXT NOT NULL, flow BLOB, PRIMARY KEY (system, global_model, scenario, regional_config, basin)",
 }
 UNKEYED_UNIT = "CEWO-MBG"  # databases from before the SDL unit key held only the Murrumbidgee, on its CEWO valley outline
 
 
 def _add_unit_key(db):
     """Move rows from tables without an sdl_unit column under UNKEYED_UNIT, after backing the file up beside it."""
-    old = [t for t in TABLES if (cols := [r[1] for r in db.execute(f"PRAGMA table_info({t})")]) and "sdl_unit" not in cols]
+    old = [t for t in LEGACY_TABLES if (cols := [r[1] for r in db.execute(f"PRAGMA table_info({t})")]) and "sdl_unit" not in cols]
     if not old:
         return
     backup = DB_FILE.with_name(f"{DB_FILE.stem}_before_sdl_unit{DB_FILE.suffix}")
@@ -159,3 +162,19 @@ def load_results(unit, run, methods):
         return None
     flow, *rest = [None if b is None else _unpack_frame(b) for b in row]
     return (flow["flow_ML_d"], *rest)
+
+
+def save_link_flows(system, run, flows):
+    """Store the routed outflow (ML/d, a Series per basin ID) of the basins in ``flows`` that other river systems take water from."""
+    with _connect() as db:
+        for basin, flow in flows.items():
+            db.execute("INSERT OR REPLACE INTO link_flows (system, global_model, scenario, regional_config, basin, flow) VALUES (?,?,?,?,?,?)",
+                       (system, *run, basin, _pack_frame(flow.rename("flow_ML_d").to_frame())))
+
+
+def load_link_flow(system, run, basin):
+    """The stored outflow (ML/d Series, daily) of a river system's basin for a run, or None."""
+    with _connect() as db:
+        row = db.execute("SELECT flow FROM link_flows WHERE system=? AND global_model=? AND scenario=? AND regional_config=? AND basin=?",
+                         (system, *run, basin)).fetchone()
+    return None if row is None else _unpack_frame(row[0])["flow_ML_d"]

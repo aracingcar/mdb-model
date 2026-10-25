@@ -24,7 +24,8 @@ ROOT = Path(__file__).resolve().parent.parent
 for folder in ("1_masking", "2_rainfall_runoff", "3_routing", "4_ecology", "5_outputs"):
     sys.path.insert(0, str(ROOT / folder))
 
-from config import DISPLAY_SYSTEMS, RUN_KEY, SDL_UNITS, SYSTEM_ID, UNITS
+from config import DISPLAY_SYSTEMS, LINKS, RUN_KEY, SDL_UNITS, SYSTEM_ID, UNITS
+from muskingum import link_flow
 from results_db import load_climate, load_geometry
 from run_ecology import run_ecology
 from run_rainfall_runoff import AVAILABLE_MODELS as RR_MODELS, model_specs as rr_specs, run_rainfall_runoff
@@ -35,7 +36,7 @@ const fs = require('fs'), engine = require(process.argv[1]);
 const {data, ref} = JSON.parse(fs.readFileSync(process.argv[2]));
 let worst = 0;
 for (const r of ref) {
-  const out = engine.run(data.engine, data.days, data.rr[r.rr], data.routing[r.routing]);
+  const out = engine.run(data.engine, data.days, data.rr[r.rr], data.routing[r.routing], data.upstream);
   const rep = {};
   const d = (name, a, b) => { let m = 0; for (let i = 0; i < b.length; i++) m = Math.max(m, Math.abs(a[i] - b[i])); rep[name] = m; };
   for (const u in r.reachFlow) d('reach ' + u, out.reachFlow[u], r.reachFlow[u]);
@@ -101,7 +102,10 @@ def check_system():
         ref.append({"rr": rr, "routing": routing, "sdl": sdl,
                     "reachFlow": {c: reach_flow[c].round(0).tolist() for c in reach_flow},
                     "riverFlow": {c: np.clip(river_flow[c].round(0), 0, 65535).tolist() for c in river_flow}})
-    data = {"system": SYSTEM_ID, "engine": engine, "days": days, "rr": rr_specs(), "routing": routing_specs()}
+    upstream = {}  # the stored outflows of the systems feeding this one, which Python read for the same dates
+    for link in (l for l in LINKS if l["to"] == SYSTEM_ID):
+        upstream.setdefault(link["from"], {})[link["basin"]] = link_flow(link, quantised.index).tolist()
+    data = {"system": SYSTEM_ID, "engine": engine, "days": days, "rr": rr_specs(), "routing": routing_specs(), "upstream": upstream}
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "ref.json"
         path.write_text(json.dumps({"data": data, "ref": ref}, allow_nan=False))

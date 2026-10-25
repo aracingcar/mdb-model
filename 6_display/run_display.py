@@ -21,7 +21,7 @@ for folder in ("1_masking", "2_rainfall_runoff", "3_routing", "5_outputs"):  # a
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / folder))
 
 from catchment import buffer_outline
-from config import CLIMATE_CASES, DEFAULT_RUN, DISPLAY_SYSTEMS, SDL_UNITS, SYSTEMS, waterways_file
+from config import CLIMATE_CASES, DEFAULT_RUN, DISPLAY_SYSTEMS, LINKS, SDL_UNITS, SYSTEMS, waterways_file
 from evap_grid import PIXEL_DEG
 from nodes import build_nodes
 from results_db import load_climate, load_geometry, load_results
@@ -154,6 +154,10 @@ def _engine(system, basins, basin_forcing, regions, rivers):
                    **({"splits": {(outlet[to] if to else ""): f for to, f in splits[n.basin].items()}} if n.outlet and n.basin in splits else {})}
                   for n in nodes.itertuples()],
         "calibration": SYSTEMS[system]["routing"],
+        # water other river systems send in (config.LINKS): their routed outflow of `basin` enters node `node`; and the basins of this system others take from
+        "inflows": [{"node": outlet[l["into"]], "from": l["from"], "basin": l["basin"], **({"above": l["spill_above_ML_d"]} if "spill_above_ML_d" in l else {})}
+                    for l in LINKS if l["to"] == system],
+        "exports": sorted({l["basin"] for l in LINKS if l["from"] == system}),
         "P": _quantised(basin_forcing, names, "P"),
         "PET": _quantised(basin_forcing, names, "PET"),
         "reachOutlet": {r.subcatchment: r.outlet_basin for r in regions.itertuples()},

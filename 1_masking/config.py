@@ -50,6 +50,11 @@ SDL_UNITS = {
 # other_rivers (optional): rivers of other systems that run through this one; they are not given this system's flow.
 # min_network_km2 (optional): also give reaches to every other drainage network at least this big that leaves the
 #   system elsewhere (by default only the main network gets reaches and the rest joins the lowland).
+# joins (optional): {basin: downstream basin} replaces a basin's HydroBASINS downstream link, for a river that runs on through
+#   basins outside the system (or another system's stub) to a basin of this system. Applied after the reaches are grouped,
+#   so reaches and the stored climate keyed by them do not change.
+# keep_links (optional): basins whose outlet node keeps its straight-line link to the next river node even over the
+#   MAX_GAP_KM (3_routing/nodes.py) where the mapped channel cannot be followed; for main-stem links the cut would strand.
 SYSTEMS = {
     "murrumbidgee": {
         "units": ("SS15", "SS1"), "n_subcatchments": 11, "mainstem": "Murrumbidgee River",
@@ -82,6 +87,13 @@ SYSTEMS = {
         "other_rivers": ("Murrumbidgee River", "Darling River", "Goulburn River"),
         "routing": {"loss_regions": None, "target_outlet_m3s": None},
         "splits": {},
+        # Barmah (B5080602660) drains past the Goulburn-Broken system's B5080603740, the Murray stub at the Goulburn mouth, so it
+        # joins Echuca's B5080603920 directly (that stub's own runoff arrives through LINKS). The Edward-Wakool tributaries run
+        # through two or more unmodelled basins into the Wakool B5080596500, which joins the Murray at Tooleybuc.
+        "joins": {"B5080602660": "B5080603920", "B5080597940": "B5080596500", "B5080599730": "B5080596500"},
+        # OSM's Murray River has 5-9 km gaps between ways from Echuca to Swan Hill, so the Echuca - Torrumbarry - Swan Hill links
+        # find no mapped channel and would be cut; the Edward-Wakool links run over unmapped country to the Wakool
+        "keep_links": ("B5080603590", "B5080601020", "B5080597940", "B5080599730"),
         "storages": {"Hume Dam": {"lon": 147.03, "lat": -36.10, "max_release_ML_d": 25000},
                      "Dartmouth Dam": {"lon": 147.52, "lat": -36.55, "max_release_ML_d": 12000}},
     },
@@ -96,6 +108,44 @@ SYSTEMS = {
     },
 }
 DISPLAY_SYSTEMS = ("murrumbidgee", "lachlan", "lower_darling", "murray", "goulburn_broken")  # drawn together on docs/index.html
+
+# Cross-system links, from HydroBASINS' downstream links where a system's river leaves it. Each system routes in its own
+# process; a link adds the routed outflow of its basin ``basin`` in system ``from`` to the outlet node of basin ``into`` in
+# system ``to`` (in 3_routing/muskingum.py, and in docs/engine.js for the browser), so the systems run in RUN_ORDER. Basins
+# are HydroBASINS level-8 IDs. spill_above_ML_d (optional): only the flow above this goes on; the rest stays in the terminal
+# wetland. The value is an indicative placeholder, not a measured spill threshold. A link may skip basins outside every system.
+LINKS = (
+    # Lachlan River, Great Cumbung Swamp: terminal, dissipating in the swamp; only a flood overtops it into the Murrumbidgee
+    # at the Lowbidgee (Murrumbidgee at Oxley / Balranald).
+    {"from": "lachlan", "basin": "B5080593360", "to": "murrumbidgee", "into": "B5080594380", "spill_above_ML_d": 10000},
+    # Goulburn River at McCoys Bridge / Murchison joins the Murray just above Echuca, upstream of Torrumbarry Weir.
+    {"from": "goulburn_broken", "basin": "B5080603790", "to": "murray", "into": "B5080603920"},
+    # Murray stub from Barmah past the Goulburn mouth (its own runoff only; the Murray itself comes in through ``joins``).
+    {"from": "goulburn_broken", "basin": "B5080603740", "to": "murray", "into": "B5080603920"},
+    # Campaspe River at Echuca.
+    {"from": "goulburn_broken", "basin": "B5080603970", "to": "murray", "into": "B5080603900"},
+    # River Murray at Tooleybuc and Wakool River (with the Edward) leave the Murray system; the Murray carries on past Boundary
+    # Bend (Murrumbidgee junction), Euston and Mildura to Wentworth, where the Lower Darling system's Murray reach starts.
+    {"from": "murray", "basin": "B5080596490", "to": "lower_darling", "into": "B5080591050"},
+    {"from": "murray", "basin": "B5080596500", "to": "lower_darling", "into": "B5080591050"},
+    # Murrumbidgee River at Balranald joins the Murray near Boundary Bend, upstream of Euston / Robinvale and of Wentworth.
+    {"from": "murrumbidgee", "basin": "B5080595630", "to": "lower_darling", "into": "B5080591050"},
+)
+
+
+def run_order():
+    """DISPLAY_SYSTEMS ordered so every system comes after the systems that feed it through LINKS."""
+    feeders = {s: {l["from"] for l in LINKS if l["to"] == s} for s in DISPLAY_SYSTEMS}
+    order = []
+    while len(order) < len(DISPLAY_SYSTEMS):
+        ready = [s for s in DISPLAY_SYSTEMS if s not in order and feeders[s] <= set(order)]
+        if not ready:
+            raise ValueError(f"LINKS make a loop through {[s for s in DISPLAY_SYSTEMS if s not in order]}")
+        order.append(ready[0])
+    return order
+
+
+RUN_ORDER = run_order()
 SYSTEM_ID = os.environ.get("SYSTEM", DISPLAY_SYSTEMS[0])  # the system this process models (main.py sets it per system)
 SYSTEM = SYSTEMS[SYSTEM_ID]
 UNITS = SYSTEM["units"]

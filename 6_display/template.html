@@ -287,7 +287,7 @@ $('focus').onchange = e => { setFocus(e.target.value); update(); if (!FULL) load
 function maxQ() { return (!FULL && D.maxQ) || Math.max(...Object.values(D.sdl).map(s => Math.max(...s.flow)), ...Object.values(D.reachFlow).map(a => Math.max(...a))); }
 
 // ---- Method choice: the defaults are precomputed; any other pair is recalculated here (engine.js in a worker) and saved in IndexedDB ----
-const ENGINE_VERSION = 4;  // bump when docs/engine.js changes what it computes, so saved results are not reused
+const ENGINE_VERSION = 5;  // bump when docs/engine.js changes what it computes, so saved results are not reused
 const DEFAULT_RR = D.runoff.selected, DEFAULT_RT = D.routing.selected;
 const DEFAULT_RESULTS = { reachFlow: D.reachFlow, sdl: D.sdl, riverFlow: { ...BF } };
 function applyResults(r) {
@@ -312,15 +312,23 @@ const getEngines = () => enginePromise ||= Promise.all(Object.values(D.engines).
 function recalc(rr, rt) {
   return new Promise((res, rej) => {
     worker ||= new Worker('engine.js');
-    const one = engine => new Promise((ok, fail) => {
+    const one = (engine, upstream) => new Promise((ok, fail) => {
       const id = ++calcId;
       worker.onmessage = ({ data }) => { if (data.id === id) data.error ? fail(new Error(data.error)) : ok(data.result); };
       worker.onerror = e => fail(new Error(e.message));
-      worker.postMessage({ id, engine, days: D.days, rr: D.runoff.specs[rr], routing: D.routing.specs[rt] });
+      worker.postMessage({ id, engine, days: D.days, rr: D.runoff.specs[rr], routing: D.routing.specs[rt], upstream });
     });
     getEngines().then(async engines => {  // one river system after another, merged into one result
-      const merged = { reachFlow: {}, riverFlow: {}, sdl: {} };
-      for (const engine of engines) { const r = await one(engine); for (const k in merged) Object.assign(merged[k], r[k]); }
+      const merged = { reachFlow: {}, riverFlow: {}, sdl: {} }, upstream = {};
+      const todo = Object.keys(D.engines).map((name, i) => [name, engines[i]]);
+      while (todo.length) {  // a system runs once every system sending water into it has
+        const next = todo.findIndex(([, e]) => (e.inflows || []).every(l => l.from in upstream));
+        if (next < 0) throw new Error('river systems send water round in a loop');
+        const [name, engine] = todo.splice(next, 1)[0];
+        const r = await one(engine, upstream);
+        upstream[name] = r.outflows;
+        for (const k in merged) Object.assign(merged[k], r[k]);
+      }
       return merged;
     }).then(res, rej);
   });
