@@ -115,12 +115,13 @@ def _along_river(nodes, watersheds, system):
     """
     spec = SYSTEMS[system]
     splits, outlet = spec.get("splits", {}), dict(zip(nodes.loc[nodes["outlet"], "basin"], nodes.loc[nodes["outlet"], "id"]))
-    ends = set(nodes.loc[nodes["outlet"] & ~nodes["basin"].str.startswith("LOWLAND"), "id"]) | {n for b, to in splits.items() for n in [outlet[b], *(outlet[t] for t in to if t)]}
+    splitting = {n for b, to in splits.items() for n in [outlet[b], *(outlet[t] for t in to if t)]}
+    ends = set(nodes.loc[nodes["outlet"] & ~nodes["basin"].str.startswith("LOWLAND"), "id"]) | splitting
     ways = gpd.read_file(waterways_file(system))
     ways = ways[(ways.waterway == "river") & ~ways["name"].isin(spec.get("other_rivers", ()))]
     reach = shapely.union_all(watersheds.values).buffer(0.05)
     lines = [g for g in shapely.intersection(ways.geometry.values, reach) if not g.is_empty]
-    view = river_view(nodes, watersheds, lines, spec.get("storages"), ends)
+    view = river_view(nodes, watersheds, lines, spec.get("storages"), ends, splitting)
     nodes = nodes.copy()
     nodes["river"] = nodes["id"].isin(view["spot"])
     nodes["next"] = nodes["id"].map(view["next"])

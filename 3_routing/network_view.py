@@ -20,6 +20,7 @@ BRIDGE_DEG = 0.2  # separate river pieces are joined across gaps up to this (~5 
 T_JOIN_DEG = 0.01  # a river ending within this (~1 km) of another joins it there
 KM_PER_DEG = 111
 MIN_TRIBUTARY_KM2 = 500  # a branch draining less than this above its mouth is folded into the river it joins
+JUNCTION_SLACK_DEG = 0.02  # a confluence node moves up to where its branches meet only if that is within ~2 km of its own watershed
 DETOUR = 6  # a river path more than this times longer than the straight line is not the same river: draw the straight line
 
 
@@ -95,7 +96,7 @@ def _graph(pieces, bridges):
 
 
 def _path(adj, src, dst):
-    """Shortest river path between two graph nodes as (coordinates, length), or None."""
+    """Shortest river path between two graph nodes as (coordinates, length, graph nodes passed from src to dst), or None."""
     best, back, queue = {src: 0.0}, {}, [(0.0, src)]
     while queue:
         d, n = heapq.heappop(queue)
@@ -109,19 +110,30 @@ def _path(adj, src, dst):
                 heapq.heappush(queue, (d + w, m))
     if dst not in best:
         return None
-    parts, n = [], dst
+    parts, passed, n = [], [dst], dst
     while n != src:
         n, coords = back[n]
         parts.append(coords)
+        passed.append(n)
     coords = [c for part in parts[::-1] for c in part]
-    return coords, best[dst]
+    return coords, best[dst], passed[::-1]
 
 
-def river_view(nodes, watersheds, river_lines, storages=None, fixed=()):
+def _junction(adj, feeds, at):
+    """Where the river paths from the graph nodes ``feeds`` to ``at`` first all meet, or None if fewer than two reach it."""
+    routes = [r[2] for r in (_path(adj, f, at) for f in feeds) if r is not None]
+    if len(routes) < 2:
+        return None
+    rest = [set(r) for r in routes[1:]]
+    return next(n for n in routes[0] if all(n in r for r in rest))
+
+
+def river_view(nodes, watersheds, river_lines, storages=None, fixed=(), pinned=()):
     """Place ``nodes`` (the frame ``build_nodes`` builds before this step) on the river and keep the river nodes.
 
     ``watersheds`` is each node's polygon (EPSG:4326, indexed by node id), ``river_lines`` the mapped rivers (EPSG:4326
-    geometries), ``storages`` {name: {lon, lat, ...}} and ``fixed`` node ids that always stay. Returns ``spot`` {kept node:
+    geometries), ``storages`` {name: {lon, lat, ...}}, ``fixed`` node ids that always stay and ``pinned`` those of them
+    that keep their own spot rather than move up to a confluence (flow splits). Returns ``spot`` {kept node:
     (lon, lat) on the river}, ``next`` {every node: the kept node it drains into, '' at an outlet}, and for each kept node
     that drains on: ``path`` ([lon, lat] points along the river to its next node), ``km`` (that path's length) and ``straight``
     (the nodes with no mapped channel to the next one, so a straight line).
@@ -196,6 +208,15 @@ def river_view(nodes, watersheds, river_lines, storages=None, fixed=()):
 
     pts = [spot[i] for i in kept]
     adj, key = _graph(*_pieces(lines, pts))
+    # a confluence node sits where its branches meet, not lower down its watershed, or their reaches would run on together
+    moved = {}
+    for d, feeds in feeders.items():
+        if len(feeds) < 2 or row.at[d, "storage"] or d in pinned or watersheds.get(d) is None:
+            continue
+        at = _junction(adj, [key((spot[f].x, spot[f].y)) for f in feeds], key((spot[d].x, spot[d].y)))
+        if at is not None and watersheds[d].buffer(JUNCTION_SLACK_DEG).contains(shapely.Point(at)):
+            moved[d] = shapely.Point(at)
+    spot.update(moved)
     out = {"spot": {}, "next": {}, "path": {}, "km": {}, "straight": set()}
     for i in row.index:
         d = first(down[i], kept) if down[i] else None
