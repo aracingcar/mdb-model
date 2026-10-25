@@ -86,7 +86,13 @@ SYSTEMS = {
         "units": ("SS14", "SS2", "SS3", "SS4"), "n_subcatchments": 14, "mainstem": "Murray River", "min_network_km2": 500,
         "other_rivers": ("Murrumbidgee River", "Darling River", "Goulburn River"),
         "routing": {"loss_regions": None, "target_outlet_m3s": None},
-        "splits": {},
+        # Offtakes, as indicative shares of the river's flow there. Yarrawonga Weir diverts ~1,900 GL a year, ~17% of the river's flow
+        # (Goulburn-Murray Water), split by offtake capacity: Mulwala Canal (10,000 ML/d) ~13% and Yarrawonga Main Channel (3,100 ML/d)
+        # ~4%. Mulwala Canal supplies Murray Irrigation and drains to the Edward River (Deniliquin, B5080599730); the Main Channel's
+        # irrigation drains by Broken Creek back to the Murray at Barmah (B5080602310). Torrumbarry Weir's National Channel takes
+        # ~500 GL a year (Goulburn-Murray Water), about 6% of the flow there, to the Torrumbarry irrigation area, outside this system.
+        "splits": {"B5080603240": {"B5080599730": 0.13, "B5080602310": 0.04},  # Murray at Lake Mulwala, upstream of Yarrawonga Weir: Ovens already in
+                   "B5080603590": {"": 0.06}},  # Murray at Echuca, upstream of Torrumbarry Weir: Goulburn and Campaspe already in
         # Barmah (B5080602660) drains past the Goulburn-Broken system's B5080603740, the Murray stub at the Goulburn mouth, so it
         # joins Echuca's B5080603920 directly (that stub's own runoff arrives through LINKS). The Edward-Wakool tributaries run
         # through two or more unmodelled basins into the Wakool B5080596500, which joins the Murray at Tooleybuc.
