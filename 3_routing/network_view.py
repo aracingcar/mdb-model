@@ -119,9 +119,8 @@ def _path(adj, src, dst):
     return coords, best[dst], passed[::-1]
 
 
-def _junction(adj, feeds, at):
-    """Where the river paths from the graph nodes ``feeds`` to ``at`` first all meet, or None if fewer than two reach it."""
-    routes = [r[2] for r in (_path(adj, f, at) for f in feeds) if r is not None]
+def _junction(routes):
+    """Where river paths (lists of graph nodes) first all meet, or None if there are fewer than two."""
     if len(routes) < 2:
         return None
     rest = [set(r) for r in routes[1:]]
@@ -135,8 +134,9 @@ def river_view(nodes, watersheds, river_lines, storages=None, fixed=(), pinned=(
     geometries), ``storages`` {name: {lon, lat, ...}}, ``fixed`` node ids that always stay and ``pinned`` those of them
     that keep their own spot rather than move up to a confluence (flow splits). Returns ``spot`` {kept node:
     (lon, lat) on the river}, ``next`` {every node: the kept node it drains into, '' at an outlet}, and for each kept node
-    that drains on: ``path`` ([lon, lat] points along the river to its next node), ``km`` (that path's length) and ``straight``
-    (the nodes with no mapped channel to the next one, so a straight line).
+    that drains on: ``path`` ([lon, lat] points along the river to its next node), ``km`` (that path's length), ``straight``
+    (the nodes with no mapped channel to the next one, so a straight line) and ``side`` (the basin outlets placed inside their
+    catchment, whose straight reach is a stand-in for an unmapped creek).
     """
     storages = storages or {}
     lines = [g for geom in river_lines for g in shapely.get_parts(shapely.line_merge(geom)) if g.length > 0]
@@ -189,35 +189,45 @@ def river_view(nodes, watersheds, river_lines, storages=None, fixed=(), pinned=(
     for i in on_river:
         if spot[i] is None:
             spot[i] = drain[i]
-    kept = set(on_river)
+    adj, key = _graph(*_pieces(lines, [spot[i] for i in on_river]))
+    at_key = lambda i: key((spot[i].x, spot[i].y))
+    lateral = set()  # watersheds along another branch's river with no channel of their own: they fold into the node below
     while True:
-        feeders = defaultdict(set)
-        for i in kept:
-            d = first(down[i], kept) if down[i] else None
-            if d is not None:
-                feeders[d].add(i)
-        drop = {i for i in kept if not row.at[i, "storage"] and down[i] is not None and i not in fixed and len(feeders[i]) == 1}
-        if not drop:
+        kept = on_river - lateral
+        while True:
+            feeders = defaultdict(set)
+            for i in kept:
+                d = first(down[i], kept) if down[i] else None
+                if d is not None:
+                    feeders[d].add(i)
+            drop = {i for i in kept if not row.at[i, "storage"] and down[i] is not None and i not in fixed and len(feeders[i]) == 1}
+            if not drop:
+                break
+            kept -= drop
+        # a confluence node sits where its branches meet, not lower down its watershed, or their reaches would run on together;
+        # a branch that starts on another branch's path down to it is no branch, just runoff entering along that river
+        moved, alongside, side = {}, set(), set()
+        for d, feeds in feeders.items():
+            if len(feeds) < 2 or row.at[d, "storage"] or d in pinned or watersheds.get(d) is None:
+                continue
+            routes = {f: r[2] for f in feeds if (r := _path(adj, at_key(f), at_key(d))) is not None}
+            on_branch = {f for f in routes if not feeders.get(f) and not row.at[f, "storage"] and any(at_key(f) in r for g, r in routes.items() if g != f)}
+            alongside |= on_branch - set(fixed)
+            side |= on_branch & set(fixed)
+            at = _junction(list(routes.values()))
+            if at is not None and watersheds[d].buffer(JUNCTION_SLACK_DEG).contains(shapely.Point(at)):
+                moved[d] = shapely.Point(at)
+        if not alongside:
             break
-        kept -= drop
-    feeders = defaultdict(set)
-    for i in kept:
-        d = first(down[i], kept) if down[i] else None
-        if d is not None:
-            feeders[d].add(i)
-
-    pts = [spot[i] for i in kept]
-    adj, key = _graph(*_pieces(lines, pts))
-    # a confluence node sits where its branches meet, not lower down its watershed, or their reaches would run on together
-    moved = {}
-    for d, feeds in feeders.items():
-        if len(feeds) < 2 or row.at[d, "storage"] or d in pinned or watersheds.get(d) is None:
-            continue
-        at = _junction(adj, [key((spot[f].x, spot[f].y)) for f in feeds], key((spot[d].x, spot[d].y)))
-        if at is not None and watersheds[d].buffer(JUNCTION_SLACK_DEG).contains(shapely.Point(at)):
-            moved[d] = shapely.Point(at)
+        lateral |= alongside
     spot.update(moved)
-    out = {"spot": {}, "next": {}, "path": {}, "km": {}, "straight": set()}
+    # a basin outlet that must stay but has no mapped channel of its own (its creek is not in the river layer) would sit on
+    # the junction it drains to: it goes inside its catchment instead, joined to the junction by a straight unmapped reach
+    def catchment(i):
+        return [i] + [j for c in upstream[i] for j in catchment(c)]
+    for f in side:
+        spot[f] = shapely.union_all([watersheds[j] for j in catchment(f) if watersheds.get(j) is not None]).representative_point()
+    out = {"spot": {}, "next": {}, "path": {}, "km": {}, "straight": set(), "side": side}
     for i in row.index:
         d = first(down[i], kept) if down[i] else None
         out["next"][i] = d or ""

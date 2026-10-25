@@ -132,7 +132,7 @@ def _along_river(nodes, watersheds, system):
     nodes["path"] = nodes["id"].map(view["path"])
     nodes["straight"] = nodes["id"].isin(view["straight"])
     kept_basins = spec.get("keep_links", ())  # main-stem links the cut would strand
-    cut = nodes["straight"] & (nodes["length_km"] > MAX_GAP_KM) & ~(nodes["outlet"] & nodes["basin"].isin(kept_basins))  # a river with no mapped channel to the next one, far off: its water ends here
+    cut = nodes["straight"] & (nodes["length_km"] > MAX_GAP_KM) & ~(nodes["outlet"] & nodes["basin"].isin(kept_basins)) & ~nodes["id"].isin(view["side"])  # a river with no mapped channel to the next one, far off: its water ends here (not an unmapped creek, which still joins)
     nodes.loc[cut, "next"], nodes.loc[cut, "length_km"], nodes.loc[cut, "straight"] = "", np.nan, False
     nodes.loc[cut, "path"] = None
     nodes["split_path"] = None
