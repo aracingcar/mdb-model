@@ -112,8 +112,19 @@
   #rt-head b { font-size:14px; color:var(--head); }
   #rt-head select { padding:4px 6px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
   #rt-head label:has(input) { display:flex; gap:5px; align-items:center; cursor:pointer; }
-  #rt-head .grow { flex:1; color:var(--dim); }
+  #rt-head .grow { flex:1 0 100%; order:3; color:var(--dim); }
+  #rt-editor details { color:var(--dim); }
+  #rt-editor summary { cursor:pointer; padding:3px 0; }
   #rt-close { padding:4px 10px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--head); font:inherit; cursor:pointer; }
+  #rt-tools { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  #rt-tools button { padding:6px 10px; border:1px solid var(--rule); border-radius:4px; background:white; cursor:pointer; color:var(--head); }
+  #rt-tools button:disabled { opacity:.4; cursor:default; }
+  #rt-tools button[aria-pressed="true"] { background:#1d4f7c; color:white; }
+  #rt-legend { display:flex; flex-wrap:wrap; gap:4px 14px; padding:5px 0; border-top:1px solid var(--rule); }
+  #rt-legend span { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
+  #rt-legend img { width:23px; height:23px; }
+  #rt-legend .ring { width:17px; height:17px; border:2px solid #c0392b; border-radius:50%; box-sizing:border-box; }
+  #rt-status { margin:2px 0; line-height:1.5; }
   #rt-foot { color:var(--dim); }
   #rt-foot .ramp { width:90px; height:8px; border-radius:4px; background:linear-gradient(90deg,#cfe0ee,#1d4f7c); }
   @media (max-width:900px) { #rt-editor { left:12px; right:12px; bottom:70px; } }
@@ -213,7 +224,15 @@
 <label id="sdl-toggle" for="sdlIn"><span>SDL units</span><input id="sdlIn" type="checkbox" role="switch"></label>
 <div id="rt-editor" role="dialog" aria-label="Routing network">
   <div id="rt-head"><b id="rt-title">Routing network</b><label>River system <select id="rt-system"></select></label><label><input type="checkbox" id="rt-terrain" checked> Terrain</label><label><input type="checkbox" id="rt-rivers" checked> Rivers</label><label><input type="checkbox" id="rt-borders" checked> Planning unit borders</label><span class="grow" id="rt-sub"></span><button type="button" id="rt-close">Close</button></div>
-  <div id="rt-foot"></div>
+  <div id="rt-legend" aria-label="Node symbol legend"></div>
+  <div id="rt-tools" aria-label="Network editing tools">
+    <button id="rt-move" disabled>Move node</button><button id="rt-add" disabled>Add tributary</button>
+    <button id="rt-connect" disabled>Reconnect downstream</button><button id="rt-join" disabled>Join channel</button><button id="rt-delete" disabled>Delete node</button>
+    <label>Tributary runoff share <input id="rt-share" type="number" min="1" max="99" value="25" style="width:50px">%</label><button id="rt-run">Apply &amp; recalculate flows</button><button id="rt-undo" disabled>Undo</button><button id="rt-reset">Reset network</button><button id="rt-export">Export draft</button>
+  </div>
+  <p id="rt-status" role="status" aria-live="polite">Select a node to edit.</p>
+  <div>Edits are saved in this browser. Apply to update flows. New tributaries take the chosen share of the selected node’s catchment runoff; total catchment area is preserved. System links, dams, diversions and calibration nodes are protected; deleting a basin outlet moves its basin’s flow reporting to the node below.</div>
+  <details><summary>Hydrology settings (unchanged)</summary><div id="rt-foot"></div></details>
 </div>
 <div id="tip"></div>
 <div id="err">The map libraries could not load. Open this page with an internet connection.</div>
@@ -224,7 +243,7 @@
 <script>
 (async () => {
 // Geometry, climate series and the flow results are separate files (see run_display.py), so editing the page does not rewrite them.
-const META = {"title":"Murrumbidgee, ACT, Lachlan, Lower Darling, NSW Murray, Victorian Murray, Kiewa, Ovens, Goulburn and Broken","focus":"SS15","climate":{"globalModel":"ACCESS-ESM1-5","scenario":"ssp245","regionalConfig":"WRF412R5","period":"2015\u20132100","source":"NARCliM2.0","resolution":"4 km","frequency":"Daily"},"cases":[{"id":"best","label":"Best case","globalModel":"NorESM2-MM","scenario":"ssp126","regionalConfig":"WRF412R3","built":false},{"id":"median","label":"Median","globalModel":"ACCESS-ESM1-5","scenario":"ssp245","regionalConfig":"WRF412R5","built":true},{"id":"worst","label":"Worst case","globalModel":"UKESM1-0-LL","scenario":"ssp370","regionalConfig":"WRF412R5","built":false}],"runoff":{"selected":"gr4j","specs":{"gr4j":{"label":"GR4J","algorithm":"gr4j","params":[350.0,0.0,90.0,1.7]},"gr4j_2":{"label":"GR4J (alt. parameters)","algorithm":"gr4j","params":[300.0,-0.5,80.0,2.2]}}},"routing":{"selected":"muskingum","specs":{"muskingum":{"label":"Muskingum","algorithm":"muskingum","params":{"x":0.2,"velocity_km_day":86.4,"delivery":{"LOWLAND":0.05},"target_scale":1.0,"channel_width_m":10.0,"pet_factor":1.0,"seepage_ML_day_km":0.02,"misc_loss_per_km":0.001}},"muskingum_2":{"label":"Muskingum (alt. parameters)","algorithm":"muskingum","params":{"x":0.15,"velocity_km_day":64.8,"delivery":{"LOWLAND":0.08},"target_scale":0.8888888888888888,"channel_width_m":10.0,"pet_factor":1.0,"seepage_ML_day_km":0.02,"misc_loss_per_km":0.001}}}},"run":"ACCESS-ESM1-5_ssp245_WRF412R5","years":[2015,2100],"demoYears":[2027,2036],"maxQ":121197,"engines":{"murrumbidgee":"data/engine_murrumbidgee_ACCESS-ESM1-5_ssp245_WRF412R5.json","lachlan":"data/engine_lachlan_ACCESS-ESM1-5_ssp245_WRF412R5.json","lower_darling":"data/engine_lower_darling_ACCESS-ESM1-5_ssp245_WRF412R5.json","murray":"data/engine_murray_ACCESS-ESM1-5_ssp245_WRF412R5.json","goulburn_broken":"data/engine_goulburn_broken_ACCESS-ESM1-5_ssp245_WRF412R5.json"},"engineHash":"2590abe606","demoFiles":["data/demo/geometry.json","data/demo/climate.json","data/demo/climate_murrumbidgee.json","data/demo/flow_murrumbidgee.json","data/demo/climate_lachlan.json","data/demo/flow_lachlan.json","data/demo/climate_lower_darling.json","data/demo/flow_lower_darling.json","data/demo/climate_murray.json","data/demo/flow_murray.json","data/demo/climate_goulburn_broken.json","data/demo/flow_goulburn_broken.json"],"details":{"murrumbidgee":"data/demo/detail_murrumbidgee.json","lachlan":"data/demo/detail_lachlan.json","lower_darling":"data/demo/detail_lower_darling.json","murray":"data/demo/detail_murray.json","goulburn_broken":"data/demo/detail_goulburn_broken.json"},"detailStep":0.01,"files":["data/full/geometry.json","data/full/climate.json","data/full/climate_murrumbidgee.json","data/full/flow_murrumbidgee.json","data/full/climate_lachlan.json","data/full/flow_lachlan.json","data/full/climate_lower_darling.json","data/full/flow_lower_darling.json","data/full/climate_murray.json","data/full/flow_murray.json","data/full/climate_goulburn_broken.json","data/full/flow_goulburn_broken.json"]};
+const META = {"title":"Murrumbidgee, ACT, Lachlan, Lower Darling, NSW Murray, Victorian Murray, Kiewa, Ovens, Goulburn and Broken","focus":"SS15","climate":{"globalModel":"ACCESS-ESM1-5","scenario":"ssp245","regionalConfig":"WRF412R5","period":"2015\u20132100","source":"NARCliM2.0","resolution":"4 km","frequency":"Daily"},"cases":[{"id":"best","label":"Best case","globalModel":"NorESM2-MM","scenario":"ssp126","regionalConfig":"WRF412R3","built":false},{"id":"median","label":"Median","globalModel":"ACCESS-ESM1-5","scenario":"ssp245","regionalConfig":"WRF412R5","built":true},{"id":"worst","label":"Worst case","globalModel":"UKESM1-0-LL","scenario":"ssp370","regionalConfig":"WRF412R5","built":false}],"runoff":{"selected":"gr4j","specs":{"gr4j":{"label":"GR4J","algorithm":"gr4j","params":[350.0,0.0,90.0,1.7]},"gr4j_2":{"label":"GR4J (alt. parameters)","algorithm":"gr4j","params":[300.0,-0.5,80.0,2.2]}}},"routing":{"selected":"muskingum","specs":{"muskingum":{"label":"Muskingum","algorithm":"muskingum","params":{"x":0.2,"velocity_km_day":86.4,"delivery":{"LOWLAND":0.05},"target_scale":1.0,"channel_width_m":10.0,"pet_factor":1.0,"seepage_ML_day_km":0.02,"misc_loss_per_km":0.001}},"muskingum_2":{"label":"Muskingum (alt. parameters)","algorithm":"muskingum","params":{"x":0.15,"velocity_km_day":64.8,"delivery":{"LOWLAND":0.08},"target_scale":0.8888888888888888,"channel_width_m":10.0,"pet_factor":1.0,"seepage_ML_day_km":0.02,"misc_loss_per_km":0.001}}}},"run":"ACCESS-ESM1-5_ssp245_WRF412R5","years":[2015,2100],"demoYears":[2027,2036],"maxQ":126572,"engines":{"murrumbidgee":"data/engine_murrumbidgee_ACCESS-ESM1-5_ssp245_WRF412R5.json","lachlan":"data/engine_lachlan_ACCESS-ESM1-5_ssp245_WRF412R5.json","lower_darling":"data/engine_lower_darling_ACCESS-ESM1-5_ssp245_WRF412R5.json","murray":"data/engine_murray_ACCESS-ESM1-5_ssp245_WRF412R5.json","goulburn_broken":"data/engine_goulburn_broken_ACCESS-ESM1-5_ssp245_WRF412R5.json"},"engineHash":"16f0c1c071","demoFiles":["data/demo/geometry.json","data/demo/climate.json","data/demo/climate_murrumbidgee.json","data/demo/flow_murrumbidgee.json","data/demo/climate_lachlan.json","data/demo/flow_lachlan.json","data/demo/climate_lower_darling.json","data/demo/flow_lower_darling.json","data/demo/climate_murray.json","data/demo/flow_murray.json","data/demo/climate_goulburn_broken.json","data/demo/flow_goulburn_broken.json"],"details":{"murrumbidgee":"data/demo/detail_murrumbidgee.json","lachlan":"data/demo/detail_lachlan.json","lower_darling":"data/demo/detail_lower_darling.json","murray":"data/demo/detail_murray.json","goulburn_broken":"data/demo/detail_goulburn_broken.json"},"detailStep":0.01,"files":["data/full/geometry.json","data/full/climate.json","data/full/climate_murrumbidgee.json","data/full/flow_murrumbidgee.json","data/full/climate_lachlan.json","data/full/flow_lachlan.json","data/full/climate_lower_darling.json","data/full/flow_lower_darling.json","data/full/climate_murray.json","data/full/flow_murray.json","data/full/climate_goulburn_broken.json","data/full/flow_goulburn_broken.json"]};
 const D = { ...META };
 // The page opens on the small demo bundle (META.demoYears, coarser terrain). Other years or methods reload it with
 // ?data=full and the choices in the URL, on the full series.
@@ -287,7 +306,7 @@ $('focus').onchange = e => { setFocus(e.target.value); update(); if (!FULL) load
 function maxQ() { return (!FULL && D.maxQ) || Math.max(...Object.values(D.sdl).map(s => Math.max(...s.flow)), ...Object.values(D.reachFlow).map(a => Math.max(...a))); }
 
 // ---- Method choice: the defaults are precomputed; any other pair is recalculated here (engine.js in a worker) and saved in IndexedDB ----
-const ENGINE_VERSION = 5;  // bump when docs/engine.js changes what it computes, so saved results are not reused
+const ENGINE_VERSION = 6;  // bump when docs/engine.js changes what it computes, so saved results are not reused and browsers fetch the new engine
 const DEFAULT_RR = D.runoff.selected, DEFAULT_RT = D.routing.selected;
 const DEFAULT_RESULTS = { reachFlow: D.reachFlow, sdl: D.sdl, riverFlow: { ...BF } };
 function applyResults(r) {
@@ -307,11 +326,11 @@ const idb = (() => {
 })();
 const calc = $('calc-status'), calcText = calc.firstElementChild;
 const say = (msg, clearable) => { calc.hidden = !msg; calcText.textContent = msg || ''; $('cache-clear').hidden = !clearable; };
-let enginePromise, worker, selToken = 0, calcId = 0;
+let enginePromise, worker, selToken = 0, calcId = 0, rtApplied = false;
 const getEngines = () => enginePromise ||= Promise.all(Object.values(D.engines).map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); })));
-function recalc(rr, rt) {
+function recalc(rr, rt, network = false) {
   return new Promise((res, rej) => {
-    worker ||= new Worker('engine.js');
+    worker ||= new Worker('engine.js?v=' + ENGINE_VERSION);
     const one = (engine, upstream) => new Promise((ok, fail) => {
       const id = ++calcId;
       worker.onmessage = ({ data }) => { if (data.id === id) data.error ? fail(new Error(data.error)) : ok(data.result); };
@@ -325,7 +344,7 @@ function recalc(rr, rt) {
         const next = todo.findIndex(([, e]) => (e.inflows || []).every(l => l.from in upstream));
         if (next < 0) throw new Error('river systems send water round in a loop');
         const [name, engine] = todo.splice(next, 1)[0];
-        const r = await one(engine, upstream);
+        const r = await one(network ? rtEditedEngine(name, engine) : engine, upstream);
         upstream[name] = r.outflows;
         for (const k in merged) Object.assign(merged[k], r[k]);
       }
@@ -334,6 +353,7 @@ function recalc(rr, rt) {
   });
 }
 async function chooseMethods() {
+  if (rtApplied) { await rtRun(); return; }
   const rr = $('runoff-model').value, rt = $('routing-model').value, token = ++selToken;
   if (!FULL) { goFull({ rr, rt }); return; }  // other methods are recalculated on the full series
   if (rr === DEFAULT_RR && rt === DEFAULT_RT) { applyResults(DEFAULT_RESULTS); say(''); return; }
@@ -356,7 +376,7 @@ $('runoff-model').onchange = $('routing-model').onchange = chooseMethods;
 // The closed panels say what is chosen.
 const showPicks = () => { for (const k of ['runoff', 'routing']) pick(k + '-pick', $(k + '-model').selectedOptions[0]?.text || ''); };
 $('runoff-model').addEventListener('change', showPicks); $('routing-model').addEventListener('change', showPicks); showPicks();
-// ---- Routing editor: read-only for now. Draws the selected method's network on the map, a node per terrain watershed where it joins the river. ----
+// ---- Routing network draft editor. Draws the selected method's network on the map, a node per terrain watershed where it joins the river. ----
 const rtEngines = {};
 const rtEngine = sys => rtEngines[sys] ||= fetch(D.engines[sys]).then(r => { if (!r.ok) throw new Error(D.engines[sys]); return r.json(); });
 const prettySystem = s => s.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
@@ -388,7 +408,7 @@ async function drawRoutingNetwork(fit) {
   for (const b of B) if (!b.river) { folded[b.next].n++; folded[b.next].area += b.area; }
   const feeders = Object.fromEntries(B.filter(b => b.river).map(b => [b.id, 0]));
   for (const b of B) if (b.river && b.next) feeders[b.next]++;
-  const nodes = B.filter(b => b.river).map(b => ({ id: b.id, lon: b.lon, lat: b.lat, r: b.storage ? 11 : feeders[b.id] === 1 && b.next ? 2.5 : Math.min(8, 3 + Math.sqrt(cum[b.id]) / 40),  // a node on a single river is only where a basin's runoff is read off
+  const nodes = B.filter(b => b.river).map(b => ({ id: b.id, model: structuredClone(b), lon: b.lon, lat: b.lat, r: b.storage ? 11 : feeders[b.id] === 1 && b.next ? 2.5 : Math.min(8, 3 + Math.sqrt(cum[b.id]) / 40),  // a node on a single river is only where a basin's runoff is read off
     fill: b.storage ? [230, 140, 30, 255] : shade(K(b)), ring: lossy(b), outlet: !b.next, storage: b.storage,
     tip: [b.storage ? `<b>${b.storage}</b>storage · releases up to ${b.maxRelease.toLocaleString()} ML/d, never spills` : `<b>${b.id}</b>${Math.round(cum[b.id]).toLocaleString()} km² drain through here${b.next ? '' : ' · outlet'}`,
       folded[b.id].n ? `${folded[b.id].n} smaller watershed${folded[b.id].n > 1 ? 's' : ''} (${Math.round(folded[b.id].area).toLocaleString()} km²) join the river here` : '',
@@ -398,19 +418,30 @@ async function drawRoutingNetwork(fit) {
     if (to && at[b.id] && at[to]) links.push({ a: at[b.id], b: at[to], path: [[at[b.id].lon, at[b.id].lat], [at[to].lon, at[to].lat]], w: 3, split: true });
     else if (!to && b.splitPath) links.push({ a: at[b.id], path: smooth([[at[b.id].lon, at[b.id].lat], ...b.splitPath]), w: 3, split: true });  // a diversion that leaves the system down its own river
   }  // flow sent somewhere other than downstream
+  const outletNode = Object.fromEntries(B.filter(b => b.outlet).map(b => [b.basin, b.id]));
+  const linked = new Set([...(eng.inflows || []).map(l => l.node), ...(eng.exports || []).map(b => outletNode[b])]);
+  for (const n of nodes) n.link = linked.has(n.id);
+  rtBase = rtPack({ nodes, links });
+  rtSystem = sys;
+  rtSelected = null; rtMode = null; rtGhost = null; rtHistory = [];
   RT = { nodes, links };
+  try {
+    const saved = JSON.parse(localStorage.getItem(rtKey()) || 'null');
+    if (saved) RT = rtUnpack(saved);
+  } catch (e) { console.warn('Could not restore network draft', e); }
+  for (const n of RT.nodes) n.link = linked.has(n.id);
+  rtControls();
   const lossN = nodes.filter(n => n.ring).length, dams = B.filter(b => b.storage).length;
-  $('rt-sub').textContent = `${nodes.length} river nodes (of ${B.length} watersheds) in ${eng.basins.length} basins, ${roots.length} outlet${roots.length > 1 ? 's' : ''}${dams ? `, ${dams} storage${dams > 1 ? 's' : ''} (orange)` : ''}. Editing is not available yet.`;
+  $('rt-sub').textContent = `${RT.nodes.length} river nodes (${B.length} original watersheds) in ${eng.basins.length} basins, ${roots.length} outlet${roots.length > 1 ? 's' : ''}${dams ? `, ${dams} storage${dams > 1 ? 's' : ''} (orange)` : ''}. Select a node to edit the network.`;
   $('rt-foot').replaceChildren(
     ...[`Muskingum x ${p.x}`, `wave speed ${p.velocity_km_day} km/d`, `channel width ${p.channel_width_m} m; evaporation ${p.pet_factor} × PET`,
         `seepage ${p.seepage_ML_day_km} ML/day/km; provisional misc coefficient ${p.misc_loss_per_km}/km`, `K ${k0.toFixed(1)}–${k1.toFixed(1)} d`,
         p.target_outlet_m3s != null ? `misc loss over the last ${p.loss_regions} reaches (${lossN} nodes, red ring), fitted to ${(p.target_outlet_m3s * p.target_scale).toFixed(1)} m³/s at the outlet` : 'no outlet loss calibration',
-        'node size: area drained', 'link width: area drained above it'].map(t => { const s = document.createElement('span'); s.textContent = t; return s; }),
-    Object.assign(document.createElement('span'), { className: 'ramp', title: 'node colour: K, light = short, dark = long' }));
+        'node symbol: role in the network', 'connections: broad river bends (display only)', 'link width: original area drained above it'].map(t => { const s = document.createElement('span'); s.textContent = t; return s; }));
   redraw();
   if (fit && map) {
     const xs = nodes.map(n => n.lon), ys = nodes.map(n => n.lat);
-    map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: { top: 90, bottom: 240, left: 60, right: 60 }, maxZoom: 9, duration: 900 });
+    map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: { top: 40, bottom: $('rt-editor').offsetHeight + 100, left: 60, right: 60 }, pitch:0, maxZoom: 9, duration: 900 });
   }
 }
 function groundZ(lon, lat) {  // terrain height under a point, as the roads are draped
@@ -425,19 +456,395 @@ function smooth(path, rounds = 3) {  // Chaikin corner cutting, ends kept: the r
   }
   return path;
 }
+// Display-only generalisation: keep broad bends, not each mapped river meander.
+// Original paths remain intact for editing, export and routing-length calculations.
+function rtDisplayPath(path, toleranceKm = 2.5) {
+  if (path.length <= 2) return path;
+  const scaleX = 111.2 * Math.cos(path.reduce((sum, p) => sum + p[1], 0) / path.length * Math.PI / 180);
+  const points = path.map(([x,y]) => [x * scaleX, y * 111.2]);
+  const keep = new Set([0, path.length - 1]), pending = [[0, path.length - 1]];
+  while (pending.length) {
+    const [first,last] = pending.pop(), [ax,ay] = points[first], [bx,by] = points[last];
+    const dx = bx-ax, dy = by-ay, length2 = dx*dx + dy*dy;
+    let furthest = -1, maxDistance2 = toleranceKm * toleranceKm;
+    for (let i = first + 1; i < last; i++) {
+      const [x,y] = points[i];
+      const t = length2 ? Math.max(0, Math.min(1, ((x-ax)*dx + (y-ay)*dy)/length2)) : 0;
+      const distance2 = (x-ax-t*dx)**2 + (y-ay-t*dy)**2;
+      if (distance2 > maxDistance2) { maxDistance2 = distance2; furthest = i; }
+    }
+    if (furthest !== -1) { keep.add(furthest); pending.push([first,furthest], [furthest,last]); }
+  }
+  return smooth([...keep].sort((a,b) => a-b).map(i => path[i]), 2);
+}
+let rtLineSource = null, rtLineDisplay = [];
 function rtLayers() {
   if (!RT) return [];
+  if (rtLineSource !== RT.links) {
+    rtLineSource = RT.links;
+    rtLineDisplay = RT.links.map(link => ({...link, displayPath:rtDisplayPath(link.path)}));
+  }
   const blend = { depthWriteEnabled:false, depthCompare:'always' }, at = n => [n.lon, n.lat, rtShow.terrain ? groundZ(n.lon, n.lat) * TERR + 1400 : 0], trig = [relief, meshGen, rtShow.terrain];
   return [
-    new deck.PathLayer({ id:'rt-links', data:RT.links, getPath:d => d.path.map(([x, y]) => at({ lon:x, lat:y })), getColor:d => d.split ? [192,86,42,235] : d.straight ? [28,52,92,110] : [28,52,92,215], getWidth:d => d.w, widthUnits:'pixels', capRounded:true,
+    new deck.PathLayer({ id:'rt-links', data:rtLineDisplay, getPath:d => d.displayPath.map(([x, y]) => at({ lon:x, lat:y })), getColor:d => d.split ? [192,86,42,235] : d.straight ? [28,52,92,110] : [28,52,92,215], getWidth:d => d.w, widthUnits:'pixels', capRounded:true,
       pickable:false, parameters:blend, updateTriggers:{ getPath:trig } }),
-    new deck.ScatterplotLayer({ id:'rt-nodes', data:RT.nodes, getPosition:at, getRadius:d => d.r, radiusUnits:'pixels', getFillColor:d => d.fill, stroked:true,
-      getLineColor:d => d.ring ? [192,57,43,255] : [255,255,255,240], getLineWidth:d => d.ring ? 2.5 : 1, lineWidthUnits:'pixels', billboard:true, pickable:true, parameters:blend, updateTriggers:{ getPosition:trig } }),
+    new deck.ScatterplotLayer({ id:'rt-node-rings', data:RT.nodes.filter(n => n.ring || n.id === rtSelected), getPosition:at,
+      getRadius:d => d.id === rtSelected ? 19 : 16, radiusUnits:'pixels', filled:false, stroked:true,
+      getLineColor:d => d.id === rtSelected ? [0,150,130,255] : [192,57,43,255], getLineWidth:2.5, lineWidthUnits:'pixels',
+      billboard:true, pickable:false, parameters:blend, updateTriggers:{getPosition:trig, getRadius:rtSelected, getLineColor:rtSelected} }),
+    new deck.IconLayer({ id:'rt-nodes', data:RT.nodes, getPosition:at,
+      getIcon:d => ({url:RT_SYMBOLS[rtRole(d)].url, width:40, height:40, anchorY:20}),
+      getSize:d => rtRole(d) === 'reach' ? 22 : 30, sizeUnits:'pixels', billboard:true,
+      pickable:true, parameters:blend, updateTriggers:{getPosition:trig, getIcon:RT.links, getSize:RT.links} }),
     new deck.TextLayer({ id:'rt-outlets', data:RT.nodes.filter(n => n.outlet), getPosition:at, getText:() => 'outlet', getSize:11, sizeUnits:'pixels', fontFamily:'Arial, sans-serif', fontWeight:600,
-      characterSet:'auto', getColor:[38,42,50,255], getTextAnchor:'start', getAlignmentBaseline:'center', getPixelOffset:[14, 0], background:true, getBackgroundColor:[255,255,255,215], backgroundPadding:[3,2],
+      characterSet:'auto', getColor:[38,42,50,255], getTextAnchor:'start', getAlignmentBaseline:'center', getPixelOffset:[20, 0], background:true, getBackgroundColor:[255,255,255,215], backgroundPadding:[3,2],
       billboard:true, pickable:false, parameters:blend, updateTriggers:{ getPosition:trig } }),
+    ...rtJoinLayers(at, blend),
   ];
 }
+function rtJoinLayers(at, blend) {  // the new junction the join tool drags onto a channel, and a line back to the node it will receive
+  const from = rtGhost && RT.nodes.find(n => n.id === rtSelected);
+  if (!from) return [];
+  return [
+    new deck.PathLayer({ id:'rt-join-line', data:[[from, rtGhost]], getPath:d => d.map(at), getColor:[0,136,118,220], getWidth:3, widthUnits:'pixels', pickable:false, parameters:blend }),
+    new deck.IconLayer({ id:'rt-ghost', data:[rtGhost], getPosition:at, getIcon:() => ({url:RT_SYMBOLS.junction.url, width:40, height:40, anchorY:20}),
+      getSize:d => d.snapped ? 34 : 28, sizeUnits:'pixels', billboard:true, pickable:true, parameters:blend }),  // dragged by the map's pointer events (initMap)
+  ];
+}
+// Drafts store only the editable map graph; engine inputs and parameters are never mutated.
+let rtBusy = false;
+let rtBase = null, rtSystem = '', rtSelected = null, rtMode = null, rtHistory = [];
+let rtGhost = null;  // the join tool's new junction ({lon, lat, snapped}) while it is being placed
+const rtKey = () => `river-network-draft-v2:${D.engineHash}:${rtSystem}`;
+// The same vector symbols are used by the map and its legend. Roles follow edited connections.
+const RT_SYMBOLS = {
+  entry: {label:'Runoff entry', detail:'Local catchment runoff enters here; no mapped river node feeds it.', color:'#357f99', shape:'<circle cx="20" cy="20" r="14"/>', mark:'<circle cx="20" cy="20" r="4" fill="white" stroke="none"/>'},
+  reach: {label:'River reach', detail:'Routes upstream flow and adds its share of local runoff.', color:'#39617e', shape:'<circle cx="20" cy="20" r="13"/>', mark:'<path d="M12 20h16m-6-6 6 6-6 6"/>'},
+  junction: {label:'Junction', detail:'Two or more mapped branches combine here.', color:'#275d83', shape:'<path d="M20 2 38 20 20 38 2 20Z"/>', mark:'<path d="m12 12 8 8 8-8m-8 8v10"/>'},
+  split: {label:'Flow split', detail:'Divides flow using the existing diversion fractions.', color:'#82509c', shape:'<rect x="5" y="5" width="30" height="30" rx="6"/>', mark:'<path d="M20 29V19m0 0-8-8m8 8 8-8M12 17v-6h6m4 0h6v6"/>'},
+  link: {label:'System link', detail:'Water from or to another river system enters or leaves here.', color:'#206d7d', shape:'<rect x="5" y="5" width="30" height="30" rx="2"/>', mark:'<path d="M15 11v18m0-14h9m-9 6h6m-6 6h9"/>'},
+  exit: {label:'Network exit', detail:'No main downstream connection in this network. This is not necessarily the whole river system’s reporting outlet.', color:'#293d4b', shape:'<path d="M11 4h18l7 7v18l-7 7H11l-7-7V11Z"/>', mark:'<path d="M10 20h17m-6-6 6 6-6 6m9-10v20"/>'},
+  dam: {label:'Dam / storage', detail:'Holds water and releases it subject to the configured daily release cap.', color:'#bd721b', shape:'<rect x="3" y="6" width="34" height="28" rx="4"/>', mark:'<path d="M24 11v18m5-18v18M9 16h10M9 22h10M9 28h10"/>'},
+  added: {label:'Added tributary', detail:'An added branch using a redistributed share of its parent catchment runoff.', color:'#008876', shape:'<path d="m20 2 18 33H2Z"/>', mark:'<path d="M20 14v14m-7-7h14"/>'},
+};
+for (const symbol of Object.values(RT_SYMBOLS)) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><g fill="${symbol.color}" stroke="white" stroke-width="2">${symbol.shape}</g><g fill="none" stroke="white" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">${symbol.mark}</g></svg>`;
+  symbol.url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+function rtRole(node) {
+  if (node.model?.storage) return 'dam';
+  if (Object.keys(node.model?.splits || {}).length) return 'split';
+  if (!RT.links.some(l => l.a.id === node.id && l.b && !l.split)) return 'exit';
+  if (node.link) return 'link';
+  if (node.id.startsWith('tributary-')) return 'added';
+  const incoming = RT.links.filter(l => l.b?.id === node.id).length;
+  return incoming > 1 ? 'junction' : incoming === 0 ? 'entry' : 'reach';
+}
+function rtNodeDescription(node) {
+  const symbol = RT_SYMBOLS[rtRole(node)];
+  const reports = [...(node.model?.outlet ? [node.model.basin] : []), ...(node.model?.reports || [])];
+  return `${symbol.label}: ${symbol.detail}${reports.length ? ` Reports the flow of basin ${reports.join(', ')}.` : ''}${node.ring ? ' Red ring: calibrated loss is applied here.' : ''}`;
+}
+function rtPack(graph) {
+  return JSON.parse(JSON.stringify({ redirects:graph.redirects || {}, folded:graph.folded || {}, nodes:graph.nodes, links:graph.links.map(l => ({ ...l, a:l.a?.id, b:l.b?.id })) }));
+}
+function rtUnpack(data) {
+  if (!Array.isArray(data.nodes) || !Array.isArray(data.links)) throw new Error('Invalid draft');
+  const graph = JSON.parse(JSON.stringify(data)), ids = new Map(graph.nodes.map(n => [n.id, n]));
+  if (ids.size !== graph.nodes.length || graph.nodes.some(n => !Number.isFinite(n.lon) || !Number.isFinite(n.lat))) throw new Error('Invalid nodes');
+  graph.links = graph.links.map(l => {
+    if (!ids.has(l.a) || (l.b && !ids.has(l.b)) || !Array.isArray(l.path)) throw new Error('Invalid connection');
+    return { ...l, a:ids.get(l.a), b:ids.get(l.b) };
+  });
+  return graph;
+}
+function rtControls(message) {
+  const selected = RT?.nodes.find(n => n.id === rtSelected);
+  for (const name of ['move','add','connect','join','delete']) {
+    $('rt-' + name).disabled = !selected;
+    $('rt-' + name).setAttribute('aria-pressed', String(rtMode === name));
+  }
+  $('rt-delete').disabled = !selected || !!rtProtected(selected);
+  $('rt-connect').disabled = !selected || !!rtProtected(selected);
+  $('rt-join').disabled = !selected || !!rtProtected(selected);
+  $('rt-run').disabled = rtBusy;
+  $('rt-undo').disabled = !rtHistory.length;
+  if (RT) $('rt-sub').textContent = `${RT.nodes.length} river nodes · ${RT.links.length} connections · edits apply across downstream systems`;
+  $('rt-status').textContent = message || (selected ? `Selected ${selected.id}. ${rtNodeDescription(selected)} ${rtProtected(selected) || 'Choose an action.'}` : 'Click a node to select it. Pan and zoom to find a reach.');
+}
+function rtCommit(change) {
+  rtHistory.push(rtPack(RT));
+  if (rtHistory.length > 50) rtHistory.shift();
+  change();
+  rtMode = null; rtGhost = null;
+  rtSave();
+}
+function rtSave() {
+  // deck.gl tracks data-array identity when rebuilding map attributes.
+  RT.nodes = [...RT.nodes]; RT.links = [...RT.links];
+  for (const n of RT.nodes) n.outlet = !RT.links.some(l => l.a.id === n.id && l.b && !l.split);
+  let message = rtSelected ? `Selected ${rtSelected}. Edits saved; apply to update flows.` : 'Edits saved; apply to update flows. Select a node to continue.';
+  try { localStorage.setItem(rtKey(), JSON.stringify(rtPack(RT))); }
+  catch (e) { message = 'Browser storage unavailable. Export your draft to keep these edits.'; }
+  if (rtApplied) say('Network has unapplied edits. Displayed flows are from the last calculation.');
+  rtControls(message); redraw();
+}
+function rtStraight(link) {
+  link.path = [[link.a.lon, link.a.lat], [link.b.lon, link.b.lat]];
+  link.straight = true; link.edited = true;
+}
+function rtWouldCycle(from, to) {
+  const pending = [to], seen = new Set();
+  while (pending.length) {
+    const id = pending.pop();
+    if (id === from) return true;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    for (const l of RT.links) if (l.a.id === id && l.b) pending.push(l.b.id);
+  }
+  return false;
+}
+function rtClick(info) {
+  if (!RT) return false;
+  if (rtBusy) return true;
+  const hit = info.layer?.id === 'rt-nodes' ? info.object : null;
+  const selected = RT.nodes.find(n => n.id === rtSelected);
+  if (rtMode === 'connect' && selected) {
+    if (rtProtected(selected)) { rtControls(rtProtected(selected)); return true; }
+    if (!hit) { rtControls('Click the node that should receive the selected node’s flow.'); return true; }
+    if (rtWouldCycle(selected.id, hit.id)) { rtControls('That connection would create a loop. Choose another downstream node.'); return true; }
+    rtCommit(() => {
+      RT.links = RT.links.filter(l => l.a.id !== selected.id || l.split);
+      const link = { a:selected, b:hit, w:3 }; rtStraight(link); RT.links.push(link);
+    });
+    return true;
+  }
+  if (rtMode === 'join' && selected) {
+    if (info.coordinate?.every(Number.isFinite)) rtJoin(info.coordinate[0], info.coordinate[1]);
+    return true;
+  }
+  if ((rtMode === 'move' || rtMode === 'add') && selected) {
+    const point = map.unproject([info.x, info.y]);
+    const coordinate = info.coordinate;
+    const [lon, lat] = coordinate && coordinate.every(Number.isFinite) ? coordinate : [point.lng, point.lat];
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return true;
+    const fraction = Number($('rt-share').value) / 100;
+    if (rtMode === 'add' && (!Number.isFinite(fraction) || fraction < .01 || fraction > .99)) { rtControls('Choose a runoff share from 1% to 99%.'); return true; }
+    rtCommit(() => {
+      if (rtMode === 'move') {
+        selected.lon = lon; selected.lat = lat;
+        for (const link of RT.links) {
+          if (link.a.id === selected.id) { link.path[0] = [lon, lat]; link.edited = true; }
+          if (link.b?.id === selected.id) { link.path[link.path.length - 1] = [lon, lat]; link.edited = true; }
+        }
+      } else {
+        const id = 'tributary-' + crypto.randomUUID();
+        const model = { ...structuredClone(selected.model), id, lon, lat, next:selected.id, outlet:false, storage:null, maxRelease:null, splits:{}, lossRank:0, share:selected.model.share * fraction, area:selected.model.area * fraction };
+        selected.model.share *= 1 - fraction; selected.model.area *= 1 - fraction;
+        const node = { id, model, lon, lat, r:7, fill:[0,150,130,255], ring:false, outlet:false, tip:'<b>New tributary</b>Uses a share of its parent catchment’s runoff' };
+        RT.nodes.push(node);
+        const link = { a:node, b:selected, w:3 }; rtStraight(link); RT.links.push(link);
+        rtSelected = id;
+      }
+    });
+    return true;
+  }
+  rtSelected = hit?.id || null; rtMode = null; rtGhost = null;
+  rtControls(); redraw(); return true;
+}
+// Join channel: the selected node's flow joins a channel at a new junction, splitting that channel's reach. Nodes below it
+// that are left with no inflow are deleted, their runoff kept by a remaining node of the same basin.
+function rtAlong(path, f) {  // the point a fraction f of the way along a path
+  const total = rtLength(path);
+  let left = total * f;
+  for (let i = 1; i < path.length; i++) {
+    const step = rtLength([path[i-1], path[i]]);
+    if (step >= left && step > 0) { const t = left / step; return [path[i-1][0] + t * (path[i][0] - path[i-1][0]), path[i-1][1] + t * (path[i][1] - path[i-1][1])]; }
+    left -= step;
+  }
+  return path[path.length - 1];
+}
+function rtSnap(lon, lat, from) {  // the nearest point on a channel that ``from`` could join without a loop: {link, i (segment), lon, lat, km away}
+  const kx = 111.2 * Math.cos(lat * Math.PI / 180), ky = 111.2;
+  let best = null;
+  for (const link of RT.links) {
+    if (link.split || !link.b || link.a.id === from.id || rtWouldCycle(from.id, link.b.id)) continue;
+    for (let i = 1; i < link.path.length; i++) {
+      const [ax, ay] = link.path[i-1], [bx, by] = link.path[i], dx = (bx - ax) * kx, dy = (by - ay) * ky, len2 = dx * dx + dy * dy;
+      const t = len2 ? Math.max(0, Math.min(1, ((lon - ax) * kx * dx + (lat - ay) * ky * dy) / len2)) : 0;
+      const km = Math.hypot((lon - ax) * kx - t * dx, (lat - ay) * ky - t * dy);
+      if (!best || km < best.km) best = { link, i, lon:ax + t * (bx - ax), lat:ay + t * (by - ay), km };
+    }
+  }
+  return best;
+}
+function rtSnapKm(lat) {  // how close to a channel a drop must be to join it: ~30 pixels at the current zoom
+  return map.getZoom ? 30 * 78.2715 * Math.cos(lat * Math.PI / 180) / 2 ** map.getZoom() : 5;
+}
+function rtGhostMove(lon, lat) {
+  const from = RT.nodes.find(n => n.id === rtSelected), snap = from && rtSnap(lon, lat, from);
+  rtGhost = snap && snap.km <= rtSnapKm(lat) ? { lon:snap.lon, lat:snap.lat, snapped:true } : { lon, lat, snapped:false };
+}
+function rtJoin(lon, lat) {
+  const from = RT.nodes.find(n => n.id === rtSelected);
+  if (!from) return;
+  if (rtProtected(from)) { rtControls(rtProtected(from)); return; }
+  const snap = rtSnap(lon, lat, from);
+  if (!snap || snap.km > rtSnapKm(lat)) { rtControls('Drop the junction on the channel this node should join.'); redraw(); return; }
+  const deleted = [];
+  rtCommit(() => {
+    const { link, i } = snap, down = link.b, point = [snap.lon, snap.lat];
+    const before = [...link.path.slice(0, i), point], after = [point, ...link.path.slice(i)];
+    const km = link.km ?? (link.edited || link.a.model.length == null ? rtLength(link.path) : link.a.model.length);
+    const f = Math.min(.95, Math.max(.05, rtLength(before) / (rtLength(link.path) || 1)));  // the share of the reach's local runoff entering above the junction
+    const id = 'junction-' + crypto.randomUUID();
+    const model = { ...structuredClone(down.model), id, lon:snap.lon, lat:snap.lat, next:down.id, outlet:false, storage:null, maxRelease:null, splits:{}, lossRank:0,
+      path:undefined, splitPath:undefined, share:down.model.share * f, area:down.model.area * f, length:km * (1 - f) };
+    down.model.share *= 1 - f; down.model.area *= 1 - f;
+    const junction = { id, model, lon:snap.lon, lat:snap.lat, r:6, fill:[39,93,131,255], ring:false, outlet:false, tip:'<b>Added junction</b>Where a branch was joined to this channel' };
+    RT.nodes.push(junction);
+    Object.assign(link, { b:junction, path:before, km:km * f, edited:true });
+    RT.links.push({ a:junction, b:down, path:after, km:km * (1 - f), edited:true, straight:link.straight, w:link.w });
+    let stranded = RT.links.find(l => l.a.id === from.id && l.b && !l.split)?.b;
+    RT.links = RT.links.filter(l => l.a.id !== from.id || l.split);
+    const joined = { a:from, b:junction, w:3 }; rtStraight(joined); RT.links.push(joined);
+    // walk down the old connection while each node is left with nothing flowing into it
+    while (stranded && stranded !== junction && !RT.links.some(l => l.b?.id === stranded.id) && !rtProtected(stranded)) {
+      const node = stranded, far = n => Math.hypot(n.lon - node.lon, n.lat - node.lat), below = RT.links.find(l => l.a.id === node.id && l.b && !l.split)?.b;
+      const receiver = RT.nodes.filter(n => n !== node && n.model?.basin === node.model.basin).sort((a, b) => far(a) - far(b))[0] || below;  // the nearest node left in its basin
+      if (!receiver) break;
+      rtAbsorb(node, receiver);
+      stranded = below;
+      RT.links = RT.links.filter(l => l.a.id !== node.id);
+      RT.nodes = RT.nodes.filter(n => n !== node);
+      deleted.push(node.id);
+    }
+  });
+  rtControls(`Joined ${from.id} to the channel${deleted.length ? `; removed ${deleted.length} node${deleted.length > 1 ? 's' : ''} left with no inflow, their runoff and basin reporting kept` : ''}. Apply to update flows.`);
+}
+for (const mode of ['move','add','connect','join']) $('rt-' + mode).onclick = () => {
+  if (!RT || !rtSelected) return;
+  rtMode = mode; rtGhost = null;
+  if (mode === 'join') {  // the new junction starts just below the selected node, on its current connection
+    const from = RT.nodes.find(n => n.id === rtSelected), out = RT.links.find(l => l.a.id === from.id && l.b && !l.split);
+    const [lon, lat] = out ? rtAlong(out.path, .15) : [from.lon + .02, from.lat];
+    rtGhost = { lon, lat, snapped:false };
+    redraw();
+  }
+  rtControls({move:'Click the map to place this node.', add:'Click the map to add a tributary flowing into the selected node. Repeat to extend upstream.', connect:'Click a downstream node to connect to. The existing main connection will be replaced.',
+    join:'Drag the new junction onto the channel this node should join (or click the channel). Nodes left below it with no inflow are removed.'}[mode]);
+};
+// A deleted node's runoff joins the node that takes over from it: added to that node's share within the same basin, else
+// kept as a folded watershed of its own basin that joins it directly. A basin outlet's flow reporting moves with it.
+function rtAbsorb(node, into) {
+  if (into.model.basin === node.model.basin) {
+    into.model.share += node.model.share; into.model.area += node.model.area;
+    if (node.model.outlet) into.model.outlet = true;
+  } else {
+    (RT.folded ||= {})[node.id] = { ...node.model, river:false, outlet:false, lossRank:0, length:0, next:into.id, path:undefined, splitPath:undefined, reports:undefined };
+    if (node.model.outlet) into.model.reports = [...(into.model.reports || []), node.model.basin];
+  }
+  if (node.model.reports?.length) into.model.reports = [...new Set([...(into.model.reports || []), ...node.model.reports])];
+  (RT.redirects ||= {})[node.id] = into.id;
+}
+$('rt-delete').onclick = () => {
+  if (!RT || !rtSelected) return;
+  const selected = RT.nodes.find(n => n.id === rtSelected);
+  const reason = rtProtected(selected);
+  if (reason) { rtControls(reason); return; }
+  const receiver = RT.links.find(l => l.a.id === rtSelected && l.b && !l.split)?.b;
+  if (!receiver) { rtControls('Delete needs a downstream node to take this node’s flow.'); return; }
+  rtCommit(() => {
+    rtAbsorb(selected, receiver);
+    const id = rtSelected, downstream = receiver;
+    RT.links = RT.links.filter(l => l.a.id !== id).flatMap(l => {
+      if (l.b?.id !== id) return [l];
+      if (!downstream) return [];
+      l.b = downstream; rtStraight(l); return [l];
+    });
+    RT.nodes = RT.nodes.filter(n => n.id !== id); rtSelected = null;
+  });
+};
+$('rt-undo').onclick = () => {
+  if (!RT || !rtHistory.length) return;
+  RT = rtUnpack(rtHistory.pop()); rtSelected = null; rtMode = null; rtSave();
+};
+$('rt-reset').onclick = () => { if (RT) rtCommit(() => { RT = rtUnpack(rtBase); rtSelected = null; }); };
+$('rt-export').onclick = () => {
+  if (!RT) return;
+  const payload = { version:2, kind:'hydrology-network-draft', system:rtSystem, engineHash:D.engineHash, hydrologyParametersUnchanged:true, ...rtPack(RT) };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'}));
+  const a = document.createElement('a'); a.href = url; a.download = rtSystem + '-network-draft.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+function rtProtected(node) {
+  if (!node?.model) return 'This node has no catchment source.';
+  if (node.model.storage) return 'Dam node: preserve its storage and release rules.';
+  if (node.link) return 'System link: another river system’s water enters or leaves here.';
+  if (node.ring) return 'Calibration node: its position in the network is protected.';
+  if (RT.links.some(l => l.split && (l.a.id === node.id || l.b?.id === node.id))) return 'Diversion node: preserve its configured flow split.';
+  return '';
+}
+function rtLength(path) {
+  let km = 0;
+  for (let i = 1; i < path.length; i++) {
+    const [x,y] = path[i-1], [xx,yy] = path[i], rad = Math.PI / 180;
+    const a = Math.sin((yy-y)*rad/2)**2 + Math.cos(y*rad)*Math.cos(yy*rad)*Math.sin((xx-x)*rad/2)**2;
+    km += 6371 * 2 * Math.asin(Math.sqrt(Math.min(1,a)));
+  }
+  return km;
+}
+function rtEditedEngine(system, source) {
+  const stored = system === rtSystem && RT ? rtPack(RT) : JSON.parse(localStorage.getItem(`river-network-draft-v2:${D.engineHash}:${system}`) || 'null');
+  if (!stored) return source;
+  const graph = rtUnpack(stored), engine = structuredClone(source);
+  const resolve = id => {
+    const seen = new Set();
+    while (graph.redirects?.[id]) {
+      if (seen.has(id)) throw new Error('Invalid deleted-node connections');
+      seen.add(id); id = graph.redirects[id];
+    }
+    return id;
+  };
+  engine.nodes = engine.nodes.filter(n => !n.river).map(n => ({...n, next:resolve(n.next)}));
+  for (const model of Object.values(graph.folded || {})) engine.nodes.push({ ...model, next:resolve(model.next) });
+  for (const node of graph.nodes) {
+    if (!node.model) throw new Error('Draft is missing catchment information; reset the network.');
+    const model = {...node.model, lon:node.lon, lat:node.lat};
+    const link = graph.links.find(l => l.a.id === node.id && !l.split && l.b);
+    model.next = link?.b.id || '';
+    if (link?.edited) model.length = link.km ?? rtLength(link.path);
+    engine.nodes.push(model);
+  }
+  const ids = new Set(engine.nodes.map(n => n.id));
+  for (const node of engine.nodes) {
+    if (node.next && !ids.has(node.next)) throw new Error('A downstream node is missing.');
+    if (!(node.share > 0) || !(node.area > 0)) throw new Error('Every node needs a positive catchment share.');
+  }
+  for (const basin of engine.basins) {
+    const total = engine.nodes.filter(n => n.basin === basin.id).reduce((sum,n) => sum+n.share,0);
+    const original = source.nodes.filter(n => n.basin === basin.id).reduce((sum,n) => sum+n.share,0);
+    if (Math.abs(total - original) > 1e-9) throw new Error('Catchment runoff shares must preserve the original total.');
+    if (!engine.nodes.some(n => (n.basin === basin.id && n.outlet) || n.reports?.includes(basin.id))) throw new Error('A basin outlet is missing.');
+  }
+  return engine;
+}
+async function rtRun() {
+  if (rtBusy) return;
+  if ($('runoff-model').disabled) { rtControls('Wait for the current flow calculation to finish.'); return; }
+  if (!FULL) { goFull({network:1, system:rtSystem, rr:$('runoff-model').value, rt:$('routing-model').value}); return; }
+  rtBusy = true; rtControls('Recalculating edited networks and downstream systems…');
+  const token = ++selToken;
+  const controls = [...$('rt-tools').querySelectorAll('button,input'), $('rt-system'), $('runoff-model'), $('routing-model')];
+  controls.forEach(c => c.disabled = true);
+  say('Recalculating flows through the edited network…');
+  try {
+    const result = await recalc($('runoff-model').value, $('routing-model').value, true);
+    if (token === selToken) { applyResults(result); rtApplied = true; say('Flows use your edited network. Hydrology functions and calibration settings are unchanged.'); }
+  } catch (e) { say('Network calculation failed; previous results retained. ' + e.message); }
+  finally { rtBusy = false; controls.forEach(c => c.disabled = false); rtControls('Calculation finished. See the flow status for the result.'); }
+}
+$('rt-run').onclick = rtRun;
+$('rt-legend').innerHTML = Object.values(RT_SYMBOLS).map(s => `<span title="${s.detail}"><img src="${s.url}" alt="">${s.label}</span>`).join('') + '<span><i class="ring"></i>Calibrated loss</span><span><i class="ring" style="border-color:#009682"></i>Selected</span>';
 $('routing-edit').onclick = () => { $('rt-system').value = SYSTEM_OF[focus] in D.engines ? SYSTEM_OF[focus] : $('rt-system').options[0].value; $('rt-editor').classList.add('open'); drawRouting(true); };
 $('rt-close').onclick = () => { $('rt-editor').classList.remove('open'); RT = null; $('tip').style.display = 'none'; redraw(); $('routing-edit').focus(); };
 $('rt-system').onchange = () => drawRouting(true);
@@ -1008,7 +1415,7 @@ function layers() {
       getSize:12, sizeUnits:'pixels', fontFamily:'Arial, sans-serif', fontWeight:700, characterSet:'auto', getColor:[38,42,50,230],
       background:true, getBackgroundColor:[255,255,255,190], backgroundPadding:[4,2], billboard:true, pickable:false, parameters:blend, updateTriggers:{getPosition:relief} }),
     new deck.SolidPolygonLayer({ id:'context', visible:rtShows('rivers'), data:ctxZ, getPolygon:d => d.r, getFillColor:[150,192,220,120], extruded:false, pickable:false }),
-    new deck.SolidPolygonLayer({ id:'rivers', visible:rtShows('rivers'), data:riverZ, getPolygon:d => d.r, extruded:true, getElevation:d => elev(flowOf(d)), getFillColor:d => flowCol(flowOf(d)), material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:true, autoHighlight:true, highlightColor:[255,247,224,100], updateTriggers:{getElevation:[day,riverRelief], getFillColor:day} }),
+    new deck.SolidPolygonLayer({ id:'rivers', visible:rtShows('rivers'), opacity:RT ? 0.3 : 1, data:riverZ, getPolygon:d => d.r, extruded:true, getElevation:d => elev(flowOf(d)), getFillColor:d => flowCol(flowOf(d)), material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:true, autoHighlight:true, highlightColor:[255,247,224,100], updateTriggers:{getElevation:[day,riverRelief], getFillColor:day} }),
     ...mist,
     new deck.ScatterplotLayer({ id:'places', visible:showTowns, data:places, getPosition:placePosition,
       getRadius:d => d.kind === 'city' ? 4 : 3, radiusUnits:'pixels',
@@ -1043,8 +1450,15 @@ function initMap() {
   const lighting = new deck.LightingEffect({ ambientLight:new deck.AmbientLight({ color:[255,255,255], intensity:0.75 }), dirLight:new deck.DirectionalLight({ color:[255,248,238], intensity:0.9, direction:[1.0,-1.1,-0.85] }) });
   // The near clipping plane scales with camera altitude, and the exaggerated terrain is kilometres high: close up (the boat)
   // the default would cut away the ground right in front of the camera.
-  overlay = new deck.MapboxOverlay({ interleaved:false, useDevicePixels:Math.min(devicePixelRatio || 1, 1.5), views:new deck.MapView({ id:'mapbox', nearZMultiplier:.005 }), layers:layers(), effects:[lighting], getTooltip:null, onHover:hover, onClick:info=>carMechanics.click(info) });
+  overlay = new deck.MapboxOverlay({ interleaved:false, useDevicePixels:Math.min(devicePixelRatio || 1, 1.5), views:new deck.MapView({ id:'mapbox', nearZMultiplier:.005 }), layers:layers(), effects:[lighting], getTooltip:null, onHover:hover, onClick:info=>{ if (!rtClick(info)) carMechanics.click(info); } });
   map.addControl(overlay);
+  let rtGrab = null;  // a press on the join tool's junction drags the junction, not the map
+  for (const press of ['mousedown', 'touchstart'])
+    map.on(press, e => { if (rtGhost && overlay.pickObject({ x:e.point.x, y:e.point.y, radius:8, layerIds:['rt-ghost'] })) { e.preventDefault(); rtGrab = { moved:false }; } });
+  for (const move of ['mousemove', 'touchmove'])
+    map.on(move, e => { if (rtGrab && rtGhost) { rtGrab.moved = true; rtGhostMove(e.lngLat.lng, e.lngLat.lat); redraw(); } });
+  for (const release of ['mouseup', 'touchend'])
+    map.on(release, () => { const grab = rtGrab; rtGrab = null; if (grab?.moved && rtGhost) rtJoin(rtGhost.lon, rtGhost.lat); });
   map.on('zoomend', () => overlay.setProps({layers:layers()}));
   map.on('moveend', () => {  // zoomed in on a system: fetch its detail (demo bundle only)
     if (FULL || map.getZoom() < DETAIL_ZOOM) return;
@@ -1098,7 +1512,8 @@ function hover(info) {
   const tip = $('tip');  // no tooltips while driving: the HUD shows the conditions under the car
   if (!info.object || info.layer?.id.startsWith('terrain-') || document.body.classList.contains('car-driving')) { tip.style.display = 'none'; return; }
   if (carMechanics.hover(info)) return;
-  if (info.layer?.id === 'rt-nodes') { tip.innerHTML = info.object.tip; tip.style.display = 'block'; tip.style.left = Math.min(info.x + 14, innerWidth - 260) + 'px'; tip.style.top = (info.y + 14) + 'px'; return; }
+  if (info.layer?.id === 'rt-nodes') { tip.replaceChildren(); const title = document.createElement('b'); title.textContent = RT_SYMBOLS[rtRole(info.object)].label; tip.append(title, document.createTextNode(rtNodeDescription(info.object)), document.createElement('br'), document.createTextNode(`${info.object.model?.storage || info.object.id} · ${((info.object.model?.share || 0) * 100).toFixed(1)}% of basin runoff`)); tip.style.display = 'block'; tip.style.left = Math.min(info.x + 14, innerWidth - 260) + 'px'; tip.style.top = (info.y + 14) + 'px'; return; }
+  if (RT) { tip.style.display = 'none'; return; }
   if (info.object.name !== undefined) {
     const o = info.object;
     tip.innerHTML = `<b>${o.name}</b>${o.kind === 'channel' ? 'Routed flow' : 'Share of local runoff · indicative'}<br>Flow ${fmt(flowOf(o))} ML/d`;
@@ -1207,7 +1622,11 @@ addEventListener('resize', () => update());
 { const q = new URLSearchParams(location.search).get('day'), i = q ? D.days.indexOf(q) : -1; if (i >= 0) day = i; }
 $('climate-start').onchange = setPeriod; $('climate-end').onchange = setPeriod;
 if (typeof maplibregl !== 'undefined' && typeof deck !== 'undefined') { initMap(); legend(); setPeriod(); }
-if (FULL && ($('runoff-model').value !== DEFAULT_RR || $('routing-model').value !== DEFAULT_RT)) chooseMethods();
+if (FULL && ASK.get('network') === '1') {
+  if (ASK.get('system') in D.engines) $('rt-system').value = ASK.get('system');
+  $('rt-editor').classList.add('open'); await drawRouting(true); await rtRun();
+}
+else if (FULL && ($('runoff-model').value !== DEFAULT_RR || $('routing-model').value !== DEFAULT_RT)) chooseMethods();
 })();
 </script>
 </body>

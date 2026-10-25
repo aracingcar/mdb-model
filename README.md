@@ -76,3 +76,15 @@ Fast full-record routing parity (all systems and method pairs):
 
 Validation: `.venv/bin/python -m unittest discover -s 3_routing -p 'test_*.py'` and
 `.venv/bin/python 6_display/engine_parity.py`. Re-run `main.py` to refresh stored results and the page.
+
+### Interactive network editing
+
+Open **Routing → Edit** in the display and select a river node. Use **Move node** followed by a map click to move it, **Add tributary** followed by a map click to create an upstream branch, or **Reconnect downstream** followed by a node click to change its destination. New tributaries take the chosen percentage (25% by default) of the selected node's existing catchment area and runoff share, using the same basin rainfall/PET. They do not delineate a new catchment or introduce additional water. Changed connections use the length of their drawn path for the existing routing calculations.
+
+**Join channel** fixes a branch whose runoff enters the river too far downstream: a new junction appears just below the selected node; drag it onto the channel it should join (it snaps to the nearest line). That channel's reach is split at the junction, keeping its length, and the junction takes the share of the reach's local runoff above it. Nodes left below with no inflow are deleted.
+
+Nodes show their role on the river (runoff entry, reach, junction); a basin outlet looks like any other node and its status line names the basin whose flow it reports. **System link** marks where another river system's water enters or leaves. **Delete node** bypasses a node: its runoff share goes to the node below within the same basin, or else joins that node directly as a watershed of its own basin, so every basin's runoff total is kept. Deleting a basin outlet moves that basin's flow reporting to the node below. System links, dams, calibration nodes and diversion endpoints cannot be deleted or reconnected, preserving river-system connections, calibration and operating rules. Connections that create loops are refused. **Undo** reverses edits during the editing session; **Reset network** restores the selected system and can itself be undone.
+
+Edits are saved locally per system and engine-data version. **Apply & recalculate flows** runs all systems in dependency order through the unchanged browser hydrology functions, including their existing calibration procedure. The quick demo first loads the full climate record for correct forcing and model initialisation. The flow series and ecological indicators update; existing mapped river geometry is retained underneath the editable network overlay. **Export draft** downloads the edited graph and catchment shares as JSON. Edits do not overwrite Python inputs, calibration settings, published data or the result cache for the original network.
+
+Run the network editor checks with `node 6_display/network-editor.test.cjs`. These include runoff-share conservation, protected nodes, cycle rejection, joining a channel, deleting basin outlets, persistence, undo and integration calculations with the unchanged hydrology engine.

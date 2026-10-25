@@ -131,7 +131,9 @@ const ROUTING = {
     };
 
     const lossy = n => n.lossRank >= 1 && n.lossRank <= (p.loss_regions || 0);
-    const outletOf = Object.fromEntries(nodes.filter(n => n.outlet).map(n => [n.basin, idx[n.id]]));
+    const outletOf = {};  // where each basin's flow is read: its outlet node, or a node that took over its reporting (``reports``, set by the network editor)
+    nodes.forEach((n, i) => { if (n.outlet) outletOf[n.basin] = i; });
+    nodes.forEach((n, i) => { for (const b of n.reports || []) outletOf[b] = i; });
     const outletIdx = outletOf[basins.find(b => b.next === '').id];
     const mean = a => { let s = 0; for (let t = 0; t < a.length; t++) s += a[t]; return s / a.length; };
     let loss = p.misc_loss_per_km;
