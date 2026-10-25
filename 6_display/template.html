@@ -13,38 +13,45 @@
   html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); overflow:hidden; font-family:var(--sans); font-weight:300; }
   #map { position:absolute; left:400px; right:0; top:0; bottom:74px; }
   .maplibregl-ctrl-bottom-right,.maplibregl-ctrl-bottom-left { display:none; }
-  #side { position:absolute; left:0; top:0; bottom:74px; width:400px; padding:30px 34px 14px 54px; overflow:hidden; display:flex; flex-direction:column; }
+  #side { position:absolute; left:0; top:0; bottom:74px; width:400px; padding:28px 32px 14px 48px; overflow-x:hidden; overflow-y:auto; display:flex; flex-direction:column; }
+  #side section { margin-top:16px; padding-top:14px; border-top:1px solid var(--rule); }
   #kicker select { appearance:none; -webkit-appearance:none; margin:0; padding:0; border:0; border-bottom:1px dotted transparent; border-radius:0; background:transparent; color:inherit; font:inherit; letter-spacing:inherit; text-transform:inherit; cursor:pointer; }
   #kicker select:hover, #kicker select:focus-visible { border-bottom-color:currentColor; outline:none; }
-  #kicker { font-weight:700; font-size:17px; letter-spacing:.01em; text-transform:uppercase; color:var(--head); }
-  h1 { margin:20px 0 0; font-weight:300; font-size:33px; line-height:1.18; color:var(--head); letter-spacing:-.005em; }
-  #desc { margin-top:14px; font-size:14px; line-height:1.4; color:var(--dim); font-weight:400; }
-  #wd { margin-top:18px; font-weight:600; font-size:14px; letter-spacing:.04em; color:var(--dim); text-transform:uppercase; }
-  #date { font-weight:300; font-size:52px; white-space:nowrap; line-height:1.04; color:var(--head); letter-spacing:-.01em; }
-  #yr { font-size:18px; margin-top:6px; color:var(--ink); font-weight:400; }
-  #chartT { margin-top:12px; font-weight:700; font-size:13.5px; color:var(--head); }
-  #bars { width:100%; height:50px; display:block; margin-top:6px; }
-  #note { margin-top:14px; font-weight:700; font-size:14.5px; color:var(--head); }
-  #note2 { margin-top:2px; font-size:14px; color:var(--dim); font-weight:400; }
-  #legend { margin-top:12px; width:330px; }
-  #legend .ramp { height:13px; }
+  #kicker { font-weight:700; font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--head); line-height:1.35; }
+  h1 { margin:12px 0 0; font-weight:300; font-size:28px; line-height:1.18; color:var(--head); letter-spacing:-.005em; }
+  #desc { margin-top:10px; font-size:13px; line-height:1.45; color:var(--dim); font-weight:400; }
+  #wd { font-weight:600; font-size:12px; letter-spacing:.08em; color:var(--dim); text-transform:uppercase; }
+  #date { font-weight:300; font-size:46px; white-space:nowrap; line-height:1.04; color:var(--head); letter-spacing:-.01em; }
+  #yr { font-size:14px; margin-top:6px; color:var(--ink); font-weight:400; }
+  #chartT { font-weight:600; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); }
+  #bars { width:100%; height:50px; display:block; margin-top:8px; }
+  #focus-row { margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:13px; font-weight:400; color:var(--dim); }
+  #focus-row select { flex:1; min-width:0; max-width:210px; font:inherit; color:var(--ink); border:1px solid var(--rule); border-radius:4px; padding:3px 5px; background:#fff; }
+  #note { font-weight:600; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); }
+  #note2 { margin-top:8px; font-size:12px; line-height:1.4; color:var(--dim); font-weight:400; }
+  #legend { margin-top:8px; width:100%; }
+  #legend .ramp { height:10px; border-radius:2px; }
   #legend .ticks { position:relative; height:16px; margin-top:3px; font-size:11.5px; color:var(--ink); font-weight:400; }
   #legend .ticks span { position:absolute; transform:translateX(-50%); white-space:nowrap; }
   #legend .ticks span:first-child { transform:none; } #legend .ticks span:last-child { transform:none; left:auto !important; right:0; }
-  #focus-row { margin-top:12px; width:330px; display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:13px; font-weight:600; color:var(--head); }
-  #focus-row select { font:inherit; font-weight:400; color:var(--ink); border:1px solid var(--rule); border-radius:4px; padding:2px 4px; background:#fff; }
-  #eco { margin-top:8px; width:330px; }
-  .row { margin-bottom:5px; }
+  #eco-panel { margin-top:16px; padding-top:12px; border-top:1px solid var(--rule); }
+  #eco-panel summary { cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center; font-weight:600; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); }
+  #eco-panel summary::-webkit-details-marker { display:none; }
+  #eco-panel summary::after { content:'+'; font-size:16px; font-weight:300; letter-spacing:0; }
+  #eco-panel[open] summary::after { content:'\2212'; }
+  #eco-panel summary:hover { color:var(--head); }
+  #eco-panel summary:focus-visible { outline:2px solid #2d6aa8; outline-offset:3px; }
+  #eco { margin-top:10px; width:100%; }
+  .row { margin-bottom:8px; }
   .row .top { display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:400; color:var(--head); }
   .row .top b { font-weight:600; font-size:14px; }
-  .bar { height:4px; background:#ececea; margin-top:3px; overflow:hidden; }
+  .bar { height:4px; background:#ececea; margin-top:3px; overflow:hidden; border-radius:2px; }
   .bar i { display:block; height:100%; transition:width .25s; }
   .row small { display:block; color:var(--dim); font-size:11.5px; margin-top:2px; line-height:1.3; font-weight:400; }
   .row[data-k=fish] i { background:linear-gradient(90deg,var(--fish),var(--fish2)); }
   .row[data-k=bird] i { background:linear-gradient(90deg,var(--bird),var(--bird2)); }
   .row[data-k=gum] i { background:linear-gradient(90deg,var(--gum),var(--gum2)); }
-  #credit { margin-top:auto; padding-top:10px; font-size:11.5px; line-height:1.45; color:#a2a5a9; font-weight:400; }
-  #credit b { color:var(--head); font-weight:700; }
+  #credit { margin-top:auto; padding-top:10px; font-size:11px; line-height:1.45; color:#a2a5a9; font-weight:400; }
   #bar { position:absolute; left:0; right:0; bottom:0; height:74px; display:flex; align-items:center; gap:16px; padding:0 26px 0 28px; }
   #bar button { all:unset; cursor:pointer; color:var(--head); }
   #play { width:36px; height:36px; display:grid; place-items:center; font-size:15px; }
@@ -65,38 +72,37 @@
   #townsIn:focus-visible, #detailIn:focus-visible, #sdlIn:focus-visible { outline:2px solid #2d6aa8; outline-offset:3px; }
   #tip { position:absolute; pointer-events:none; padding:9px 12px; display:none; z-index:5; font-size:13px; line-height:1.45; background:#fff; border:1px solid var(--rule); box-shadow:0 2px 10px rgba(0,0,0,.08); color:var(--ink); font-weight:400; }
   #tip b { font-weight:700; display:block; color:var(--head); }
-  #model-panels { position:absolute; left:420px; top:18px; right:300px; z-index:8; display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start; pointer-events:none; }
-  #model-panels > details, #calc-status { pointer-events:auto; }
-  #calc-status { flex-basis:100%; margin:0; padding:5px 10px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; color:var(--dim); }
+  #model-panels { position:absolute; left:420px; top:18px; z-index:8; width:264px; display:flex; flex-direction:column; border:1px solid var(--rule); border-radius:8px; background:rgba(255,255,255,.96); box-shadow:0 2px 10px rgba(0,0,0,.06); font-size:12px; font-weight:400; }
+  #model-panels > details + details, #calc-status { border-top:1px solid var(--rule); }
+  #calc-status { margin:0; padding:7px 14px; color:var(--dim); }
   #calc-status button { margin-left:6px; padding:0; border:0; background:none; color:#2d6aa8; font:inherit; text-decoration:underline; cursor:pointer; }
-  #climate-panel { width:240px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
-  #climate-panel summary { cursor:pointer; font-weight:600; color:var(--head); }
-  #climate-fields { display:grid; gap:8px; margin-top:12px; }
-  #climate-fields label { display:grid; gap:3px; }
-  #climate-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
-  #climate-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
-  #case-stops { display:flex; justify-content:space-between; margin-top:10px; }
+  #model-panels details > summary { cursor:pointer; list-style:none; display:flex; align-items:baseline; gap:8px; padding:10px 14px; font-weight:600; color:var(--head); }
+  #model-panels details > summary::-webkit-details-marker { display:none; }
+  #model-panels details > summary::after { content:'+'; margin-left:auto; color:var(--dim); font-size:15px; font-weight:300; }
+  #model-panels details[open] > summary::after { content:'\2212'; }
+  #model-panels summary .pick { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--dim); font-weight:400; }
+  #model-panels summary:focus-visible { outline:2px solid #2d6aa8; outline-offset:-2px; border-radius:6px; }
+  #model-panels details > div, #climate-meta { padding:0 14px 12px; }
+  #climate-fields, #runoff-fields, #routing-fields { display:grid; gap:8px; }
+  #climate-fields label, #runoff-fields label, #routing-fields label { display:grid; gap:3px; color:var(--dim); }
+  #runoff-fields select, #routing-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
+  #runoff-fields select:focus-visible, #routing-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
+  #case-stops { display:flex; justify-content:space-between; }
   #case-stops button { font:inherit; font-size:11px; padding:2px 4px; border:0; border-radius:3px; background:none; color:var(--dim); cursor:pointer; }
   #case-stops button[aria-pressed="true"] { color:var(--head); font-weight:600; }
   #case-stops button:focus-visible, #case-slider:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
-  #case-slider { width:100%; margin:4px 0 0; }
-  #case-details { margin:8px 0 0; display:grid; grid-template-columns:auto 1fr; gap:2px 10px; }
+  #case-slider { appearance:none; -webkit-appearance:none; width:100%; height:18px; margin:0; background:transparent; cursor:pointer; }
+  #case-slider::-webkit-slider-runnable-track { height:2px; background:#c9ccd0; border-radius:1px; }
+  #case-slider::-moz-range-track { height:2px; background:#c9ccd0; border-radius:1px; }
+  #case-slider::-moz-range-progress { background:transparent; }
+  #case-slider::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; margin-top:-6px; border-radius:50%; background:#fff; border:2px solid var(--head); }
+  #case-slider::-moz-range-thumb { width:10px; height:10px; border-radius:50%; background:#fff; border:2px solid var(--head); }
+  #case-details { margin:0; display:grid; grid-template-columns:auto 1fr; gap:2px 10px; }
   #case-details dt { color:var(--dim); } #case-details dd { margin:0; color:var(--ink); }
-  #case-note { margin:6px 0 0; color:var(--dim); line-height:1.4; }
-  #climate-meta { margin:8px 0 0; color:var(--dim); line-height:1.4; }
-  #runoff-panel { width:200px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
-  #runoff-panel summary { cursor:pointer; font-weight:600; color:var(--head); }
-  #runoff-fields { display:grid; gap:8px; margin-top:12px; }
-  #runoff-fields label { display:grid; gap:3px; }
-  #runoff-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
-  #runoff-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
-  #routing-panel { width:200px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.96); font-size:12px; font-weight:400; }
-  #routing-panel summary { cursor:pointer; font-weight:600; color:var(--head); }
-  #routing-fields { display:grid; gap:8px; margin-top:12px; }
-  #routing-fields label { display:grid; gap:3px; }
-  #routing-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
-  #routing-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
-  #routing-edit { margin-top:2px; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--head); font:inherit; cursor:pointer; }
+  #case-note { margin:0; color:var(--dim); line-height:1.4; }
+  #case-note:empty { display:none; }
+  #climate-meta { margin:0; color:var(--dim); line-height:1.4; }
+  #routing-edit { padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--head); font:inherit; cursor:pointer; }
   #routing-edit:hover { background:#f2f4f5; }
   #routing-edit:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
   #rt-editor { position:fixed; left:420px; right:20px; bottom:76px; z-index:9; display:none; flex-direction:column; gap:6px; padding:10px 14px; border:1px solid var(--rule); border-radius:8px; background:rgba(255,255,255,.96); box-shadow:0 4px 18px rgba(0,0,0,.12); font-size:12px; font-weight:400; color:var(--ink); }
@@ -111,9 +117,9 @@
   #rt-foot { color:var(--dim); }
   #rt-foot .ramp { width:90px; height:8px; border-radius:4px; background:linear-gradient(90deg,#cfe0ee,#1d4f7c); }
   @media (max-width:900px) { #rt-editor { left:12px; right:12px; bottom:70px; } }
-  @media (max-width:900px) { #model-panels { left:12px; right:12px; top:214px; flex-direction:column; max-height:calc(100% - 298px); overflow:auto; } #model-panels > details { width:240px; } }
+  @media (max-width:900px) { #model-panels { left:12px; top:214px; max-height:calc(100% - 298px); overflow:auto; } }
   #err { position:absolute; inset:0; display:none; place-items:center; font:300 20px var(--sans); text-align:center; padding:40px; z-index:20; background:var(--bg); }
-  @media (max-width:900px) { #map { left:0; top:300px; } #side { width:100%; bottom:auto; height:300px; padding:18px 20px; background:#fff; z-index:2; } h1 { font-size:24px; margin-top:8px; } #desc,#legend,#focus-row,#eco,#credit,#note2,#chartT,#bars { display:none; } #date { font-size:36px; } #wd { margin-top:8px; } }
+  @media (max-width:900px) { #map { left:0; top:300px; } #side { width:100%; bottom:auto; height:300px; padding:18px 20px; background:#fff; z-index:2; } h1 { font-size:24px; margin-top:8px; } #desc,#key,#flow,#eco-panel,#credit { display:none; } #side section { margin-top:8px; padding-top:8px; } #date { font-size:36px; } }
   #site-menu { position:fixed; z-index:30; top:16px; right:210px; font-size:11px; font-weight:400; color:#888d92; }
   #site-menu summary { list-style:none; cursor:pointer; padding:5px 7px; color:inherit; background:transparent; border:1px solid transparent; border-radius:5px; }
   #site-menu summary:hover, #site-menu[open] summary { color:var(--head); background:rgba(255,255,255,.72); border-color:var(--rule); }
@@ -127,7 +133,8 @@
   #site-menu a:hover, #site-menu a:focus-visible { background:#f2f4f5; }
   body.car-driving #side { display:none; }  /* driving: the car's own HUD replaces the side panel and the map takes the width */
   body.car-driving #map { left:0; top:0; bottom:0; }
-  body.car-driving #model-panels details { display:none; }  /* model choices wait until you stop driving */
+  body.car-driving #model-panels details { display:none; }
+  body.car-driving #model-panels { background:none; border-color:transparent; box-shadow:none; }  /* model choices wait until you stop driving */
   body.car-driving #bar { left:50%; right:auto; bottom:14px; height:auto; transform:translateX(-50%); gap:10px; padding:4px 12px 4px 6px;
     border:1px solid var(--rule); border-radius:22px; background:rgba(255,255,255,.94); box-shadow:0 2px 10px rgba(0,0,0,.12); z-index:7; }
   body.car-driving #timeline { flex:none; width:180px; height:34px; }
@@ -148,26 +155,35 @@
   <div id="kicker"><span id="kicker-title">__TITLE__</span> / <select id="climate-start" aria-label="Start year" title="Start year"><option>2027</option></select>&ndash;<select id="climate-end" aria-label="End year" title="End year"><option>2036</option></select></div>
   <h1>Water on the land,<br>day by day</h1>
   <div id="desc">Rolling 30-day potential evaporation on the native 4 km grid, minus its normal for that day of the year, smoothed over the land&rsquo;s own terrain, with rivers at their routed flow.</div>
-  <div id="wd"></div>
-  <div id="date"></div>
-  <div id="yr"></div>
-  <div id="chartT">Daily mean</div>
-  <canvas id="bars"></canvas>
-  <div id="note">Colour shows the evaporation anomaly.</div>
-  <div id="note2">Warm is above normal; cool is below. Height is terrain. Clouds are rolling 60-day rainfall.</div>
-  <div id="legend"><div class="ramp" id="legE"></div><div class="ticks" id="legEK"></div></div>
-  <label id="focus-row" for="focus"><span>Outlet flow and ecology</span><select id="focus"></select></label>
-  <div id="eco">
-    <div class="row" data-k="fish"><div class="top"><span>Native fish</span><b id="fishV"></b></div><div class="bar"><i id="fishB"></i></div><small id="fishS"></small></div>
-    <div class="row" data-k="bird"><div class="top"><span>Colonial waterbirds</span><b id="birdV"></b></div><div class="bar"><i id="birdB"></i></div><small id="birdS"></small></div>
-    <div class="row" data-k="gum"><div class="top"><span>River red gum</span><b id="gumV"></b></div><div class="bar"><i id="gumB"></i></div><small id="gumS"></small></div>
-  </div>
-  <div id="credit"><b>NARCliM2.0 &middot; NCI / NSW DCCEEW</b><br>GR4J + Muskingum, uncalibrated, indicative only<br>MDBA SDL resource units &middot; HydroBASINS &middot; AWS Terrain Tiles &middot; OSM</div>
+  <section id="now">
+    <div id="wd"></div>
+    <div id="date"></div>
+    <div id="yr"></div>
+  </section>
+  <section id="flow">
+    <div id="chartT">Daily mean</div>
+    <canvas id="bars"></canvas>
+    <label id="focus-row" for="focus"><span>Outlet</span><select id="focus"></select></label>
+  </section>
+  <section id="key">
+    <div id="note">Evaporation anomaly</div>
+    <div id="legend"><div class="ramp" id="legE"></div><div class="ticks" id="legEK"></div></div>
+    <div id="note2">Warm is above normal; cool is below. Height is terrain. Clouds are rolling 60-day rainfall.</div>
+  </section>
+  <details id="eco-panel">
+    <summary>Ecological outcomes</summary>
+    <div id="eco">
+      <div class="row" data-k="fish"><div class="top"><span>Native fish</span><b id="fishV"></b></div><div class="bar"><i id="fishB"></i></div><small id="fishS"></small></div>
+      <div class="row" data-k="bird"><div class="top"><span>Colonial waterbirds</span><b id="birdV"></b></div><div class="bar"><i id="birdB"></i></div><small id="birdS"></small></div>
+      <div class="row" data-k="gum"><div class="top"><span>River red gum</span><b id="gumV"></b></div><div class="bar"><i id="gumB"></i></div><small id="gumS"></small></div>
+    </div>
+  </details>
+<div id="credit"><b>NARCliM2.0 &middot; NCI / NSW DCCEEW</b><br>GR4J + Muskingum, uncalibrated, indicative only<br>MDBA SDL resource units &middot; HydroBASINS &middot; AWS Terrain Tiles &middot; OSM</div>
 </div>
 <div id="relief"><label><span>Rivers</span><input id="riverReliefIn" type="range" min="0" max="3.4" step="0.05" value="1"></label><label><span>Terrain</span><input id="reliefIn" type="range" min="0" max="2" step="0.05" value="1"></label></div>
 <div id="model-panels">
 <details id="climate-panel">
-  <summary>Climate model</summary>
+  <summary>Climate model<span class="pick" id="climate-pick"></span></summary>
   <div id="climate-fields">
     <div id="case-stops"></div>
     <input id="case-slider" type="range" min="0" max="2" step="1" value="1" aria-label="Climate case, best to worst">
@@ -177,13 +193,13 @@
   <p id="climate-meta"></p>
 </details>
 <details id="runoff-panel">
-  <summary>Rainfall-runoff</summary>
+  <summary>Rainfall-runoff<span class="pick" id="runoff-pick"></span></summary>
   <div id="runoff-fields">
     <label for="runoff-model">Method<select id="runoff-model"></select></label>
   </div>
 </details>
 <details id="routing-panel">
-  <summary>Routing</summary>
+  <summary>Routing<span class="pick" id="routing-pick"></span></summary>
   <div id="routing-fields">
     <label for="routing-model">Method<select id="routing-model"></select></label>
     <button type="button" id="routing-edit">Edit</button>
@@ -231,6 +247,7 @@ if (typeof maplibregl === 'undefined' || typeof deck === 'undefined') document.g
 const BF = {};
 for (const id in D.riverFlow) { const bin = atob(D.riverFlow[id]), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); BF[id] = new Uint16Array(u8.buffer); }
 const N = D.days.length, $ = id => document.getElementById(id);
+const pick = (id, text) => { $(id).textContent = text; };
 // Climate cases, best to worst: a slider and a button per stop; the selected stop's SSP, global and regional model are listed.
 // Only the run embedded in this build can be shown; the other stops describe their run but are not built yet.
 {
@@ -242,6 +259,7 @@ const N = D.days.length, $ = id => document.getElementById(id);
     $('case-details').replaceChildren(...[['Scenario', ssp(c)], ['Global model', c.globalModel], ['Regional model', c.regionalConfig.replace('WRF412', 'WRF412-')]].flatMap(([k, v]) => {
       const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; return [dt, dd];
     }));
+    pick('climate-pick', c.label);
     $('case-note').textContent = c.built ? '' : 'This case is not built into this page yet; the map shows the median.';
   };
   cases.forEach((c, i) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.i = i; b.textContent = c.label; b.onclick = () => show(i); $('case-stops').append(b); });
@@ -327,6 +345,9 @@ async function chooseMethods() {
   } finally { selects.forEach(s => s.disabled = false); }
 }
 $('runoff-model').onchange = $('routing-model').onchange = chooseMethods;
+// The closed panels say what is chosen.
+const showPicks = () => { for (const k of ['runoff', 'routing']) pick(k + '-pick', $(k + '-model').selectedOptions[0]?.text || ''); };
+$('runoff-model').addEventListener('change', showPicks); $('routing-model').addEventListener('change', showPicks); showPicks();
 // ---- Routing editor: read-only for now. Draws the selected method's network on the map, a node per terrain watershed where it joins the river. ----
 const rtEngines = {};
 const rtEngine = sys => rtEngines[sys] ||= fetch(D.engines[sys]).then(r => { if (!r.ok) throw new Error(D.engines[sys]); return r.json(); });
