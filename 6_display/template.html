@@ -102,32 +102,32 @@
   #case-note { margin:0; color:var(--dim); line-height:1.4; }
   #case-note:empty { display:none; }
   #climate-meta { margin:0; color:var(--dim); line-height:1.4; }
-  #routing-edit, #runoff-edit { padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--head); font:inherit; cursor:pointer; }
-  #routing-edit:hover, #runoff-edit:hover { background:#f2f4f5; }
-  #routing-edit:focus-visible, #runoff-edit:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
-  #rt-editor, #rr-editor { position:fixed; left:420px; right:20px; bottom:76px; z-index:9; display:none; flex-direction:column; gap:6px; padding:10px 14px; border:1px solid var(--rule); border-radius:8px; background:rgba(255,255,255,.96); box-shadow:0 4px 18px rgba(0,0,0,.12); font-size:12px; font-weight:400; color:var(--ink); }
-  #rt-editor.open, #rr-editor.open { display:flex; }
-  body.car-driving #rt-editor, body.car-driving #rr-editor { display:none; }
-  #rt-head, #rr-head, #rt-foot { display:flex; flex-wrap:wrap; gap:6px 16px; align-items:center; }
-  #rt-head b, #rr-head b { font-size:14px; color:var(--head); }
-  #rt-head select, #rr-head select { padding:4px 6px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
-  #rt-head label:has(input), #rr-head label:has(input) { display:flex; gap:5px; align-items:center; cursor:pointer; }
-  #rt-head .grow, #rr-head .grow { flex:1 0 100%; order:3; color:var(--dim); }
+  #routing-edit { padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--head); font:inherit; cursor:pointer; }
+  #routing-edit:hover { background:#f2f4f5; }
+  #routing-edit:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
+  #rt-editor { position:fixed; left:420px; right:20px; bottom:76px; z-index:9; display:none; flex-direction:column; gap:6px; padding:10px 14px; border:1px solid var(--rule); border-radius:8px; background:rgba(255,255,255,.96); box-shadow:0 4px 18px rgba(0,0,0,.12); font-size:12px; font-weight:400; color:var(--ink); }
+  #rt-editor.open { display:flex; }
+  body.car-driving #rt-editor { display:none; }
+  #rt-head, #rt-foot { display:flex; flex-wrap:wrap; gap:6px 16px; align-items:center; }
+  #rt-head b { font-size:14px; color:var(--head); }
+  #rt-head select { padding:4px 6px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
+  #rt-head label:has(input) { display:flex; gap:5px; align-items:center; cursor:pointer; }
+  #rt-head .grow { flex:1 0 100%; order:3; color:var(--dim); }
   #rt-editor details { color:var(--dim); }
   #rt-editor summary { cursor:pointer; padding:3px 0; }
-  #rt-close, #rr-close { padding:4px 10px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--head); font:inherit; cursor:pointer; }
-  #rt-tools, #rr-tools { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-  #rt-tools button, #rr-tools button { padding:6px 10px; border:1px solid var(--rule); border-radius:4px; background:white; cursor:pointer; color:var(--head); }
-  #rt-tools button:disabled, #rr-tools button:disabled { opacity:.4; cursor:default; }
-  #rt-tools button[aria-pressed="true"], #rr-tools button[aria-pressed="true"] { background:#1d4f7c; color:white; }
+  #rt-close { padding:4px 10px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--head); font:inherit; cursor:pointer; }
+  #rt-tools { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  #rt-tools button { padding:6px 10px; border:1px solid var(--rule); border-radius:4px; background:white; cursor:pointer; color:var(--head); }
+  #rt-tools button:disabled { opacity:.4; cursor:default; }
+  #rt-tools button[aria-pressed="true"] { background:#1d4f7c; color:white; }
   #rt-legend { display:flex; flex-wrap:wrap; gap:4px 14px; padding:5px 0; border-top:1px solid var(--rule); }
   #rt-legend span { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
   #rt-legend img { width:23px; height:23px; }
   #rt-legend .ring { width:17px; height:17px; border:2px solid #c0392b; border-radius:50%; box-sizing:border-box; }
-  #rt-status, #rr-status { margin:2px 0; line-height:1.5; }
+  #rt-status { margin:2px 0; line-height:1.5; }
   #rt-foot { color:var(--dim); }
   #rt-foot .ramp { width:90px; height:8px; border-radius:4px; background:linear-gradient(90deg,#cfe0ee,#1d4f7c); }
-  @media (max-width:900px) { #rt-editor, #rr-editor { left:12px; right:12px; bottom:70px; } }
+  @media (max-width:900px) { #rt-editor { left:12px; right:12px; bottom:70px; } }
   @media (max-width:900px) { #model-panels { left:12px; top:214px; max-height:calc(100% - 298px); overflow:auto; } }
   #err { position:absolute; inset:0; display:none; place-items:center; font:300 20px var(--sans); text-align:center; padding:40px; z-index:20; background:var(--bg); }
   @media (max-width:900px) { #map { left:0; top:300px; } #side { width:100%; bottom:auto; height:300px; padding:18px 20px; background:#fff; z-index:2; } h1 { font-size:24px; margin-top:8px; } #desc,#key,#flow,#eco-panel,#credit { display:none; } #side section { margin-top:8px; padding-top:8px; } #date { font-size:36px; } }
@@ -207,7 +207,6 @@
   <summary>Rainfall-runoff<span class="pick" id="runoff-pick"></span></summary>
   <div id="runoff-fields">
     <label for="runoff-model">Method<select id="runoff-model"></select></label>
-    <button type="button" id="runoff-edit">Edit</button>
   </div>
 </details>
 <details id="routing-panel">
@@ -223,15 +222,6 @@
 <label id="towns-toggle" for="townsIn"><span>Towns</span><input id="townsIn" type="checkbox" role="switch"></label>
 <label id="detail-toggle" for="detailIn"><span>Roads</span><input id="detailIn" type="checkbox" role="switch"></label>
 <label id="sdl-toggle" for="sdlIn"><span>SDL units</span><input id="sdlIn" type="checkbox" role="switch"></label>
-<div id="rr-editor" role="dialog" aria-label="Rainfall-runoff areas">
-  <div id="rr-head"><b>Rainfall-runoff areas</b><label>River system <select id="rr-system"></select></label><label><input type="checkbox" id="rr-terrain"> Terrain</label><label><input type="checkbox" id="rr-rivers" checked> Rivers</label><span class="grow" id="rr-sub"></span><button type="button" id="rr-close">Close</button></div>
-  <div id="rr-tools" aria-label="Area editing tools">
-    <button id="rr-add">Add dot</button><button id="rr-point" disabled>Add border point</button><button id="rr-delete" disabled>Delete dot</button>
-    <button id="rr-run">Apply &amp; recalculate flows</button><button id="rr-undo" disabled>Undo</button><button id="rr-reset">Reset areas</button><button id="rr-export">Export draft</button>
-  </div>
-  <p id="rr-status" role="status" aria-live="polite">Click an area or its dot to select it.</p>
-  <div>Each dot is where one node’s runoff joins the network, and its area sets that node’s share of the basin’s runoff. Rain and evaporation are still averaged over the whole basin, so moving a border changes how the basin’s runoff is divided, not how much rain falls. Basin borders (heavy lines) are fixed. Edits are saved in this browser; apply them to update flows. A river node’s dot is moved in the routing editor.</div>
-</div>
 <div id="rt-editor" role="dialog" aria-label="Routing network">
   <div id="rt-head"><b id="rt-title">Routing network</b><label>River system <select id="rt-system"></select></label><label><input type="checkbox" id="rt-terrain" checked> Terrain</label><label><input type="checkbox" id="rt-rivers" checked> Rivers</label><label><input type="checkbox" id="rt-borders" checked> Planning unit borders</label><span class="grow" id="rt-sub"></span><button type="button" id="rt-close">Close</button></div>
   <div id="rt-legend" aria-label="Node symbol legend"></div>
@@ -405,7 +395,7 @@ const rtEngine = sys => rtEngines[sys] ||= fetch(D.engines[sys]).then(r => { if 
 const prettySystem = s => s.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
 for (const s of Object.keys(D.engines)) $('rt-system').add(new Option(prettySystem(s), s));
 let RT = null;  // { nodes, links } while the editor is open; rtLayers() draws them
-const rtShow = { terrain: true, rivers: true, borders: true }, rtShows = k => !(RT || RR) || rtShow[k];  // the editor can hide the terrain and the rivers under its network
+const rtShow = { terrain: true, rivers: true, borders: true }, rtShows = k => !RT || rtShow[k];  // the editor can hide the terrain and the rivers under its network
 const redraw = () => overlay?.setProps({ layers:layers() });
 async function drawRouting(fit) {
   try { await drawRoutingNetwork(fit); } catch (e) { console.error(e); $('rt-sub').textContent = 'Could not draw the network: ' + e.message; }
@@ -877,11 +867,7 @@ function rtLength(path) {
   }
   return km;
 }
-function rtEditedEngine(system, source) {  // the routing draft, then the runoff area draft, on a system's engine
-  const routed = rtEditedNetwork(system, source), areas = rrDraft(system);
-  return areas ? rrApplyAreas(routed, areas) : routed;
-}
-function rtEditedNetwork(system, source) {
+function rtEditedEngine(system, source) {
   const stored = system === rtSystem && RT ? rtPack(RT) : JSON.parse(localStorage.getItem(`river-network-draft-v2:${D.engineHash}:${system}`) || 'null');
   if (!stored) return source;
   const graph = rtUnpack(stored), engine = structuredClone(source);
@@ -935,374 +921,12 @@ async function rtRun() {
 }
 $('rt-run').onclick = rtRun;
 $('rt-legend').innerHTML = Object.values(RT_SYMBOLS).map(s => `<span title="${s.detail}"><img src="${s.url}" alt="">${s.label}</span>`).join('') + '<span><i class="ring"></i>Calibrated loss</span><span><i class="ring" style="border-color:#009682"></i>Selected</span>';
-$('routing-edit').onclick = () => {
-  if ($('rr-editor').classList.contains('open')) $('rr-close').click();
-  $('rt-system').value = SYSTEM_OF[focus] in D.engines ? SYSTEM_OF[focus] : $('rt-system').options[0].value; $('rt-editor').classList.add('open'); drawRouting(true); };
+$('routing-edit').onclick = () => { $('rt-system').value = SYSTEM_OF[focus] in D.engines ? SYSTEM_OF[focus] : $('rt-system').options[0].value; $('rt-editor').classList.add('open'); drawRouting(true); };
 $('rt-close').onclick = () => { $('rt-editor').classList.remove('open'); RT = null; $('tip').style.display = 'none'; redraw(); $('routing-edit').focus(); };
 $('rt-system').onchange = () => drawRouting(true);
 for (const k of ['terrain', 'rivers', 'borders']) $('rt-' + k).onchange = e => { rtShow[k] = e.target.checked; redraw(); };
 $('routing-model').addEventListener('change', () => { if ($('rt-editor').classList.contains('open')) drawRouting(false); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('rt-editor').classList.contains('open')) $('rt-close').click(); });
-// ---- Runoff area editor. Each routing node takes a share of its basin's runoff, set by the area drawn around it. ----
-// Rain and PET are still averaged per basin, so moving a border changes how a basin's runoff is divided between its nodes,
-// not the rain itself. Areas start as the node watersheds inside their basin; their corners are shared vertices, so a border
-// dragged between two areas moves both. Basin borders are fixed, so every basin keeps the runoff it had.
-let RR = null;  // { system, V: [lon, lat] vertices, cells: [{id, basin, rings: [[vertex index]], river, dot, ...}], removed: [{id, basin, share0}], rev, edited } while the editor is open
-let rrSelected = null, rrMode = null, rrHistory = [], rrBase = null, rrBusy = false, rrSuppressClick = 0;
-const rrKey = sys => `runoff-areas-draft-v1:${D.engineHash}:${sys}`;
-const rrAreaFiles = {};
-const rrAreas = sys => rrAreaFiles[sys] ||= fetch(D.areas[sys]).then(r => { if (!r.ok) throw new Error(D.areas[sys]); return r.json(); });
-const rrKm = (p, lat0) => [p[0] * Math.cos(lat0 * Math.PI / 180) * 111.32, p[1] * 110.57];
-function rrRingKm2(ring, V) {
-  const lat0 = ring.reduce((s, i) => s + V[i][1], 0) / ring.length, pts = ring.map(i => rrKm(V[i], lat0));
-  let twice = 0;
-  for (let k = 0; k < pts.length; k++) { const [x, y] = pts[k], [u, v] = pts[(k + 1) % pts.length]; twice += x * v - u * y; }
-  return Math.abs(twice) / 2;
-}
-const rrCellKm2 = (cell, V) => cell.rings.reduce((s, r) => s + rrRingKm2(r, V), 0);
-// The areas from the data file (rings of [lon, lat]) on the engine's nodes. A node without an area is not editable here.
-function rrBuild(areas, engine) {
-  const index = new Map(), V = [], byId = Object.fromEntries(engine.nodes.map(n => [n.id, n]));
-  const vertex = p => {
-    const key = Math.round(p[0] * 1e5) + ',' + Math.round(p[1] * 1e5);
-    if (!index.has(key)) { index.set(key, V.length); V.push([p[0], p[1]]); }
-    return index.get(key);
-  };
-  const cells = [];
-  for (const [id, rings] of Object.entries(areas.cells)) {
-    const node = byId[id];
-    if (!node) continue;
-    const made = rings.map(r => { const ids = r.slice(0, -1).map(vertex); return ids.filter((v, k) => v !== ids[(k + 1) % ids.length]); }).filter(r => r.length >= 3);
-    if (made.length) cells.push({ id, basin: node.basin, rings: made, river: !!node.river, dot: [node.lon, node.lat], share0: node.share, area0: node.area });
-  }
-  for (const c of cells) { const km2 = rrCellKm2(c, V); c.a0 = km2; c.dens = c.share0 / km2; c.densKm2 = c.area0 / km2; }  // runoff share and watershed area per km² drawn
-  return { V, cells, removed: [] };
-}
-function rrPack(R) {
-  const round = p => [Math.round(p[0] * 1e5) / 1e5, Math.round(p[1] * 1e5) / 1e5];
-  return JSON.parse(JSON.stringify({ version: 1, V: R.V.map(round), cells: R.cells.map(({ id, basin, rings, river, dot, share0, area0, a0, dens, densKm2, added, host }) => ({ id, basin, rings, river, dot, share0, area0, a0, dens, densKm2, added, host })), removed: R.removed }));
-}
-function rrUnpack(data) {
-  if (!Array.isArray(data?.V) || !Array.isArray(data.cells) || !Array.isArray(data.removed)) throw new Error('Invalid area draft');
-  const R = JSON.parse(JSON.stringify(data)), ids = new Set(R.cells.map(c => c.id));
-  if (ids.size !== R.cells.length) throw new Error('Invalid area draft');
-  for (const c of R.cells) if (!c.rings.every(r => r.length >= 3 && r.every(i => Number.isInteger(i) && i >= 0 && i < R.V.length)) || !c.dot?.every(Number.isFinite)) throw new Error('Invalid area draft');
-  R.rev = 0; R.edited = false;
-  return R;
-}
-// Each cell's share of its basin's runoff: the basin keeps the total its areas had, divided by drawn area x density.
-function rrShares(R) {
-  const pool = {}, weight = {}, w = {};
-  for (const c of R.cells) { w[c.id] = c.dens * rrCellKm2(c, R.V); weight[c.basin] = (weight[c.basin] || 0) + w[c.id]; if (!c.added) pool[c.basin] = (pool[c.basin] || 0) + c.share0; }
-  for (const r of R.removed) pool[r.basin] = (pool[r.basin] || 0) + r.share0;
-  return Object.fromEntries(R.cells.map(c => [c.id, pool[c.basin] * w[c.id] / weight[c.basin]]));
-}
-// Borders, and which vertices may move. An edge used by one area, or by areas of two basins, is a basin border: fixed.
-function rrTopology(R) {
-  const edges = new Map();
-  R.cells.forEach(c => c.rings.forEach(ring => ring.forEach((a, k) => {
-    const b = ring[(k + 1) % ring.length], key = a < b ? a + ',' + b : b + ',' + a;
-    if (!edges.has(key)) edges.set(key, { a: Math.min(a, b), b: Math.max(a, b), cells: [] });
-    edges.get(key).cells.push(c);
-  })));
-  const pinned = new Set(), lines = [];
-  for (const e of edges.values()) {
-    const basins = new Set(e.cells.map(c => c.basin)), owners = new Set(e.cells.map(c => c.id));
-    const fixed = e.cells.length === 1 || basins.size > 1;
-    if (fixed) { pinned.add(e.a); pinned.add(e.b); }
-    if (fixed || owners.size > 1) lines.push({ a: e.a, b: e.b, basin: fixed });  // a border between two merged rings of one area is not drawn
-  }
-  return { pinned, lines, edges };
-}
-// Add vertex v on the edge a-b in every area that has it (except those named), so a border keeps one shared set of corners.
-function rrInsertOnEdge(R, a, b, v, skip = []) {
-  for (const c of R.cells) {
-    if (skip.includes(c)) continue;
-    for (const ring of c.rings) for (let k = 0; k < ring.length; k++) {
-      const p = ring[k], q = ring[(k + 1) % ring.length];
-      if ((p === a && q === b) || (p === b && q === a)) { ring.splice(k + 1, 0, v); break; }
-    }
-  }
-}
-// Split a cell between its dot and a new dot at ``p``, along the line halfway between them. Returns the new cell, or an error message.
-function rrSplit(R, cell, p) {
-  const lat0 = cell.dot[1], D = rrKm(cell.dot, lat0), P = rrKm(p, lat0);
-  const n = [P[0] - D[0], P[1] - D[1]], m = [(P[0] + D[0]) / 2, (P[1] + D[1]) / 2];
-  if (Math.hypot(...n) < 0.05) return 'Place the new dot further from the existing one.';
-  const f = i => { const q = rrKm(R.V[i], lat0); return (q[0] - m[0]) * n[0] + (q[1] - m[1]) * n[1]; };
-  const cuts = new Map(), crossings = [];
-  const crossing = (a, b, fa, fb) => {
-    const key = a < b ? a + ',' + b : b + ',' + a;
-    if (!cuts.has(key)) {
-      const t = fa / (fa - fb), A = R.V[a], B = R.V[b];
-      cuts.set(key, R.V.length); crossings.push([a, b, R.V.length]); R.V.push([A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t]);
-    }
-    return cuts.get(key);
-  };
-  const near = [], far = [];
-  for (const ring of cell.rings) {
-    const a1 = [], b1 = [];
-    ring.forEach((a, k) => {
-      const b = ring[(k + 1) % ring.length], fa = f(a), fb = f(b);
-      if (fa >= 0) a1.push(a);
-      if (fa <= 0) b1.push(a);
-      if ((fa > 0 && fb < 0) || (fa < 0 && fb > 0)) { const x = crossing(a, b, fa, fb); a1.push(x); b1.push(x); }
-    });
-    if (a1.length >= 3 && rrRingKm2(a1, R.V) > 1e-4) near.push(a1);
-    if (b1.length >= 3 && rrRingKm2(b1, R.V) > 1e-4) far.push(b1);
-  }
-  if (!near.length || !far.length) return 'The new dot must be inside the area it splits.';
-  const added = { id: 'area-' + crypto.randomUUID().slice(0, 8), basin: cell.basin, rings: near, river: false, dot: p, share0: 0, area0: 0, a0: 0, dens: cell.dens, densKm2: cell.densKm2, added: true, host: cell.id };
-  cell.rings = far;
-  for (const [a, b, v] of crossings) rrInsertOnEdge(R, a, b, v, [cell]);
-  R.cells.push(added);
-  return added;
-}
-const rrDeletable = c => !c.river ? '' : 'This area belongs to a river node. Delete the node in the routing editor, or leave the area as it is.';
-// Delete a cell: its area joins the neighbour in the same basin that it shares the most border with. Returns the neighbour, or an error message.
-function rrMerge(R, cell) {
-  const problem = rrDeletable(cell);
-  if (problem) return problem;
-  const km = {};
-  for (const e of rrTopology(R).edges.values()) {
-    if (!e.cells.includes(cell)) continue;
-    const other = e.cells.find(c => c !== cell && c.basin === cell.basin);
-    if (!other) continue;
-    const lat0 = R.V[e.a][1], [x, y] = rrKm(R.V[e.a], lat0), [u, v] = rrKm(R.V[e.b], lat0);
-    km[other.id] = (km[other.id] || 0) + Math.hypot(x - u, y - v);
-  }
-  const best = Object.keys(km).sort((a, b) => km[b] - km[a])[0], target = R.cells.find(c => c.id === best);
-  if (!target) return 'This area touches no other area of its basin to join.';
-  target.rings.push(...cell.rings);
-  R.cells = R.cells.filter(c => c !== cell);
-  for (const c of R.cells) if (c.host === cell.id) c.host = target.id;
-  if (!cell.added) R.removed.push({ id: cell.id, basin: cell.basin, share0: cell.share0 });
-  return target;
-}
-function rrPointIn(R, lon, lat) {
-  for (const c of R.cells) for (const ring of c.rings) {
-    let inside = false;
-    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-      const [xi, yi] = R.V[ring[i]], [xj, yj] = R.V[ring[j]];
-      if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
-    }
-    if (inside) return c;
-  }
-  return null;
-}
-// The engine's nodes with the area draft applied: shares and areas follow the drawn areas, dots of non-river nodes move,
-// deleted nodes go and added ones join the river node (or the node that node joins) of the area they were cut from.
-function rrApplyAreas(engine, draft) {
-  const out = structuredClone(engine), byId = new Map(out.nodes.map(n => [n.id, n]));
-  const totals = {};
-  for (const n of out.nodes) totals[n.basin] = (totals[n.basin] || 0) + n.share;
-  const weight = {}, w = {}, pool = {}, scale = c => c.dens * rrCellKm2(c, draft.V);
-  for (const c of draft.cells) {
-    const node = byId.get(c.id);
-    w[c.id] = c.added ? scale(c) : node ? node.share * rrCellKm2(c, draft.V) / c.a0 : 0;  // a node edited in the routing editor keeps its changes
-    weight[c.basin] = (weight[c.basin] || 0) + w[c.id];
-    if (node) pool[c.basin] = (pool[c.basin] || 0) + node.share;
-  }
-  for (const r of draft.removed) if (byId.has(r.id)) pool[r.basin] = (pool[r.basin] || 0) + byId.get(r.id).share;
-  const gone = new Set(draft.removed.map(r => r.id).filter(id => byId.has(id)));
-  for (const c of draft.cells) {
-    if (!weight[c.basin] || !pool[c.basin]) continue;
-    const share = pool[c.basin] * w[c.id] / weight[c.basin], node = byId.get(c.id);
-    if (node) {
-      node.area = node.area * share / node.share; node.share = share;
-      if (!c.river) { node.lon = c.dot[0]; node.lat = c.dot[1]; }
-      continue;
-    }
-    if (!c.added) continue;
-    const host = byId.get(c.host) || out.nodes.find(n => n.basin === c.basin && n.outlet);
-    if (!host) throw new Error('An added area has no node to flow into.');
-    const model = { id: c.id, basin: c.basin, share, area: c.densKm2 * rrCellKm2(c, draft.V), length: 0, next: host.river ? host.id : host.next, lon: c.dot[0], lat: c.dot[1], outlet: false, lossRank: 0 };
-    out.nodes.push(model); byId.set(c.id, model);
-  }
-  const resolve = id => { while (gone.has(id)) id = byId.get(id).next; return id; };
-  out.nodes = out.nodes.filter(n => !gone.has(n.id));
-  for (const n of out.nodes) n.next = resolve(n.next);
-  for (const n of out.nodes) {
-    const sum = out.nodes.filter(m => m.basin === n.basin).reduce((s, m) => s + m.share, 0);
-    if (Math.abs(sum - totals[n.basin]) > 1e-9) throw new Error('Catchment runoff shares must preserve the original total.');
-    if (!(n.share > 0) || !(n.area > 0)) throw new Error('Every area needs a positive runoff share.');
-  }
-  return out;
-}
-// The draft a recalculation should use for a system: the open editor's, or the one saved in this browser.
-function rrDraft(system) {
-  if (RR && RR.system === system) return RR.edited ? RR : null;
-  try { const saved = JSON.parse(localStorage.getItem(rrKey(system)) || 'null'); return saved ? rrUnpack(saved) : null; } catch (e) { return null; }
-}
-// ---- end runoff area editor ----
-// The editor's panel, map layers and tools.
-for (const s of Object.keys(D.engines)) $('rr-system').add(new Option(prettySystem(s), s));
-const rrCell = id => RR?.cells.find(c => c.id === id);
-const rrHue = s => { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) % 360; return h; };
-const rrRgb = (h, s, l) => { const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = n => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)); return [f(0), f(8), f(4)].map(x => Math.round(x * 255)); };
-let rrViewCache = null;
-function rrView() {  // everything the layers draw, rebuilt when the areas change
-  if (rrViewCache?.rev === RR.rev && rrViewCache.R === RR) return rrViewCache;
-  const topology = rrTopology(RR);
-  rrViewCache = { R: RR, rev: RR.rev, ...topology, rings: RR.cells.flatMap(cell => cell.rings.map(ring => ({ cell, ring, color: rrRgb(rrHue(cell.basin), .55, .55) }))) };
-  return rrViewCache;
-}
-function rrLayers() {
-  if (!RR) return [];
-  const view = rrView(), V = RR.V, selected = rrCell(rrSelected);
-  const blend = { depthWriteEnabled:false, depthCompare:'always' }, z = p => [p[0], p[1], rtShow.terrain ? groundZ(p[0], p[1]) * TERR + 1400 : 0], trig = [relief, meshGen, rtShow.terrain, RR.rev];
-  return [
-    new deck.SolidPolygonLayer({ id:'rr-cells', data:view.rings, getPolygon:d => d.ring.map(i => z(V[i])), getFillColor:d => [...d.color, d.cell.id === rrSelected ? 150 : 75], pickable:true, parameters:blend,
-      updateTriggers:{ getPolygon:trig, getFillColor:rrSelected } }),
-    new deck.PathLayer({ id:'rr-borders', data:view.lines, getPath:d => [z(V[d.a]), z(V[d.b])], getColor:d => d.basin ? [24,34,52,235] : [52,70,98,170], getWidth:d => d.basin ? 2.4 : 1.2, widthUnits:'pixels',
-      pickable:false, parameters:blend, updateTriggers:{ getPath:trig } }),
-    new deck.PathLayer({ id:'rr-selected', data:selected ? selected.rings : [], getPath:ring => [...ring, ring[0]].map(i => z(V[i])), getColor:[0,150,130,255], getWidth:3, widthUnits:'pixels', pickable:false, parameters:blend,
-      updateTriggers:{ getPath:[...trig, rrSelected] } }),
-    new deck.ScatterplotLayer({ id:'rr-verts', data:selected ? [...new Set(selected.rings.flat())].map(i => ({ i, pinned:view.pinned.has(i) })) : [], getPosition:d => z(V[d.i]), getRadius:d => d.pinned ? 3 : 6, radiusUnits:'pixels',
-      getFillColor:d => d.pinned ? [150,156,164,255] : [255,255,255,255], stroked:true, getLineColor:[0,110,98,255], getLineWidth:1.5, lineWidthUnits:'pixels', billboard:true, pickable:true, parameters:blend,
-      updateTriggers:{ getPosition:trig, getRadius:RR.rev, getFillColor:RR.rev, data:[RR.rev, rrSelected] } }),
-    new deck.ScatterplotLayer({ id:'rr-dots', data:RR.cells, getPosition:c => z(c.dot), getRadius:c => c.id === rrSelected ? 9 : 5.5, radiusUnits:'pixels',
-      getFillColor:c => c.added ? [230,140,30,255] : c.river ? [29,79,124,255] : [255,255,255,255], stroked:true, getLineColor:c => c.id === rrSelected ? [0,150,130,255] : [24,34,52,255], getLineWidth:c => c.id === rrSelected ? 3 : 1.5, lineWidthUnits:'pixels',
-      billboard:true, pickable:true, parameters:blend, updateTriggers:{ getPosition:trig, getRadius:rrSelected, getLineColor:rrSelected, getLineWidth:rrSelected, getFillColor:RR.rev } }),
-  ];
-}
-function rrControls(message) {
-  const selected = rrCell(rrSelected), shares = RR ? rrShares(RR) : {};
-  for (const name of ['add', 'point', 'delete']) $('rr-' + name).setAttribute('aria-pressed', String(rrMode === name));
-  $('rr-point').disabled = !selected; $('rr-delete').disabled = !selected || !!rrDeletable(selected);
-  $('rr-undo').disabled = !rrHistory.length; $('rr-reset').disabled = !RR?.edited && !rrHistory.length;
-  const was = selected && !selected.added ? ` (was ${(selected.share0 * 100).toFixed(2)}% of the basin)` : '';
-  const kind = selected && (selected.added ? 'Added area' : selected.river ? 'River node area' : 'Watershed that joins the river directly');
-  $('rr-status').textContent = message || (selected
-    ? `${kind} ${selected.id} · basin ${selected.basin} · ${rrCellKm2(selected, RR.V).toFixed(1)} km² · ${(shares[selected.id] * 100).toFixed(2)}% of the basin’s runoff${was}. Drag its white points to move its borders${selected.river ? '' : ', or its dot'}.`
-    : 'Click an area or its dot to select it.');
-}
-function rrSave(message) {
-  RR.edited = true; RR.rev++;
-  let note = message;
-  try { localStorage.setItem(rrKey(RR.system), JSON.stringify(rrPack(RR))); } catch (e) { note = 'Browser storage unavailable. Export your draft to keep these edits.'; }
-  if (rtApplied) say('Area edits are not applied yet. Displayed flows are from the last calculation.');
-  rrControls(note); redraw();
-}
-function rrCommit(change) {  // change() returns an error message to refuse (the areas are then restored)
-  const before = rrPack(RR), result = change();
-  if (typeof result === 'string') { RR = Object.assign(rrUnpack(before), { system: RR.system, edited: RR.edited, rev: RR.rev + 1 }); rrControls(result); redraw(); return false; }
-  rrHistory.push(before); if (rrHistory.length > 50) rrHistory.shift();
-  rrMode = null;
-  return true;
-}
-function rrRestore(packed, edited) {
-  const system = RR.system;
-  RR = Object.assign(rrUnpack(packed), { system, edited, rev: (RR.rev || 0) + 1 });
-  if (!rrCell(rrSelected)) rrSelected = null;
-}
-async function drawRunoffAreas(fit) {
-  const sys = $('rr-system').value;
-  $('rr-sub').textContent = 'Loading…';
-  try {
-    const [engine, areas] = await Promise.all([rtEngine(sys), D.areas?.[sys] ? rrAreas(sys) : Promise.reject(new Error('this build has no area data'))]);
-    if (sys !== $('rr-system').value || !$('rr-editor').classList.contains('open')) return;
-    const built = rrBuild(areas, engine);
-    rrBase = rrPack(built);
-    RR = Object.assign(built, { system: sys, rev: 0, edited: false });
-    rrSelected = null; rrMode = null; rrHistory = [];
-    try { const saved = JSON.parse(localStorage.getItem(rrKey(sys)) || 'null'); if (saved) RR = Object.assign(rrUnpack(saved), { system: sys, rev: 0, edited: true }); }
-    catch (e) { console.warn('Could not restore area draft', e); }
-    const basins = new Set(RR.cells.map(c => c.basin)), loose = engine.nodes.length - built.cells.length;
-    $('rr-sub').textContent = `${RR.cells.length} areas in ${basins.size} basins${loose ? `; ${loose} nodes have no area of their own` : ''}. Dots are where each area’s runoff joins the network (dark: river nodes, white: watersheds that join the river directly); lines are the borders that decide the shares.`;
-    rrControls(); redraw();
-    if (fit && map) {
-      const xs = RR.V.map(p => p[0]), ys = RR.V.map(p => p[1]);
-      map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: { top: 40, bottom: $('rr-editor').offsetHeight + 100, left: 60, right: 60 }, pitch:0, maxZoom: 9, duration: 900 });
-    }
-  } catch (e) { console.error(e); $('rr-sub').textContent = 'Could not load the areas: ' + e.message; }
-}
-function rrClick(info) {
-  if (!RR) return false;
-  if (rrBusy || performance.now() - rrSuppressClick < 300) return true;
-  const hit = info.layer?.id === 'rr-dots' ? info.object : info.layer?.id === 'rr-cells' ? info.object.cell : null;
-  const [lon, lat] = info.coordinate?.every(Number.isFinite) ? info.coordinate : (({ lng, lat }) => [lng, lat])(map.unproject([info.x, info.y]));
-  if (rrMode === 'add') {
-    const host = rrPointIn(RR, lon, lat);
-    if (!host) { rrControls('Click inside an area to put the new dot there.'); return true; }
-    let added;
-    if (rrCommit(() => { added = rrSplit(RR, host, [lon, lat]); return added; })) { rrSelected = added.id; rrSave(`Added ${added.id}, cut from ${host.id} along the line halfway between their dots.`); }
-    return true;
-  }
-  if (rrMode === 'point') {
-    const selected = rrCell(rrSelected);
-    if (!selected) return true;
-    const view = rrView(), lat0 = lat, here = rrKm([lon, lat], lat0), near = [];
-    for (const ring of selected.rings) ring.forEach((a, k) => {
-      const b = ring[(k + 1) % ring.length], line = view.lines.find(l => (l.a === a && l.b === b) || (l.a === b && l.b === a));
-      if (!line || line.basin) return;
-      const A = rrKm(RR.V[a], lat0), B = rrKm(RR.V[b], lat0), dx = B[0] - A[0], dy = B[1] - A[1];
-      const t = Math.max(0, Math.min(1, ((here[0] - A[0]) * dx + (here[1] - A[1]) * dy) / (dx * dx + dy * dy || 1)));
-      near.push({ a, b, t, km: Math.hypot(A[0] + dx * t - here[0], A[1] + dy * t - here[1]) });
-    });
-    const best = near.sort((p, q) => p.km - q.km)[0];
-    if (!best || best.km > rtSnapKm(lat)) { rrControls('Click on one of the selected area’s movable borders.'); return true; }
-    rrCommit(() => {
-      const A = RR.V[best.a], B = RR.V[best.b], v = RR.V.length;
-      RR.V.push([A[0] + (B[0] - A[0]) * best.t, A[1] + (B[1] - A[1]) * best.t]);
-      rrInsertOnEdge(RR, best.a, best.b, v);
-    });
-    rrSave('Added a border point; drag it to reshape the border.');
-    return true;
-  }
-  rrSelected = hit?.id || null; rrMode = null;
-  rrControls(); redraw();
-  return true;
-}
-for (const [name, mode, text] of [['add', 'add', 'Click inside an area to cut a new area, with its own dot, from it. The border runs halfway between the two dots.'], ['point', 'point', 'Click on a border of the selected area to add a point there that can be dragged.']])
-  $('rr-' + name).onclick = () => { rrMode = rrMode === mode ? null : mode; rrControls(rrMode ? text : undefined); };
-$('rr-delete').onclick = () => {
-  const cell = rrCell(rrSelected);
-  if (!cell) return;
-  let into;
-  if (rrCommit(() => { into = rrMerge(RR, cell); return into; })) { rrSelected = into.id; rrSave(`Deleted ${cell.id}; its area and runoff now belong to ${into.id}.`); }
-};
-$('rr-undo').onclick = () => { if (RR && rrHistory.length) { rrRestore(rrHistory.pop(), true); rrMode = null; rrSave('Undone.'); } };
-$('rr-reset').onclick = () => {
-  if (!RR) return;
-  try { localStorage.removeItem(rrKey(RR.system)); } catch (e) { /* nothing saved */ }
-  rrHistory = []; rrRestore(rrBase, false); rrMode = null; rrControls('Areas reset to the watersheds.'); redraw();
-  if (rtApplied) say('Area edits are not applied yet. Displayed flows are from the last calculation.');
-};
-$('rr-export').onclick = () => {
-  if (!RR) return;
-  const payload = { kind: 'runoff-areas-draft', system: RR.system, engineHash: D.engineHash, hydrologyParametersUnchanged: true, ...rrPack(RR) };
-  const url = URL.createObjectURL(new Blob([JSON.stringify(payload)], { type: 'application/json' }));
-  const a = document.createElement('a'); a.href = url; a.download = RR.system + '-runoff-areas.json';
-  a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-};
-async function rrRun() {
-  if (rrBusy || !RR) return;
-  if ($('runoff-model').disabled) { rrControls('Wait for the current flow calculation to finish.'); return; }
-  if (!FULL) { goFull({ areas: 1, system: RR.system, rr: $('runoff-model').value, rt: $('routing-model').value }); return; }
-  rrBusy = true; rrControls('Recalculating flows with the edited areas…');
-  const token = ++selToken;
-  const controls = [...$('rr-tools').querySelectorAll('button'), $('rr-system'), $('runoff-model'), $('routing-model')];
-  controls.forEach(c => c.disabled = true);
-  say('Recalculating flows with the edited runoff areas…');
-  try {
-    const result = await recalc($('runoff-model').value, $('routing-model').value, true);
-    if (token === selToken) { applyResults(result); rtApplied = true; say('Flows use your edited runoff areas. Hydrology functions and calibration settings are unchanged.'); }
-  } catch (e) { say('Area calculation failed; previous results retained. ' + e.message); }
-  finally { rrBusy = false; controls.forEach(c => c.disabled = false); rrControls('Calculation finished. See the flow status for the result.'); }
-}
-$('rr-run').onclick = rrRun;
-$('runoff-edit').onclick = () => {
-  if ($('rt-editor').classList.contains('open')) $('rt-close').click();
-  $('rr-system').value = SYSTEM_OF[focus] in D.engines ? SYSTEM_OF[focus] : $('rr-system').options[0].value;
-  rrShowTerrain = rtShow.terrain; rtShow.terrain = false; $('rr-terrain').checked = false; $('rr-rivers').checked = rtShow.rivers;
-  $('rr-editor').classList.add('open'); drawRunoffAreas(true);
-};
-let rrShowTerrain = true;
-$('rr-close').onclick = () => { $('rr-editor').classList.remove('open'); RR = null; rtShow.terrain = rrShowTerrain; $('tip').style.display = 'none'; redraw(); $('runoff-edit').focus(); };
-$('rr-system').onchange = () => drawRunoffAreas(true);
-for (const k of ['terrain', 'rivers']) $('rr-' + k).onchange = e => { rtShow[k] = e.target.checked; redraw(); };
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('rr-editor').classList.contains('open')) $('rr-close').click(); });
 $('cache-clear').onclick = async () => { await idb.clear(); say('Saved results cleared.'); };
 $('climate-meta').textContent = `${D.climate.source} · ${D.climate.resolution} · ${D.climate.frequency}`;
 if (FULL) { const back = document.createElement('a'); back.href = location.pathname + (CASE ? `?case=${CASE}` : ''); back.textContent = `Back to the quick ${D.demoYears[0]}\u2013${D.demoYears[1]} view`; $('climate-meta').append(document.createElement('br'), back); }
@@ -1867,7 +1491,7 @@ function layers() {
       getSize:12, sizeUnits:'pixels', fontFamily:'Arial, sans-serif', fontWeight:700, characterSet:'auto', getColor:[38,42,50,230],
       background:true, getBackgroundColor:[255,255,255,190], backgroundPadding:[4,2], billboard:true, pickable:false, parameters:blend, updateTriggers:{getPosition:relief} }),
     new deck.SolidPolygonLayer({ id:'context', visible:rtShows('rivers'), data:ctxZ, getPolygon:d => d.r, getFillColor:[150,192,220,120], extruded:false, pickable:false }),
-    new deck.SolidPolygonLayer({ id:'rivers', visible:rtShows('rivers'), opacity:RT || RR ? 0.3 : 1, data:riverZ, getPolygon:d => d.r, extruded:true, getElevation:d => elev(flowOf(d)), getFillColor:d => flowCol(flowOf(d)), material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:true, autoHighlight:true, highlightColor:[255,247,224,100], updateTriggers:{getElevation:[day,riverRelief], getFillColor:day} }),
+    new deck.SolidPolygonLayer({ id:'rivers', visible:rtShows('rivers'), opacity:RT ? 0.3 : 1, data:riverZ, getPolygon:d => d.r, extruded:true, getElevation:d => elev(flowOf(d)), getFillColor:d => flowCol(flowOf(d)), material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:true, autoHighlight:true, highlightColor:[255,247,224,100], updateTriggers:{getElevation:[day,riverRelief], getFillColor:day} }),
     ...mist,
     new deck.ScatterplotLayer({ id:'places', visible:showTowns, data:places, getPosition:placePosition,
       getRadius:d => d.kind === 'city' ? 4 : 3, radiusUnits:'pixels',
@@ -1879,7 +1503,6 @@ function layers() {
       background:true, getBackgroundColor:[255,255,255,215], backgroundPadding:[3,2],
       billboard:true, pickable:false, parameters:blend, updateTriggers:{getPosition:relief} }),
     ...rtLayers(),
-    ...rrLayers(),
     ...carMechanics.layers(),
   ];
 }
@@ -1904,7 +1527,7 @@ function initMap() {
   const lighting = new deck.LightingEffect({ ambientLight:new deck.AmbientLight({ color:[255,255,255], intensity:0.75 }), dirLight:new deck.DirectionalLight({ color:[255,248,238], intensity:0.9, direction:[1.0,-1.1,-0.85] }) });
   // The near clipping plane scales with camera altitude, and the exaggerated terrain is kilometres high: close up (the boat)
   // the default would cut away the ground right in front of the camera.
-  overlay = new deck.MapboxOverlay({ interleaved:false, useDevicePixels:Math.min(devicePixelRatio || 1, 1.5), views:new deck.MapView({ id:'mapbox', nearZMultiplier:.005 }), layers:layers(), effects:[lighting], getTooltip:null, onLoad:() => repaint(), onHover:hover, onClick:info=>{ if (!rtClick(info) && !rrClick(info)) carMechanics.click(info); } });
+  overlay = new deck.MapboxOverlay({ interleaved:false, useDevicePixels:Math.min(devicePixelRatio || 1, 1.5), views:new deck.MapView({ id:'mapbox', nearZMultiplier:.005 }), layers:layers(), effects:[lighting], getTooltip:null, onLoad:() => repaint(), onHover:hover, onClick:info=>{ if (!rtClick(info)) carMechanics.click(info); } });
   map.addControl(overlay);
   // In the network editor a press drags, instead of the map: the join tool's junction, the selected node, or a reach line (reshaped)
   let rtGrab = null;
@@ -1942,38 +1565,6 @@ function initMap() {
       rtHistory.push(grab.before); if (rtHistory.length > 50) rtHistory.shift();
       rtMode = null; rtSave();
       rtControls(grab.kind === 'line' ? rtReachText(grab.link) + ' Apply to route over this length.' : `Moved ${grab.node.id}; its reaches are straight lines. Apply to update flows.`);
-    });
-  // In the runoff area editor a press on the selected area's points drags them, or its dot, instead of the map
-  let rrGrab = null;
-  const rrPick = (e, layer) => overlay.pickObject({ x:e.point.x, y:e.point.y, radius:8, layerIds:[layer] });
-  for (const press of ['mousedown', 'touchstart'])
-    map.on(press, e => {
-      const selected = RR && !rrBusy && !rrMode && rrCell(rrSelected);
-      if (!selected) return;
-      const vertex = rrPick(e, 'rr-verts')?.object, dot = !vertex && rrPick(e, 'rr-dots')?.object;
-      if (vertex && rrView().pinned.has(vertex.i)) { rrControls('Basin borders and the edge of the modelled area are fixed. Drag a white point.'); return; }
-      if (vertex) rrGrab = { kind:'vertex', i:vertex.i };
-      else if (dot?.id === selected.id) {
-        if (selected.river) { rrControls('A river node’s dot is moved in the routing editor.'); return; }
-        rrGrab = { kind:'dot', cell:selected };
-      } else return;
-      e.preventDefault(); rrGrab.moved = false; rrGrab.before = rrPack(RR); rrGrab.point = e.point;
-    });
-  for (const move of ['mousemove', 'touchmove'])
-    map.on(move, e => {
-      if (!rrGrab || (!rrGrab.moved && Math.hypot(e.point.x - rrGrab.point.x, e.point.y - rrGrab.point.y) < 4)) return;
-      const to = [e.lngLat.lng, e.lngLat.lat];
-      if (rrGrab.kind === 'vertex') RR.V[rrGrab.i] = to; else rrGrab.cell.dot = to;
-      rrGrab.moved = true; RR.rev++;
-      rrControls(); redraw();
-    });
-  for (const release of ['mouseup', 'touchend'])
-    map.on(release, () => {
-      const grab = rrGrab; rrGrab = null;
-      if (!grab?.moved) return;
-      rrSuppressClick = performance.now();
-      rrHistory.push(grab.before); if (rrHistory.length > 50) rrHistory.shift();
-      rrSave(grab.kind === 'vertex' ? 'Moved a border. Apply to update flows.' : `Moved the dot of ${grab.cell.id}.`);
     });
   map.on('zoomend', () => overlay.setProps({layers:layers()}));
   map.on('moveend', () => {  // zoomed in on a system: fetch its detail (demo bundle only)
@@ -2038,13 +1629,7 @@ function hover(info) {
   if (!info.object || info.layer?.id.startsWith('terrain-') || document.body.classList.contains('car-driving')) { tip.style.display = 'none'; return; }
   if (carMechanics.hover(info)) return;
   if (info.layer?.id === 'rt-nodes') { tip.replaceChildren(); const title = document.createElement('b'); title.textContent = RT_SYMBOLS[rtRole(info.object)].label; tip.append(title, document.createTextNode(rtNodeDescription(info.object)), document.createElement('br'), document.createTextNode(`${info.object.model?.storage || info.object.id} · ${((info.object.model?.share || 0) * 100).toFixed(1)}% of basin runoff`)); tip.style.display = 'block'; tip.style.left = Math.min(info.x + 14, innerWidth - 260) + 'px'; tip.style.top = (info.y + 14) + 'px'; return; }
-  if (info.layer?.id === 'rr-dots' || info.layer?.id === 'rr-cells') {
-    const c = info.layer.id === 'rr-dots' ? info.object : info.object.cell;
-    tip.replaceChildren(); const title = document.createElement('b'); title.textContent = c.added ? 'Added area' : c.river ? 'River node area' : 'Watershed joining the river directly';
-    tip.append(title, document.createTextNode(`${c.id} · basin ${c.basin}`), document.createElement('br'), document.createTextNode(`${rrCellKm2(c, RR.V).toFixed(1)} km² · ${(rrShares(RR)[c.id] * 100).toFixed(2)}% of the basin’s runoff`));
-    tip.style.display = 'block'; tip.style.left = Math.min(info.x + 14, innerWidth - 260) + 'px'; tip.style.top = (info.y + 14) + 'px'; return;
-  }
-  if (RT || RR) { tip.style.display = 'none'; return; }
+  if (RT) { tip.style.display = 'none'; return; }
   if (info.object.name !== undefined) {
     const o = info.object;
     tip.innerHTML = `<b>${o.name}</b>${o.kind === 'channel' ? 'Routed flow' : 'Share of local runoff · indicative'}<br>Flow ${fmt(flowOf(o))} ML/d`;
@@ -2156,11 +1741,6 @@ if (typeof maplibregl !== 'undefined' && typeof deck !== 'undefined') { initMap(
 if (FULL && ASK.get('network') === '1') {
   if (ASK.get('system') in D.engines) $('rt-system').value = ASK.get('system');
   $('rt-editor').classList.add('open'); await drawRouting(true); await rtRun();
-}
-else if (FULL && ASK.get('areas') === '1') {
-  if (ASK.get('system') in D.engines) $('rr-system').value = ASK.get('system');
-  rrShowTerrain = rtShow.terrain; rtShow.terrain = false; $('rr-terrain').checked = false;
-  $('rr-editor').classList.add('open'); await drawRunoffAreas(true); await rrRun();
 }
 else if (FULL && ($('runoff-model').value !== DEFAULT_RR || $('routing-model').value !== DEFAULT_RT)) chooseMethods();
 })();
