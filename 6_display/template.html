@@ -62,14 +62,15 @@
   #relief { position:absolute; right:22px; top:18px; font-size:12px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
   #relief label { display:flex; align-items:center; gap:8px; }
   #relief input { width:110px; accent-color:#8a8e94; }
-  #towns-toggle, #detail-toggle, #sdl-toggle { position:absolute; right:22px; bottom:90px; z-index:6; display:flex; align-items:center; gap:9px; padding:9px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); color:var(--head); font-size:12px; font-weight:600; cursor:pointer; }
+  #towns-toggle, #detail-toggle, #sdl-toggle, #storages-toggle { position:absolute; right:22px; bottom:90px; z-index:6; display:flex; align-items:center; gap:9px; padding:9px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); color:var(--head); font-size:12px; font-weight:600; cursor:pointer; }
   #detail-toggle { bottom:138px; }
   #sdl-toggle { bottom:186px; }
-  #townsIn, #detailIn, #sdlIn { appearance:none; width:30px; height:18px; margin:0; border-radius:10px; background:#b8bdc2; position:relative; cursor:pointer; transition:background .15s; }
-  #townsIn::before, #detailIn::before, #sdlIn::before { content:''; position:absolute; top:3px; left:3px; width:12px; height:12px; border-radius:50%; background:#fff; transition:transform .15s; }
-  #townsIn:checked, #detailIn:checked, #sdlIn:checked { background:#4a78a0; }
-  #townsIn:checked::before, #detailIn:checked::before, #sdlIn:checked::before { transform:translateX(12px); }
-  #townsIn:focus-visible, #detailIn:focus-visible, #sdlIn:focus-visible { outline:2px solid #2d6aa8; outline-offset:3px; }
+  #storages-toggle { bottom:234px; }
+  #townsIn, #detailIn, #sdlIn, #storagesIn { appearance:none; width:30px; height:18px; margin:0; border-radius:10px; background:#b8bdc2; position:relative; cursor:pointer; transition:background .15s; }
+  #townsIn::before, #detailIn::before, #sdlIn::before, #storagesIn::before { content:''; position:absolute; top:3px; left:3px; width:12px; height:12px; border-radius:50%; background:#fff; transition:transform .15s; }
+  #townsIn:checked, #detailIn:checked, #sdlIn:checked, #storagesIn:checked { background:#4a78a0; }
+  #townsIn:checked::before, #detailIn:checked::before, #sdlIn:checked::before, #storagesIn:checked::before { transform:translateX(12px); }
+  #townsIn:focus-visible, #detailIn:focus-visible, #sdlIn:focus-visible, #storagesIn:focus-visible { outline:2px solid #2d6aa8; outline-offset:3px; }
   #tip { position:absolute; pointer-events:none; padding:9px 12px; display:none; z-index:5; font-size:13px; line-height:1.45; background:#fff; border:1px solid var(--rule); box-shadow:0 2px 10px rgba(0,0,0,.08); color:var(--ink); font-weight:400; }
   #tip b { font-weight:700; display:block; color:var(--head); }
   #model-panels { position:absolute; left:420px; top:18px; z-index:8; width:264px; display:flex; flex-direction:column; border:1px solid var(--rule); border-radius:8px; background:rgba(255,255,255,.96); box-shadow:0 2px 10px rgba(0,0,0,.06); font-size:12px; font-weight:400; }
@@ -234,6 +235,7 @@
 <label id="towns-toggle" for="townsIn"><span>Towns</span><input id="townsIn" type="checkbox" role="switch"></label>
 <label id="detail-toggle" for="detailIn"><span>Roads</span><input id="detailIn" type="checkbox" role="switch"></label>
 <label id="sdl-toggle" for="sdlIn"><span>SDL units</span><input id="sdlIn" type="checkbox" role="switch"></label>
+<label id="storages-toggle" for="storagesIn"><span>Storages</span><input id="storagesIn" type="checkbox" role="switch"></label>
 <div id="rr-editor" role="dialog" aria-label="Rainfall-runoff areas">
   <div id="rr-head"><b>Rainfall-runoff areas</b><label>River system <select id="rr-system"></select></label><label><input type="checkbox" id="rr-terrain"> Terrain</label><label><input type="checkbox" id="rr-rivers" checked> Rivers</label><span class="grow" id="rr-sub"></span><button type="button" id="rr-close">Close</button></div>
   <div id="rr-tools" aria-label="Area editing tools">
@@ -1600,6 +1602,13 @@ const PLACES = [
   const z = r >= 0 && r < NR && c >= 0 && c < NC ? GZ[r * NC + c] : NaN;
   return {name,lon,lat,kind,minZoom,z:Number.isFinite(z) ? z : 0};
 });
+// Bureau of Meteorology storage gauges (dams, reservoirs, weirs, lagoons) in the modelled area, from fetch_storages.py; elevations follow the terrain grid.
+const STORAGES = __STORAGES__.map(([name,lon,lat]) => {
+  const c = Math.round((lon - T.x0) / T.step), r = Math.round((T.y0 - lat) / T.step);
+  const z = r >= 0 && r < NR && c >= 0 && c < NC ? GZ[r * NC + c] : NaN;
+  return {name,lon,lat,z:Number.isFinite(z) ? z : 0};
+});
+const STORAGE_LABEL_ZOOM = 7.5;
 const LAT0 = T.y0 - NR * T.step / 2, LON0 = T.x0 + NC * T.step / 2, MX = 111320 * Math.cos(LAT0 * Math.PI / 180), MY = 110574;
 const quadOk = (r, c) => r >= 0 && c >= 0 && r < NR - 1 && c < NC - 1 && [0, 1, NC, NC + 1].every(k => !isNaN(GZ[r * NC + c + k]));
 let terrainMesh = null, wallMesh = null;
@@ -1865,7 +1874,7 @@ async function loadDetail(system) {
 }
 const tint = {}; let tintDay = -1;
 let map, overlay, carMechanics;
-let showTowns = false, showDetail = false, showSdl = false;
+let showTowns = false, showDetail = false, showSdl = false, showStorages = false;
 const roadSets = new Map();  // ribbon polygons memoised per (visible classes, width bucket) so the layer data keeps its identity between frames
 function roadsNow() {
   const z = map ? map.getZoom() : 6.5, n = ROAD_MIN_ZOOM.filter(m => z >= m).length, w = Math.max(.4, Math.min(3, 2 ** (9.5 - z))), key = n + ':' + w.toFixed(1);
@@ -1922,6 +1931,7 @@ function layers() {
   const discs = cache.discs;
   const places = placesNow();
   const placePosition = p => [p.lon,p.lat,p.z * TERR + 300];
+  const labelStorages = showStorages && map && map.getZoom() >= STORAGE_LABEL_ZOOM;
   if (tintDay !== day) { tintDay = day; D.units.forEach(u => tint[u.id] = evapShade(ANOM[u.id][day])); }
   const mist = [
     new deck.SolidPolygonLayer({ id:'cloud', visible:rtShows('terrain'), data:discs, getPolygon:d => d.ring.map(p => [p[0], p[1], d.z]), extruded:false, filled:true,
@@ -1953,6 +1963,14 @@ function layers() {
     new deck.TextLayer({ id:'place-labels', visible:showTowns, data:places, getPosition:placePosition, getText:d => d.name,
       getSize:d => d.kind === 'city' ? 14 : 12, sizeUnits:'pixels', fontFamily:'Arial, sans-serif', fontWeight:600,
       getColor:[58,61,66,255], getTextAnchor:'start', getAlignmentBaseline:'center', getPixelOffset:[8,0],
+      background:true, getBackgroundColor:[255,255,255,215], backgroundPadding:[3,2],
+      billboard:true, pickable:false, parameters:blend, updateTriggers:{getPosition:relief} }),
+    new deck.ScatterplotLayer({ id:'storages', visible:showStorages, data:STORAGES, getPosition:placePosition, getRadius:5, radiusUnits:'pixels',
+      getFillColor:[30,104,176,240], stroked:true, getLineColor:[255,255,255,240], getLineWidth:1.5, lineWidthUnits:'pixels',
+      pickable:false, parameters:blend, updateTriggers:{getPosition:relief} }),
+    new deck.TextLayer({ id:'storage-labels', visible:labelStorages, data:STORAGES, getPosition:placePosition, getText:d => d.name,
+      getSize:12, sizeUnits:'pixels', fontFamily:'Arial, sans-serif', fontWeight:600,
+      getColor:[30,104,176,255], getTextAnchor:'start', getAlignmentBaseline:'center', getPixelOffset:[9,0],
       background:true, getBackgroundColor:[255,255,255,215], backgroundPadding:[3,2],
       billboard:true, pickable:false, parameters:blend, updateTriggers:{getPosition:relief} }),
     ...rtLayers(),
@@ -2228,6 +2246,7 @@ $('detailIn').onchange = async e => {
   if (overlay) overlay.setProps({layers:layers()});
 };
 $('townsIn').onchange = e => { showTowns = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
+$('storagesIn').onchange = e => { showStorages = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 $('sdlIn').onchange = e => { showSdl = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 $('riverReliefIn').oninput = e => { riverRelief = +e.target.value; cache = { day: -1 }; update(); };
 $('reliefIn').oninput = e => { relief = +e.target.value; TERR = TERR0 * relief; buildZ(); buildMeshes(); meshGen++; cache = { day: -1 }; update(); };

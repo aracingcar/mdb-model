@@ -453,7 +453,7 @@ def run_display(run=DEFAULT_RUN, methods=(RAINFALL_RUNOFF_MODEL, ROUTING_MODEL))
         "detailStep": GRID_STEP,
     }
     DISPLAY_FILE.parent.mkdir(parents=True, exist_ok=True)
-    html = TEMPLATE.read_text().replace("__TITLE__", title).replace("__META__", json.dumps(meta, separators=(",", ":")))
+    html = TEMPLATE.read_text().replace("__TITLE__", title).replace("__META__", json.dumps(meta, separators=(",", ":"))).replace("__STORAGES__", (HERE / "storages.json").read_text())
     DISPLAY_FILE.write_text(html.replace("../../6_display/car/", "car/"))
     publish_assets()
     size = lambda prefix: sum((DATA_DIR / n).stat().st_size for n in files if n.startswith(prefix)) / 1e6
