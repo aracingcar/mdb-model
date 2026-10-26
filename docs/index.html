@@ -186,6 +186,34 @@
   body.diag #panel-info .bp .w { top:4.5px; height:1px; }
   body.diag #panel-info .st { display:block; margin-top:8px; color:var(--dim); font-weight:400; letter-spacing:0; text-transform:none; white-space:normal; }
   body.diag #pi-bp { align-self:flex-end; margin:-12px -10px 0 0; }
+  body.panel.cmp #map, body.panel.cmp #panel-info { display:none; }
+  /* the compare view: each reading with the cases stacked under one another on one scale, then the ecological outcomes */
+  #all-cmp { display:none; flex:1; min-height:0; overflow-y:auto; padding:18px 28px 24px; }
+  body.all.cmp #all-cmp { display:block; }
+  body.all.cmp #all-grid { flex:none; border-top:1px solid var(--rule); }
+  body.all.cmp #all-grid iframe { flex:none; height:74px; }
+  body.all.cmp #all-grid .eco-na, body.all.cmp #all-grid .blank { display:none; }
+  #all-cmp section { max-width:1100px; margin:0 auto 24px; }
+  #all-cmp h3 { margin:0 0 6px; font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); }
+  #all-cmp .cr { display:grid; grid-template-columns:110px 140px minmax(0, 1fr); align-items:center; gap:16px; padding:8px 0; border-top:1px solid var(--rule); }
+  #all-cmp .c { font-size:12px; font-weight:600; color:var(--head); }
+  #all-cmp .n { display:flex; align-items:center; gap:7px; font-size:18px; font-weight:300; color:var(--head); white-space:nowrap; }
+  #all-cmp .n i { width:11px; height:11px; border-radius:2px; flex:none; }
+  #all-cmp .na .n { font-size:12px; color:var(--dim); }
+  #all-cmp .tk { position:relative; height:5px; border-radius:3px; background:var(--rule); }
+  #all-cmp .tk > i { position:absolute; top:-5px; width:15px; height:15px; margin-left:-7.5px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px var(--head); }
+  #all-cmp .tk > u { position:absolute; top:8px; width:1px; height:6px; background:var(--dim); opacity:.6; }
+  #all-cmp .bp { position:relative; height:9px; margin-top:13px; }
+  #all-cmp .bp i { position:absolute; top:0; height:9px; }
+  #all-cmp .bp .w { top:4px; height:1px; background:var(--dim); opacity:.6; }
+  #all-cmp .bp .q { border:1px solid var(--dim); opacity:.7; background:var(--bg); }
+  #all-cmp .bp .m { width:1px; margin-left:-.5px; background:var(--head); }
+  #all-cmp .st { margin-top:6px; font-size:11px; color:var(--dim); }
+  #all-cmp .na .tk > i, #all-cmp .na .tk > u, #all-cmp .na .bp { display:none; }
+  #all-cmp .eco { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:18px 32px; }
+  #all-cmp .eco h4 { margin:0 0 4px; font-size:12px; font-weight:600; color:var(--head); }
+  #all-cmp .eco-k > div { display:flex; justify-content:space-between; padding:3px 0; border-top:1px solid var(--rule); font-size:12px; }
+  #all-cmp .eco em { font-style:normal; color:var(--dim); }
   body.panel.diag #map { top:auto; height:22%; bottom:74px; opacity:.55; border-top:1px solid var(--rule); }
   #panel-info .bp { position:relative; height:7px; margin-top:10px; }
   #panel-info .bp i { position:absolute; top:0; height:7px; }
@@ -196,9 +224,9 @@
   #panel-info .track i { position:absolute; top:-4px; width:12px; height:12px; margin-left:-6px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px var(--head); }
   body.all { display:flex; flex-direction:column; }
   #all-head { display:flex; gap:18px; align-items:baseline; padding:12px 18px; border-bottom:1px solid var(--rule); font-size:12px; }
-  #all-head b { font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--head); }
+  #all-head b { min-width:0; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--head); }
   #all-head a { color:var(--dim); white-space:nowrap; }
-  #all-view { margin-left:auto; display:flex; border:1px solid var(--rule); border-radius:4px; overflow:hidden; }
+  #all-view { flex:none; margin-left:auto; display:flex; border:1px solid var(--rule); border-radius:4px; overflow:hidden; }
   #all-view button { padding:3px 10px; border:0; background:#fff; color:var(--dim); font:inherit; cursor:pointer; }
   #all-view button + button { border-left:1px solid var(--rule); }
   #all-view button[aria-pressed="true"] { background:#f2f4f5; color:var(--head); font-weight:600; }
@@ -345,24 +373,59 @@ if (ASK.get('case') === 'all') {
   const frames = [], head = document.createElement('div'), grid = document.createElement('div'), back = document.createElement('a'), title = document.createElement('b');
   head.id = 'all-head'; grid.id = 'all-grid';
   title.textContent = `${META.title} · all climate cases`; back.href = '?' + q; back.textContent = 'Back to one case';
-  // Maps or Diagnostics: the same panels, the second with the readings large and the maps faint (?view=diag)
+  // Maps, Diagnostics or Compare (?view=diag, ?view=cmp): Diagnostics keeps the panels with their readings large and the
+  // maps faint; Compare stacks the cases under one another for each reading, from what the panels report (mdbRead),
+  // and keeps only the panels' timelines.
   const views = document.createElement('div'); views.id = 'all-view'; views.setAttribute('role', 'group'); views.setAttribute('aria-label', 'View');
   const setView = v => {
     for (const b of views.children) b.setAttribute('aria-pressed', b.dataset.v === v);
-    const u = new URLSearchParams(location.search); if (v === 'diag') u.set('view', v); else u.delete('view');
+    document.body.classList.toggle('cmp', v === 'cmp');
+    const u = new URLSearchParams(location.search); if (v !== 'maps') u.set('view', v); else u.delete('view');
     history.replaceState(null, '', '?' + u);
     for (const f of frames) f.contentWindow?.postMessage({ mdbView: v }, location.origin);
   };
-  for (const [v, label] of [['maps', 'Maps'], ['diag', 'Diagnostics']]) {
+  const VIEW = ['diag', 'cmp'].includes(ASK.get('view')) ? ASK.get('view') : 'maps';
+  for (const [v, label] of [['maps', 'Maps'], ['diag', 'Diagnostics'], ['cmp', 'Compare']]) {
     const b = document.createElement('button'); b.type = 'button'; b.dataset.v = v; b.textContent = label;
-    b.setAttribute('aria-pressed', (ASK.get('view') === 'diag' ? 'diag' : 'maps') === v); b.onclick = () => setView(v); views.append(b);
+    b.setAttribute('aria-pressed', VIEW === v); b.onclick = () => setView(v); views.append(b);
   }
   head.append(title, back, views);
   // ecological outcomes are not modelled for these runs yet: each panel keeps a place for them
+  const ECO = ['Native fish', 'Native vegetation', 'Waterbirds', 'Ecosystem function', 'Other species', 'Flows and connectivity'];
   const ecoNA = () => {
     const e = document.createElement('div'); e.className = 'eco-na';
-    e.innerHTML = '<b>Ecological outcomes</b>' + ['Native fish', 'Native vegetation', 'Waterbirds', 'Ecosystem function', 'Other species', 'Flows and connectivity'].map(k => `<div><span>${k}</span><em>N/A</em></div>`).join('');
+    e.innerHTML = '<b>Ecological outcomes</b>' + ECO.map(k => `<div><span>${k}</span><em>N/A</em></div>`).join('');
     return e;
+  };
+  const cmp = document.createElement('div'); cmp.id = 'all-cmp';
+  const READINGS = [['pi-pet', 'PET, 30 days'], ['pi-rain', 'Rain, 60 days'], ['pi-sa', 'Flow to SA']];
+  for (const [id, label] of READINGS) {
+    const sec = document.createElement('section');
+    sec.innerHTML = `<h3>${label}</h3>` + META.cases.map(c => `<div class="cr${c.built ? '' : ' na'}" data-r="${id}" data-c="${c.id}"><span class="c">${c.label}</span>`
+      + `<span class="n">${c.built ? '<i></i><b></b>' : 'Not built yet'}</span><div><div class="tk"><u></u><i></i></div>`
+      + `<div class="bp"><i class="w"></i><i class="q"></i><i class="m"></i></div><div class="st"></div></div></div>`).join('');
+    cmp.append(sec);
+  }
+  const ecoSec = document.createElement('section');
+  ecoSec.innerHTML = '<h3>Ecological outcomes</h3><div class="eco">' + ECO.map(k => `<div class="eco-k"><h4>${k}</h4>`
+    + META.cases.map(c => `<div><span>${c.label}</span><em>N/A</em></div>`).join('') + '</div>').join('') + '</div>';
+  cmp.append(ecoSec);
+  const caseOf = new Map();
+  const showRead = (cid, read) => {
+    for (const [id, r] of Object.entries(read)) {
+      const row = cmp.querySelector(`.cr[data-r="${id}"][data-c="${cid}"]`);
+      row.querySelector('.n b').textContent = r.text;
+      row.querySelector('.n i').style.background = r.col;
+      row.querySelector('.tk').style.background = r.grad;
+      Object.assign(row.querySelector('.tk > i').style, { left: `${r.at}%`, background: r.col });
+      row.querySelector('.tk > u').style.left = `${r.avg}%`;
+      if (!r.box) continue;
+      const [lo, q1, md, q3, hi] = r.box;
+      Object.assign(row.querySelector('.bp .w').style, { left: `${lo}%`, width: `${hi - lo}%` });
+      Object.assign(row.querySelector('.bp .q').style, { left: `${q1}%`, width: `${Math.max(1, q3 - q1)}%` });
+      row.querySelector('.bp .m').style.left = `${md}%`;
+      row.querySelector('.st').textContent = r.st;
+    }
   };
   for (const c of META.cases) {
     const col = document.createElement('section'), p = new URLSearchParams(q);
@@ -374,14 +437,16 @@ if (ASK.get('case') === 'all') {
     }
     const h = document.createElement('a'), f = document.createElement('iframe');
     h.className = 'case-h'; h.textContent = c.label; h.href = '?' + p; h.title = `Open the ${c.label.toLowerCase()} on its own`;
-    p.set('panel', '1'); f.src = '?' + p; f.title = c.label; frames.push(f);
+    p.set('panel', '1'); f.src = '?' + p; f.title = c.label; frames.push(f); caseOf.set(f, c.id);
     col.append(h, f, ecoNA()); grid.append(col);
   }
   addEventListener('message', e => {
+    const from = frames.find(f => f.contentWindow === e.source);
+    if (e.origin === location.origin && from && e.data?.mdbRead) { showRead(caseOf.get(from), e.data.mdbRead); return; }
     if (e.origin !== location.origin || !(e.data?.mdbDay || e.data?.mdbCam || e.data?.mdbPlay || e.data?.mdbBox)) return;
     for (const f of frames) if (f.contentWindow !== e.source) f.contentWindow.postMessage(e.data, location.origin);
   });
-  document.body.className = 'all'; document.body.replaceChildren(head, grid);
+  document.body.className = VIEW === 'cmp' ? 'all cmp' : 'all'; document.body.replaceChildren(head, cmp, grid);
   return;
 }
 const PANEL = ASK.get('panel') === '1' && parent !== window;
@@ -2380,11 +2445,12 @@ function rowSeries(id, get, src) {
 const SA_REACH = PANEL ? Object.keys(D.reachFlow).reduce((a, k) => { const s = D.reachFlow[k].reduce((x, y) => x + y, 0); return s > a[1] ? [k, s] : a; }, ['', -1])[0] : null;
 if (PANEL) for (const [id, , , lo, hi] of PI_ROWS) $(id).querySelector('.track').style.background = `linear-gradient(90deg, rgb(${lo}), rgb(${hi}))`;
 // Side by side, the parent's view switch reaches every panel; the map is resized to its new strip or back.
-let diag = PANEL && ASK.get('view') === 'diag';
-if (diag) document.body.classList.add('diag');
+let diag = PANEL && ASK.get('view') === 'diag', cmp = PANEL && ASK.get('view') === 'cmp';
+document.body.classList.toggle('diag', diag); document.body.classList.toggle('cmp', cmp);
 if (PANEL) addEventListener('message', e => {
   if (e.origin !== location.origin || e.source !== parent || !e.data?.mdbView) return;
-  diag = e.data.mdbView === 'diag'; document.body.classList.toggle('diag', diag);
+  diag = e.data.mdbView === 'diag'; cmp = e.data.mdbView === 'cmp';
+  document.body.classList.toggle('diag', diag); document.body.classList.toggle('cmp', cmp);
   if (map) { map.resize(); repaint(); }
   update();
 });
@@ -2398,23 +2464,29 @@ function setBox(on) {
 }
 $('pi-bp').onclick = () => { setBox(!showBox); parent.postMessage({ mdbBox: { on: showBox } }, location.origin); };
 if (PANEL) addEventListener('message', e => { if (e.origin === location.origin && e.data?.mdbBox) setBox(e.data.mdbBox.on); });
+// Each row's reading (positions in % of its scale) is drawn here and, in the compare view, sent to the side-by-side page.
 function panelInfo(d) {
+  const read = {};
   for (const [id, get, pos, lo, hi, text, src] of PI_ROWS) {
-    const v = get(d), t = Math.max(0, Math.min(1, pos(v))), col = `rgb(${lerp(lo, hi, t)})`, el = $(id);
+    const at = x => Math.max(0, Math.min(1, pos(x))) * 100, v = get(d), col = `rgb(${lerp(lo, hi, at(v) / 100)})`, el = $(id);
     const { vals, sum } = rowSeries(id, get, src()), from = Math.min(W0, d), avg = (sum[d + 1] - sum[from]) / (d + 1 - from);
-    const at = x => Math.max(0, Math.min(1, pos(x))) * 100;
-    el.querySelector('.track u').style.left = `${at(avg)}%`;
-    if (!showBox && !diag) continue;
-    const so = vals.slice(from, d + 1).sort(), qt = f => so[Math.round(f * (so.length - 1))], [q1, md, q3] = [qt(.25), qt(.5), qt(.75)];
-    if (diag) el.querySelector('.st').textContent = `Average to date ${text(avg)} \u00b7 median ${text(md)} \u00b7 range ${fmt(so[0])}\u2013${text(so[so.length - 1])}`;
-    if (!showBox) continue;
-    Object.assign(el.querySelector('.bp .w').style, { left: `${at(so[0])}%`, width: `${at(so[so.length - 1]) - at(so[0])}%` });
-    Object.assign(el.querySelector('.bp .q').style, { left: `${at(q1)}%`, width: `${Math.max(1, at(q3) - at(q1))}%` });
-    el.querySelector('.bp .m').style.left = `${at(md)}%`;
-    el.querySelector('b').textContent = text(v);
+    const r = read[id] = { text: text(v), col, at: at(v), avg: at(avg), grad: `linear-gradient(90deg, rgb(${lo}), rgb(${hi}))` };
+    el.querySelector('b').textContent = r.text;
     el.querySelector('.val i').style.background = col;
-    Object.assign(el.querySelector('.track i').style, { left: `${t * 100}%`, background: col });
+    Object.assign(el.querySelector('.track i').style, { left: `${r.at}%`, background: col });
+    el.querySelector('.track u').style.left = `${r.avg}%`;
+    if (!showBox && !diag && !cmp) continue;
+    const so = vals.slice(from, d + 1).sort(), qt = f => so[Math.round(f * (so.length - 1))];
+    r.box = [so[0], qt(.25), qt(.5), qt(.75), so[so.length - 1]].map(at);
+    r.st = `Average to date ${text(avg)} \u00b7 median ${text(qt(.5))} \u00b7 range ${fmt(so[0])}\u2013${text(so[so.length - 1])}`;
+    if (diag) el.querySelector('.st').textContent = r.st;
+    if (!showBox) continue;
+    const [bl, q1, md, q3, bh] = r.box;
+    Object.assign(el.querySelector('.bp .w').style, { left: `${bl}%`, width: `${bh - bl}%` });
+    Object.assign(el.querySelector('.bp .q').style, { left: `${q1}%`, width: `${Math.max(1, q3 - q1)}%` });
+    el.querySelector('.bp .m').style.left = `${md}%`;
   }
+  if (cmp) parent.postMessage({ mdbRead: read }, location.origin);
 }
 // In the side-by-side view another panel's day arrives here; following it is not sent back.
 if (PANEL) addEventListener('message', e => {
