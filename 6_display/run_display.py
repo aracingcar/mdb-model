@@ -454,6 +454,13 @@ def run_display(run=DEFAULT_RUN, methods=(RAINFALL_RUNOFF_MODEL, ROUTING_MODEL))
             continue
         files += other[0]
         cases[c["id"]] = other[1]
+    gauges = {}  # per built case: the EWR tool's results at the gauges on the modelled rivers (5_outputs/gauge_ewr.py export)
+    for c in CLIMATE_CASES:
+        source = HERE.parent / "data" / "gauge_ewr" / f"{c['id']}.json"
+        if (tuple(c["run"]) == tuple(run) or c["id"] in cases) and source.exists():
+            (DATA_DIR / f"gauges_{c['id']}.json").write_text(source.read_text())
+            files.append(f"gauges_{c['id']}.json")
+            gauges[c["id"]] = f"data/gauges_{c['id']}.json"
     roads = json.loads((HERE / "roads.json").read_text())  # fetched only when the Roads switch is turned on
     (DATA_DIR / "roads.json").write_text(compact_floats(json.dumps(roads, separators=(",", ":"), allow_nan=False)))
     files.append("roads.json")
@@ -471,6 +478,8 @@ def run_display(run=DEFAULT_RUN, methods=(RAINFALL_RUNOFF_MODEL, ROUTING_MODEL))
         **run_meta,
         "cases": [{"id": c["id"], "label": c["label"], "globalModel": c["run"][0], "scenario": c["run"][1], "regionalConfig": c["run"][2],
                    "run": "_".join(c["run"]), "built": tuple(c["run"]) == tuple(run) or c["id"] in cases} for c in CLIMATE_CASES],
+        "defaultCase": next((c["id"] for c in CLIMATE_CASES if tuple(c["run"]) == tuple(run)), None),
+        "gauges": gauges,  # fetched when the Gauges switch is turned on or the car drives
         "caseData": cases,  # per built case other than the default: its own run metadata, swapped in by ?case=<id>
         "runoff": {"selected": methods[0], "specs": runoff_specs()},
         "routing": {"selected": methods[1], "specs": routing_specs()},

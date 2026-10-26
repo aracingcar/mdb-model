@@ -62,15 +62,17 @@
   #relief { position:absolute; right:22px; top:18px; font-size:12px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
   #relief label { display:flex; align-items:center; gap:8px; }
   #relief input { width:110px; accent-color:#8a8e94; }
-  #towns-toggle, #detail-toggle, #sdl-toggle, #storages-toggle { position:absolute; right:22px; bottom:90px; z-index:6; display:flex; align-items:center; gap:9px; padding:9px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); color:var(--head); font-size:12px; font-weight:600; cursor:pointer; }
+  #towns-toggle, #detail-toggle, #sdl-toggle, #storages-toggle, #gauges-toggle { position:absolute; right:22px; bottom:90px; z-index:6; display:flex; align-items:center; gap:9px; padding:9px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); color:var(--head); font-size:12px; font-weight:600; cursor:pointer; }
   #detail-toggle { bottom:138px; }
   #sdl-toggle { bottom:186px; }
   #storages-toggle { bottom:234px; }
-  #townsIn, #detailIn, #sdlIn, #storagesIn { appearance:none; width:30px; height:18px; margin:0; border-radius:10px; background:#b8bdc2; position:relative; cursor:pointer; transition:background .15s; }
-  #townsIn::before, #detailIn::before, #sdlIn::before, #storagesIn::before { content:''; position:absolute; top:3px; left:3px; width:12px; height:12px; border-radius:50%; background:#fff; transition:transform .15s; }
-  #townsIn:checked, #detailIn:checked, #sdlIn:checked, #storagesIn:checked { background:#4a78a0; }
-  #townsIn:checked::before, #detailIn:checked::before, #sdlIn:checked::before, #storagesIn:checked::before { transform:translateX(12px); }
-  #townsIn:focus-visible, #detailIn:focus-visible, #sdlIn:focus-visible, #storagesIn:focus-visible { outline:2px solid #2d6aa8; outline-offset:3px; }
+  #gauges-toggle { bottom:282px; }
+  #gauges-toggle[hidden] { display:none; }
+  #townsIn, #detailIn, #sdlIn, #storagesIn, #gaugesIn { appearance:none; width:30px; height:18px; margin:0; border-radius:10px; background:#b8bdc2; position:relative; cursor:pointer; transition:background .15s; }
+  #townsIn::before, #detailIn::before, #sdlIn::before, #storagesIn::before, #gaugesIn::before { content:''; position:absolute; top:3px; left:3px; width:12px; height:12px; border-radius:50%; background:#fff; transition:transform .15s; }
+  #townsIn:checked, #detailIn:checked, #sdlIn:checked, #storagesIn:checked, #gaugesIn:checked { background:#4a78a0; }
+  #townsIn:checked::before, #detailIn:checked::before, #sdlIn:checked::before, #storagesIn:checked::before, #gaugesIn:checked::before { transform:translateX(12px); }
+  #townsIn:focus-visible, #detailIn:focus-visible, #sdlIn:focus-visible, #storagesIn:focus-visible, #gaugesIn:focus-visible { outline:2px solid #2d6aa8; outline-offset:3px; }
   #tip { position:absolute; pointer-events:none; padding:9px 12px; display:none; z-index:5; font-size:13px; line-height:1.45; background:#fff; border:1px solid var(--rule); box-shadow:0 2px 10px rgba(0,0,0,.08); color:var(--ink); font-weight:400; }
   #tip b { font-weight:700; display:block; color:var(--head); }
   #model-panels { position:absolute; left:420px; top:18px; z-index:8; width:264px; display:flex; flex-direction:column; border:1px solid var(--rule); border-radius:8px; background:rgba(255,255,255,.96); box-shadow:0 2px 10px rgba(0,0,0,.06); font-size:12px; font-weight:400; }
@@ -170,7 +172,24 @@
   body.car-driving #map-tools { bottom:20px; }
   /* ?case=all: the climate cases side by side, each panel the page on one case with only its map and timeline (?panel=1) */
   body.panel #side, body.panel #model-panels, body.panel #relief, body.panel #site-menu, body.panel #map-tools,
-  body.panel #towns-toggle, body.panel #detail-toggle, body.panel #sdl-toggle, body.panel #storages-toggle { display:none; }
+  body.panel #towns-toggle, body.panel #detail-toggle, body.panel #sdl-toggle, body.panel #storages-toggle, body.panel #gauges-toggle, body.panel #gauge-diag { display:none; }
+  /* driving: the EWR tool's results at the gauge nearest the car, bottom left (data/gauges_<case>.json, 5_outputs/gauge_ewr.py) */
+  #gauge-diag { position:absolute; left:22px; bottom:22px; z-index:7; width:min(400px,calc(100vw - 44px)); max-height:calc(100vh - 220px); overflow:hidden; display:none; padding:11px 13px 12px; border-radius:6px; background:rgba(255,255,255,.95); box-shadow:0 2px 10px rgba(0,0,0,.14); color:#3e4248; font:12px/1.4 var(--sans,Arial,sans-serif); }
+  body.car-driving #gauge-diag.ready { display:block; }
+  #gauge-diag b { display:block; font-size:14px; color:#24272b; }
+  #gauge-diag small { display:block; color:#7a7f86; font-size:11px; }
+  #gauge-diag h4 { margin:9px 0 3px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#656b72; font-weight:700; }
+  #gd-chart { display:block; width:100%; height:150px; }
+  #gd-sum { margin:3px 0 0; font-size:11px; color:#4a4f56; }
+  #gd-key { display:flex; gap:12px; margin-top:3px; font-size:10px; color:#656b72; }
+  #gd-key i { display:inline-block; width:9px; height:9px; margin-right:4px; vertical-align:-1px; border-radius:2px; }
+  #gd-list { max-height:116px; overflow-y:auto; pointer-events:auto; }
+  #gd-list div { display:grid; grid-template-columns:62px 1fr 38px; align-items:center; gap:7px; padding:1.5px 3px; border-radius:3px; cursor:pointer; font-size:11px; font-variant-numeric:tabular-nums; }
+  #gd-list div.on { background:#e8eff6; font-weight:700; }
+  #gd-list span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #gd-list u { display:block; height:7px; border-radius:3px; background:#e4e7ea; text-decoration:none; overflow:hidden; }
+  #gd-list u i { display:block; height:100%; background:#2d6aa8; }
+  #gd-list em { font-style:normal; text-align:right; }
   body.panel #map { left:0; top:0; bottom:0; }
   body.panel #bar { display:none; }  /* the side-by-side page carries the one timeline */
   #panel-info { display:none; }
@@ -337,6 +356,7 @@
 <p id="calc-status" role="status" aria-live="polite" hidden><span></span> <button type="button" id="cache-clear" hidden>Clear saved</button></p>
 </div>
 <div id="bar"><button id="play">&#9654;</button><div id="timeline"><canvas id="tl"></canvas></div><div id="clock"></div><button id="speed">30 d/s</button></div>
+<label id="gauges-toggle" for="gaugesIn" hidden><span>Gauges</span><input id="gaugesIn" type="checkbox" role="switch"></label>
 <label id="towns-toggle" for="townsIn"><span>Towns</span><input id="townsIn" type="checkbox" role="switch"></label>
 <label id="detail-toggle" for="detailIn"><span>Roads</span><input id="detailIn" type="checkbox" role="switch"></label>
 <label id="sdl-toggle" for="sdlIn"><span>SDL units</span><input id="sdlIn" type="checkbox" role="switch"></label>
@@ -364,6 +384,7 @@
   <details><summary>Hydrology settings (unchanged)</summary><div id="rt-foot"></div></details>
 </div>
 <div id="tip"></div>
+<div id="gauge-diag" aria-label="EWR results at the nearest gauge"><b id="gd-name"></b><small id="gd-where"></small><h4 id="gd-title">Achieved each year</h4><canvas id="gd-chart"></canvas><div id="gd-key"><span><i style="background:#2d6aa8"></i>achieved</span><span><i style="background:#c0504d"></i>not achieved</span><span><i style="background:#d3d7db"></i>part year</span><span>&#9474; now</span></div><p id="gd-sum"></p><h4>Every EWR here: share of years achieved vs target</h4><div id="gd-list"></div></div>
 <div id="err">The map libraries could not load. Open this page with an internet connection.</div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/deck.gl@9.0.38/dist.min.js"></script>
@@ -2335,7 +2356,7 @@ async function loadDetail(system) {
 }
 const tint = {}; let tintDay = -1;
 let map, overlay, carMechanics;
-let showTowns = false, showDetail = false, showSdl = false, showStorages = false;
+let showTowns = false, showDetail = false, showSdl = false, showStorages = false, showGauges = false;
 const roadSets = new Map();  // ribbon polygons memoised per (visible classes, width bucket) so the layer data keeps its identity between frames
 function roadsNow() {
   const z = map ? map.getZoom() : 6.5, n = ROAD_MIN_ZOOM.filter(m => z >= m).length, w = Math.max(.4, Math.min(3, 2 ** (9.5 - z))), key = n + ':' + w.toFixed(1);
@@ -2434,6 +2455,14 @@ function layers() {
       getColor:[30,104,176,255], getTextAnchor:'start', getAlignmentBaseline:'center', getPixelOffset:[9,0],
       background:true, getBackgroundColor:[255,255,255,215], backgroundPadding:[3,2],
       billboard:true, pickable:false, parameters:blend, updateTriggers:{getPosition:relief} }),
+    ...(GAUGES ? [
+      new deck.ScatterplotLayer({ id:'gauges', visible:showGauges, data:GAUGES.gauges, getPosition:gaugePosition, getRadius:d => d === gdNear ? 8 : 5, radiusUnits:'pixels',
+        getFillColor:d => d === gdNear ? [229,87,53,245] : [20,128,118,235], stroked:true, getLineColor:[255,255,255,240], getLineWidth:1.5, lineWidthUnits:'pixels',
+        pickable:false, parameters:blend, updateTriggers:{getPosition:relief, getRadius:gdNear, getFillColor:gdNear} }),
+      new deck.TextLayer({ id:'gauge-labels', visible:showGauges && map && map.getZoom() >= STORAGE_LABEL_ZOOM, data:GAUGES.gauges, getPosition:gaugePosition, getText:d => `${d.id} \u00b7 ${d.name}`,
+        getSize:11, sizeUnits:'pixels', fontFamily:'Arial, sans-serif', fontWeight:600, getColor:[20,100,92,255], getTextAnchor:'start', getAlignmentBaseline:'center', getPixelOffset:[9,0],
+        background:true, getBackgroundColor:[255,255,255,215], backgroundPadding:[3,2], billboard:true, pickable:false, parameters:blend, updateTriggers:{getPosition:relief} }),
+    ] : []),
     ...rtLayers(),
     ...rrLayers(),
     ...carMechanics.layers(),
@@ -2604,6 +2633,7 @@ function riverBedAt(d, lon, lat) {
 }
 // What the driving HUD shows for the ground under the car: its subcatchment, and that day's climate and flow there.
 function carConditions(lon, lat) {
+  gaugeDrive(lon, lat);
   const r = Math.round((T.y0 - lat) / T.step), c = Math.round((lon - T.x0) / T.step);
   const u = r >= 0 && c >= 0 && r < NR && c < NC ? D.units[GO[r * NC + c]] : null;
   if (!u) return null;
@@ -2809,6 +2839,73 @@ $('detailIn').onchange = async e => {
 };
 $('townsIn').onchange = e => { showTowns = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 $('storagesIn').onchange = e => { showStorages = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
+// ---- EWR gauges: the EWR tool's results at the gauges on the modelled rivers (5_outputs/gauge_ewr.py), fetched on first use.
+// Driving, the panel at the bottom left charts the gauge nearest the car.
+const GAUGE_URL = META.gauges?.[CASE || META.defaultCase];
+let GAUGES = null, gaugesLoad = null, gdNear = null, gdKey = '', gdPick = '', gdKm = 0;
+$('gauges-toggle').hidden = !GAUGE_URL;
+function loadGauges() {
+  if (!GAUGE_URL || gaugesLoad) return gaugesLoad;
+  return gaugesLoad = fetch(GAUGE_URL).then(r => { if (!r.ok) throw new Error(GAUGE_URL); return r.json(); })
+    .then(g => { GAUGES = g; if (overlay) overlay.setProps({layers:layers()}); }).catch(() => {});  // not retried: the switch just shows nothing
+}
+const gaugePosition = g => [g.lon, g.lat, groundZ(g.lon, g.lat) * TERR + 300];
+const ewrKey = e => `${e.code}|${e.pu}`;
+function gaugeDrive(lon, lat) {
+  if (!GAUGES) { loadGauges(); return; }
+  const k = Math.cos(lat * Math.PI / 180);
+  let best = null, nearest = Infinity;
+  for (const g of GAUGES.gauges) { const d = Math.hypot((g.lon - lon) * k, g.lat - lat) * 111; if (d < nearest) { nearest = d; best = g; } }
+  if (best !== gdNear) { gdNear = best; if (overlay && showGauges) overlay.setProps({layers:layers()}); }
+  gdKm = nearest; gaugePanel(nearest);
+}
+function gaugePanel(km) {
+  const g = gdNear, panel = $('gauge-diag'), date = D.days[Math.min(N - 1, Math.floor(day))].split('-'), wy = +date[0] - (+date[1] < 7 ? 1 : 0);
+  const e = g.ewrs.find(x => ewrKey(x) === gdPick) || g.ewrs.find(x => x.fr > 0) || g.ewrs[0];
+  const key = `${g.id}|${ewrKey(e)}|${wy}|${km.toFixed(1)}`;
+  panel.classList.add('ready');
+  if (key === gdKey) return;
+  gdKey = key;
+  const years = GAUGES.years, n = [...e.ach].filter(c => c !== '-').length, a = [...e.ach].filter(c => c === '1').length, pct = n ? Math.round(100 * a / n) : 0;
+  const month = m => MONTHS[m - 1].slice(0, 3), unit = e.thrMax && e.thrMax < 1e6 ? `${fmt(e.thr)}\u2013${fmt(e.thrMax)}` : `\u2265 ${fmt(e.thr)}`;
+  $('gd-name').textContent = g.name;
+  $('gd-where').textContent = `Gauge ${g.id} \u00b7 ${km < 0.1 ? 'at the car' : km.toFixed(km < 10 ? 1 : 0) + ' km away'} \u00b7 model river ${g.river}`;
+  $('gd-title').textContent = `Achieved each year \u00b7 ${e.code} \u00b7 ${e.pu}`;
+  $('gd-sum').textContent = `${unit} ML/d for ${e.dur} d, ${month(e.sm)}\u2013${month(e.em)}. Achieved in ${a} of ${n} complete years (${pct}%); target ${e.target}%. Bars: longest event each year, dashed line the days required.`;
+  gaugeChart($('gd-chart'), e, years, wy);
+  const dup = new Set(g.ewrs.filter((x, i) => g.ewrs.findIndex(y => y.code === x.code) !== i).map(x => x.code));
+  $('gd-list').replaceChildren(...g.ewrs.map(x => {
+    const row = document.createElement('div'), bar = document.createElement('u'), fill = document.createElement('i'), name = document.createElement('span'), val = document.createElement('em');
+    row.dataset.k = ewrKey(x); row.title = x.pu; row.className = x === e ? 'on' : '';
+    name.textContent = dup.has(x.code) ? `${x.code} \u00b7 ${x.pu.slice(0, 12)}` : x.code; fill.style.width = `${Math.round(100 * (x.fr || 0))}%`; bar.append(fill);
+    val.textContent = x.fr == null ? '\u2013' : `${Math.round(100 * x.fr)}%`; row.append(name, bar, val); return row;
+  }));
+}
+$('gd-list').onclick = ev => { const row = ev.target.closest('div[data-k]'); if (row) { gdPick = row.dataset.k; gdKey = ''; gaugePanel(gdKm); } };
+function gaugeChart(cv, e, years, wy) {  // a strip of achieved / not achieved years over bars of each year's longest event, as the dashboard's EWR performance chart
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth || 374, H = 150, L = 34, R = 4, top = 30, base = H - 16, cw = (W - L - R) / years.length;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const c = cv.getContext('2d'), col = ch => ch === '1' ? '#2d6aa8' : ch === '0' ? '#c0504d' : '#d3d7db';
+  c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+  const need = e.dur || 1, mx = Math.max(need * 1.6, ...e.max), y = v => base - (base - top) * Math.min(1, v / mx);
+  years.forEach((_, i) => {
+    c.fillStyle = col(e.ach[i]); c.fillRect(L + i * cw, 4, Math.max(1, cw - 0.6), 16);
+    if (e.ach[i] !== '-' && e.max[i] > 0) c.fillRect(L + i * cw, y(e.max[i]), Math.max(1, cw - 0.6), base - y(e.max[i]));
+  });
+  c.strokeStyle = '#111'; c.setLineDash([4, 3]); c.beginPath(); c.moveTo(L, y(need)); c.lineTo(W - R, y(need)); c.stroke(); c.setLineDash([]);
+  c.strokeStyle = '#9aa3b0'; c.beginPath(); c.moveTo(L, base + .5); c.lineTo(W - R, base + .5); c.stroke();
+  c.fillStyle = '#656b72'; c.font = '10px Arial, sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'right';
+  c.fillText(`${need} d`, L - 4, y(need)); c.fillText('0', L - 4, base); c.fillText(fmt(mx), L - 4, top);
+  c.textAlign = 'center'; c.textBaseline = 'top';
+  [0, Math.floor(years.length / 2), years.length - 1].forEach(i => c.fillText(years[i], Math.min(W - 14, Math.max(L + 10, L + (i + .5) * cw)), base + 3));
+  const now = years.indexOf(wy);
+  if (now >= 0) { c.strokeStyle = '#e55735'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(L + (now + .5) * cw, 2); c.lineTo(L + (now + .5) * cw, base); c.stroke(); c.lineWidth = 1; }
+}
+$('gaugesIn').onchange = async e => {
+  showGauges = e.target.checked;
+  if (showGauges) await loadGauges();
+  if (overlay) overlay.setProps({layers:layers()});
+};
 $('sdlIn').onchange = e => { showSdl = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 $('riverReliefIn').oninput = e => { riverRelief = +e.target.value; cache = { day: -1 }; update(); };
 $('blocky').checked = BLOCKY;
