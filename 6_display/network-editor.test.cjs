@@ -187,6 +187,21 @@ assert.equal(JSON.stringify(splitEngine.nodes.find(n=>n.id==='s').splits),'{"t":
 elements.get('rt-flow').onclick({target:{dataset:{act:'split-del',key:'t'}}});
 assert.equal(run("rtRole(at('s'))"),'entry'); assert.equal(run("RT.links.some(l=>l.split)"),false);
 console.log('Flow splits: add, resize, remove, loop and over-allocation refused, links follow the splits.');
+// Add flow split: a new split node on a channel, diverting to a channel point or onto another diversion.
+run("rtSelected=null; rtMode=null"); elements.get('rt-newsplit').onclick(); assert.equal(run('rtMode'),'newsplit');
+run("rtClick({coordinate:[145.5,-35]})");
+const newSplit = run("rtSelected"); assert.ok(newSplit.startsWith('junction-')); assert.equal(run('rtMode'),'split');
+assert.equal(run("RT.links.find(l=>l.a.id==='s').b.id"),newSplit); // it sits on s's main channel
+run("rtClick({coordinate:[146.5,-34.5]})"); // a point on the t -> o channel
+const firstDiv = run("Object.keys(at(rtSelected).model.splits)[0]"); assert.ok(firstDiv.startsWith('junction-')); assert.equal(run("RT.links.find(l=>l.a.id===rtSelected&&l.split).b.id"),firstDiv);
+run("rtSelected='t'"); run("rtMode='newsplit'"); const diverted = run("RT.links.find(l=>l.a.id===rtSelected&&false)"); 
+const divLink = run("RT.links.find(l=>l.split && l.b.id.startsWith('junction-') && l.a.id.startsWith('junction-'))");
+run(`rtClick({coordinate:[${(divLink.path[0][0]+divLink.path[1][0])/2},${(divLink.path[0][1]+divLink.path[1][1])/2}]})`); // onto the diverted reach itself
+const onDiv = run("rtSelected"); assert.equal(run(`RT.links.some(l=>l.a.id==='${onDiv}'&&l.diverted)`),true);
+assert.equal(run("RT.links.filter(l=>l.split).every(l=>l.b&&l.a.model.splits[l.b.id]>0)"),true);
+const splitEdit = run("rtEditedEngine('test',{...source,nodes:rtPack(RT).nodes.map(n=>n.model),basins:[{id:'A',area:300,next:''}],reachOutlet:{reach:'A'},units:{unit:{outlet:'A',ecology:null}}})");
+assert.ok(splitEdit.nodes.length>=6);
+console.log('Add flow split: placed on a channel, diverts to a channel point or a diverted reach.');
 
 // Network exits: feed another river system, sit on its entry node, and replace the engines' exports and inflows.
 const sys = (id,lon,lat,extra={}) => ({nodes:[{id:id+'1',lon,lat,basin:id,river:true,outlet:false,share:.5,area:50,next:id+'2'},{id:id+'2',lon:lon+1,lat,basin:id,river:true,outlet:true,share:.5,area:50,next:''}],basins:[{id,area:100,next:''}],...extra});

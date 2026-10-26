@@ -351,13 +351,13 @@
   <div id="rt-head"><b id="rt-title">Routing network</b><label>River system <select id="rt-system"></select></label><label><input type="checkbox" id="rt-terrain" checked> Terrain</label><label><input type="checkbox" id="rt-rivers" checked> Rivers</label><label><input type="checkbox" id="rt-borders" checked> Planning unit borders</label><span class="grow" id="rt-sub"></span><button type="button" id="rt-close">Close</button></div>
   <div id="rt-legend" aria-label="Node symbol legend"></div>
   <div id="rt-tools" aria-label="Network editing tools">
-    <button id="rt-move" disabled>Move node</button><button id="rt-add" disabled>Add tributary</button>
+    <button id="rt-newsplit" disabled>Add flow split</button><button id="rt-move" disabled>Move node</button><button id="rt-add" disabled>Add tributary</button>
     <button id="rt-connect" disabled>Reconnect downstream</button><button id="rt-join" disabled>Join channel</button><button id="rt-detach" disabled>Detach inflow</button><button id="rt-delete" disabled>Delete node</button>
     <label>Tributary runoff share <input id="rt-share" type="number" min="1" max="99" value="25" style="width:50px">%</label><button id="rt-run">Apply &amp; recalculate flows</button><button id="rt-undo" disabled>Undo</button><button id="rt-reset">Reset network</button><button id="rt-export">Export draft</button>
   </div>
   <div id="rt-flow" hidden></div>
   <p id="rt-status" role="status" aria-live="polite">Select a node to edit.</p>
-  <div>Edits are saved in this browser. Apply to update flows. A flow split sends the chosen share of a node’s flow to another node (or out of the river system) and the rest continues downstream. A network exit sends a basin’s flow into another river system, and sits exactly on the entry node it feeds. New tributaries take the chosen share of the selected node’s catchment runoff; total catchment area is preserved. System links, dams, diversions and calibration nodes are protected; deleting a basin outlet moves its basin’s flow reporting to the node below.</div>
+  <div>Edits are saved in this browser. Apply to update flows. Add flow split puts a split node on a channel; its diversion can end at a node, or on a channel or another diversion. A flow split sends the chosen share of a node’s flow to another node (or out of the river system) and the rest continues downstream. A network exit sends a basin’s flow into another river system, and sits exactly on the entry node it feeds. New tributaries take the chosen share of the selected node’s catchment runoff; total catchment area is preserved. System links, dams, diversions and calibration nodes are protected; deleting a basin outlet moves its basin’s flow reporting to the node below.</div>
   <details><summary>Hydrology settings (unchanged)</summary><div id="rt-foot"></div></details>
 </div>
 <div id="tip"></div>
@@ -767,7 +767,7 @@ function rtLayers() {
   }
   const blend = { depthWriteEnabled:false, depthCompare:'always' }, at = n => [n.lon, n.lat, rtShow.terrain ? groundZ(n.lon, n.lat) * TERR + 1400 : 0], trig = [relief, meshGen, rtShow.terrain];
   return [
-    new deck.PathLayer({ id:'rt-links', data:rtLineDisplay, getPath:d => d.displayPath.map(([x, y]) => at({ lon:x, lat:y })), getColor:({link:d}) => d.split ? [192,86,42,235] : d.straight ? [28,52,92,110] : [28,52,92,215], getWidth:d => d.link.w, widthUnits:'pixels', capRounded:true,
+    new deck.PathLayer({ id:'rt-links', data:rtLineDisplay, getPath:d => d.displayPath.map(([x, y]) => at({ lon:x, lat:y })), getColor:({link:d}) => d.split || d.diverted ? [130,80,156,235] : d.straight ? [28,52,92,110] : [28,52,92,215], getWidth:d => d.link.w, widthUnits:'pixels', capRounded:true,
       pickable:true, parameters:blend, updateTriggers:{ getPath:trig } }),  // dragged by the map's pointer events (initMap) to reshape a reach
     new deck.ScatterplotLayer({ id:'rt-node-rings', data:RT.nodes.filter(n => n.ring || n.id === rtSelected), getPosition:at,
       getRadius:d => d.id === rtSelected ? 19 : 16, radiusUnits:'pixels', filled:false, stroked:true,
@@ -850,6 +850,8 @@ function rtControls(message) {
   $('rt-delete').disabled = !selected || !!rtProtected(selected);
   $('rt-connect').disabled = !selected || !!rtProtected(selected);
   $('rt-join').disabled = !selected || !!rtProtected(selected);
+  $('rt-newsplit').disabled = !RT || rtBusy;
+  $('rt-newsplit').setAttribute('aria-pressed', String(rtMode === 'newsplit'));
   $('rt-detach').disabled = !selected || !!rtProtected(selected) || !rtInflows(selected).length;
   $('rt-run').disabled = rtBusy;
   $('rt-undo').disabled = !rtHistory.length;
@@ -952,9 +954,19 @@ function rtClick(info) {
     });
     return true;
   }
+  if (rtMode === 'newsplit') {
+    const c = info.coordinate, snap = c?.every(Number.isFinite) && rtSnap(c[0], c[1], { id:null }, true);
+    if (!snap || snap.km > rtSnapKm(c[1])) { rtControls('Click a channel, or a diverted reach, to put the flow split on.'); return true; }
+    rtCommit(() => { rtSelected = rtInsertJunction(snap).id; });
+    rtMode = 'split';
+    rtControls('Flow split added. Click a node, or a channel or diverted reach, for it to send part of its flow to; or use Divert out of the system. Set the share in the flow panel.');
+    redraw(); return true;
+  }
   if (rtMode === 'split' && selected) {
-    if (!hit) rtControls('Click the node that should receive part of this node’s flow.');
-    else rtAddSplit(selected, hit.id);
+    const c = info.coordinate, snap = !hit && c?.every(Number.isFinite) && rtSnap(c[0], c[1], selected, true);
+    if (hit) rtAddSplit(selected, hit.id);
+    else if (snap && snap.km <= rtSnapKm(c[1])) rtAddSplit(selected, null, snap);
+    else rtControls('Click the node, channel or diverted reach that should receive part of this node’s flow.');
     return true;
   }
   if (rtMode === 'detach' && selected) {
@@ -1004,11 +1016,11 @@ function rtAlong(path, f) {  // the point a fraction f of the way along a path
   }
   return path[path.length - 1];
 }
-function rtSnap(lon, lat, from) {  // the nearest point on a channel that ``from`` could join without a loop: {link, i (segment), lon, lat, km away}
+function rtSnap(lon, lat, from, diversions) {  // the nearest point on a channel (or, with ``diversions``, a diverted reach) that ``from`` could join without a loop: {link, i (segment), lon, lat, km away}
   const kx = 111.2 * Math.cos(lat * Math.PI / 180), ky = 111.2;
   let best = null;
   for (const link of RT.links) {
-    if (link.split || !link.b || link.a.id === from.id || rtWouldCycle(from.id, link.b.id)) continue;
+    if ((link.split && !diversions) || !link.b || link.a.id === from.id || rtWouldCycle(from.id, link.b.id)) continue;
     for (let i = 1; i < link.path.length; i++) {
       const [ax, ay] = link.path[i-1], [bx, by] = link.path[i], dx = (bx - ax) * kx, dy = (by - ay) * ky, len2 = dx * dx + dy * dy;
       const t = len2 ? Math.max(0, Math.min(1, ((lon - ax) * kx * dx + (lat - ay) * ky * dy) / len2)) : 0;
@@ -1025,6 +1037,27 @@ function rtGhostMove(lon, lat) {
   const from = RT.nodes.find(n => n.id === rtSelected), snap = from && rtSnap(lon, lat, from);
   rtGhost = snap && snap.km <= rtSnapKm(lat) ? { lon:snap.lon, lat:snap.lat, snapped:true } : { lon, lat, snapped:false };
 }
+function rtInsertJunction(snap) {  // a new node on a reach, splitting it in two; on a diverted reach the diverted flow passes through it
+  const { link, i } = snap, down = link.b, point = [snap.lon, snap.lat];
+  const before = [...link.path.slice(0, i), point], after = [point, ...link.path.slice(i)];
+  const km = link.split ? rtLength(link.path) : rtKm(link);
+  const f = Math.min(.95, Math.max(.05, rtLength(before) / (rtLength(link.path) || 1)));  // the share of the reach's local runoff entering above the junction
+  const id = 'junction-' + crypto.randomUUID();
+  const model = { ...structuredClone(down.model), id, lon:snap.lon, lat:snap.lat, next:down.id, outlet:false, storage:null, maxRelease:null, splits:{}, lossRank:0,
+    path:undefined, splitPath:undefined, share:down.model.share * f, area:down.model.area * f, length:km * (1 - f) };
+  down.model.share *= 1 - f; down.model.area *= 1 - f;
+  const junction = { id, model, lon:snap.lon, lat:snap.lat, r:6, fill:[39,93,131,255], ring:false, outlet:false, tip:'<b>Added junction</b>Where a branch was joined to this channel' };
+  RT.nodes.push(junction);
+  const diverted = !!(link.split || link.diverted);
+  if (link.split) {  // the source's split now sends to the junction, which carries it on to the old target
+    const splits = {};
+    for (const [to, share] of Object.entries(link.a.model.splits)) splits[to === down.id ? id : to] = share;
+    link.a.model.splits = splits;
+    Object.assign(link, { b:junction, path:before });
+  } else Object.assign(link, { b:junction, path:before, km:km * f, edited:true });
+  RT.links.push({ a:junction, b:down, path:after, km:km * (1 - f), edited:true, straight:link.straight, w:link.w, ...(diverted ? { diverted:true } : {}) });
+  return junction;
+}
 function rtJoin(lon, lat) {
   const from = RT.nodes.find(n => n.id === rtSelected);
   if (!from) return;
@@ -1033,18 +1066,7 @@ function rtJoin(lon, lat) {
   if (!snap || snap.km > rtSnapKm(lat)) { rtControls('Drop the junction on the channel this node should join.'); redraw(); return; }
   const deleted = [];
   rtCommit(() => {
-    const { link, i } = snap, down = link.b, point = [snap.lon, snap.lat];
-    const before = [...link.path.slice(0, i), point], after = [point, ...link.path.slice(i)];
-    const km = rtKm(link);
-    const f = Math.min(.95, Math.max(.05, rtLength(before) / (rtLength(link.path) || 1)));  // the share of the reach's local runoff entering above the junction
-    const id = 'junction-' + crypto.randomUUID();
-    const model = { ...structuredClone(down.model), id, lon:snap.lon, lat:snap.lat, next:down.id, outlet:false, storage:null, maxRelease:null, splits:{}, lossRank:0,
-      path:undefined, splitPath:undefined, share:down.model.share * f, area:down.model.area * f, length:km * (1 - f) };
-    down.model.share *= 1 - f; down.model.area *= 1 - f;
-    const junction = { id, model, lon:snap.lon, lat:snap.lat, r:6, fill:[39,93,131,255], ring:false, outlet:false, tip:'<b>Added junction</b>Where a branch was joined to this channel' };
-    RT.nodes.push(junction);
-    Object.assign(link, { b:junction, path:before, km:km * f, edited:true });
-    RT.links.push({ a:junction, b:down, path:after, km:km * (1 - f), edited:true, straight:link.straight, w:link.w });
+    const junction = rtInsertJunction(snap);
     let stranded = RT.links.find(l => l.a.id === from.id && l.b && !l.split)?.b;
     RT.links = RT.links.filter(l => l.a.id !== from.id || l.split);
     const joined = { a:from, b:junction, w:3 }; rtStraight(joined); RT.links.push(joined);
@@ -1140,19 +1162,19 @@ function rtSetSplits(node, splits) {  // the node's split links follow its split
       : { a:node, w:3, split:true, path:[[node.lon, node.lat], [node.lon + .1, node.lat - .05]] }));
   }
 }
-function rtAddSplit(node, to) {
-  const splits = node.model.splits || {}, left = 1 - Object.values(splits).reduce((a, f) => a + f, 0), target = to && RT.nodes.find(n => n.id === to), main = rtMain(node);
+function rtAddSplit(node, to, snap) {  // ``snap``: send the split to a new junction on that channel or diverted reach instead
+  const splits = node.model.splits || {}, left = 1 - Object.values(splits).reduce((a, f) => a + f, 0), target = !snap && to && RT.nodes.find(n => n.id === to), main = rtMain(node);
   const problem = node.model.storage || node.link ? 'Dams and system links keep their configured flows.'
     : !main ? 'A split keeps the rest of the flow on the main channel, so this node needs a downstream node.'
-    : to in splits ? 'This node already splits flow there.'
-    : to && !target ? 'Choose a node in this network.'
+    : !snap && to in splits ? 'This node already splits flow there.'
+    : !snap && to && !target ? 'Choose a node in this network.'
     : target && (target === node || main.b === target) ? 'Choose a node other than this one or its main downstream node.'
     : target && rtWouldCycle(node.id, to) ? 'That split would create a loop.'
     : left < .015 ? 'All of this node’s flow is already diverted; reduce another split first.' : '';
   if (problem) { rtControls(problem); return; }
   const share = Math.min(.1, Math.floor(left * 100) / 100);
-  rtCommit(() => rtSetSplits(node, { ...splits, [to]: share }));
-  rtControls(`${node.id} now sends ${rtPct(share)}% ${to ? 'to ' + to : 'out of the river system'}. Set the share in the flow panel; the rest continues down the main channel. Apply to update flows.`);
+  rtCommit(() => { if (snap) to = rtInsertJunction(snap).id; rtSetSplits(node, { ...splits, [to]: share }); });
+  rtControls(`${node.id} now sends ${rtPct(share)}% ${snap ? 'to a new junction on that channel' : to ? 'to ' + to : 'out of the river system'}. Set the share in the flow panel; the rest continues down the main channel. Apply to update flows.`);
 }
 function rtChangeSplit(node, to, percent) {
   const splits = { ...node.model.splits }, others = Object.entries(splits).reduce((a, [k, f]) => k === to ? a : a + f, 0);
@@ -1226,6 +1248,11 @@ $('rt-detach').onclick = () => {
   if (inflows.length === 1) { const problem = rtDetach(selected, inflows[0].a); if (problem) rtControls(problem); return; }
   rtMode = 'detach'; rtGhost = null;
   rtControls('Click the reach (or its upstream node) to detach from this junction; it will join the node below instead.');
+};
+$('rt-newsplit').onclick = () => {
+  if (!RT || rtBusy) return;
+  rtMode = rtMode === 'newsplit' ? null : 'newsplit'; rtGhost = null;
+  rtControls(rtMode ? 'Click a channel, or a diverted reach, to put a new flow split on.' : '');
 };
 for (const mode of ['move','add','connect','join']) $('rt-' + mode).onclick = () => {
   if (!RT || !rtSelected) return;
