@@ -319,7 +319,7 @@ if (ASK.get('case') === 'all') {
   // ecological outcomes are not modelled for these runs yet: each panel keeps a place for them
   const ecoNA = () => {
     const e = document.createElement('div'); e.className = 'eco-na';
-    e.innerHTML = '<b>Ecological outcomes</b>' + ['Native fish', 'Colonial waterbirds', 'River red gum'].map(k => `<div><span>${k}</span><em>N/A</em></div>`).join('');
+    e.innerHTML = '<b>Ecological outcomes</b>' + ['Native fish', 'Native vegetation', 'Waterbirds', 'Ecosystem function', 'Other species', 'Flows and connectivity'].map(k => `<div><span>${k}</span><em>N/A</em></div>`).join('');
     return e;
   };
   for (const c of META.cases) {
