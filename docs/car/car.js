@@ -66,6 +66,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     Object.assign(playerCar,{placed:false,selected:false,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,jump:0,jumpV:0,groundZ:null,groundV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
     driveKeys.clear(); choosing=false; drawRadar(); drawHud();
     if(game.mode==='playing') dashFinish('You left the map');
+    if(game.mode==='over') { game.mode='off'; dashRender(); } // the result goes with the car
     for (const k in docks) docks[k].classList.remove('placed','choosing'); hint.classList.remove('active');
     setHint(`Drag the ${noun} onto the map to drive again.`); refresh();
   }
@@ -281,6 +282,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     playerCar.selected=!playerCar.selected; Object.assign(playerCar,{speed:0,vel:[0,0],yawRate:0}); driveKeys.clear();
     if(playerCar.selected) enterChase(); else { exitChase(); drawRadar(); drawHud(); }
     hintText=''; hint.classList.toggle('active',playerCar.selected);
+    if(gameStart) dashRender();
     setHint(playerCar.selected?hintDrive():`Paused · click the ${V().noun} or press Esc to resume, or drag a dock icon to a new location`);
     refresh();
   }
@@ -780,7 +782,8 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   let dashText='';
   function dashRender() {
     const playing=game.mode==='playing', t=game.target, c=playerCar;
-    panel.hidden=game.mode==='off';
+    const gone=game.mode==='over'&&!c.selected; // the result and Play again only show from the driver's seat
+    panel.hidden=game.mode==='off'||gone; gameStart.hidden=gone;
     gameStart.textContent=playing||game.mode==='waiting'?'■ End game':game.mode==='over'?'🏁 Play again':'🏁 Start game';
     if(panel.hidden) return;
     const left=Math.max(0,game.left), km=playing?Math.round(dashDist(t.lon,t.lat)/1000):0;

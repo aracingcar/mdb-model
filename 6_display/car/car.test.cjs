@@ -150,6 +150,14 @@ assert(drySpin.turns<.75&&drySpin.far>50,`dry tyres grip and carve a wide arc ($
   assert.equal(g.game.score,1,'arriving scores'); assert.notEqual(g.game.target,first,'and names a new town');
   g.game.left=.01; g.tick(.05);
   assert.equal(g.game.mode,'over','running out of time ends the game'); assert.equal(g.game.best,1);
+  assert.equal(start.hidden,false,'Play again shows from the driver\'s seat');
+  g.state.selected=false; g.state.placed=true; g.reset();
+  assert.equal(g.game.mode,'off','the result goes when the car is taken off the map'); assert.equal(start.hidden,false,'Start is back for a fresh game');
+  const esc=()=>events.keydown({code:'Escape',repeat:false,target:{matches:()=>false},preventDefault(){}});
+  g.place([6,6]); start.listeners.click(); g.game.left=.01; g.tick(.05);
+  assert.equal(g.game.mode,'over');
+  esc(); assert.equal(start.hidden,true,'Play again hides when you get out of the car');
+  esc(); assert.equal(start.hidden,false,'and returns when you get back in');
   start.listeners.click();
   assert.equal(g.game.mode,'playing','Play again restarts at once'); assert.equal(g.game.score,0);
 }
