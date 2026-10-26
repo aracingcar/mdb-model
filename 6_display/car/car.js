@@ -42,7 +42,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   const ghost = document.createElement('div');
   ghost.className = 'car-drag-ghost'; ghost.textContent = '🚗'; ghost.hidden = true;
   ghost.setAttribute('aria-hidden','true'); document.body.append(ghost);
-  let dragging = null, choosing = false, suppressClick = false, placedAt = -1e9; // choosing: false, or the vehicle being placed by clicking
+  let dragging = null, choosing = false, dragEndedAt = -1e9, placedAt = -1e9; // choosing: false, or the vehicle being placed by clicking
 
   const onWater = (lon,lat) => !!waterAt?.(lon,lat);
   const validFor = kind => kind==='boat' ? onWater : onTerrain;
@@ -112,7 +112,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     d.addEventListener('pointerdown',e=>{
       if(e.button!==0) return;
       dragging={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false,kind};
-      d.setPointerCapture(e.pointerId); refresh();
+      d.setPointerCapture(e.pointerId); setHint(`Green outline: where the ${VEHICLES[kind].noun} can be dropped. Anywhere else is off limits.`); refresh();
     });
     d.addEventListener('pointermove',e=>{
       if(!dragging||e.pointerId!==dragging.id) return;
@@ -124,17 +124,17 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
       if(!dragging||e.pointerId!==dragging.id) return;
       const moved=dragging.moved, pos=moved?dropPosition(e,kind):null; cancelDrag();
       if(moved) {
-        suppressClick=true; setTimeout(()=>{suppressClick=false;},0);
+        dragEndedAt=performance.now(); // the click that follows a drag must not re-arm placing; a busy zoomed-out frame can delay it past a 0 ms timer
         if(!place(pos,kind)) setHint(`Drop the ${VEHICLES[kind].noun} on ${VEHICLES[kind].where}.`);
       }
     });
     d.addEventListener('pointercancel',cancelDrag);
     d.addEventListener('lostpointercapture',cancelDrag);
     d.addEventListener('click',()=>{
-      if(suppressClick) return;
+      if(performance.now()-dragEndedAt<500) return;
       if(playerCar.placed) reset();
       const on=choosing!==kind; stopChoosing(); choosing=on&&kind; d.classList.toggle('choosing',on);
-      setHint(on?`Click a location on ${VEHICLES[kind].where} to place the ${VEHICLES[kind].noun}.`:''); refresh();
+      setHint(on?`Click inside the green outline (${VEHICLES[kind].where}) to place the ${VEHICLES[kind].noun}; anywhere else is off limits.`:''); refresh();
     });
   }
   // The ghost follows the cursor while dragging or choosing; its outline (and the dock's) is green where it will drop, red where not.
@@ -268,7 +268,17 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
       updateTriggers:{getColor:now} });
   }
 
-  const layers=()=>[skidLayer(),layer(),...dashLayers()];
+  // While a vehicle is being dragged or chosen, outline where it can land: the valley for the car, the rivers for the boat.
+  function dropZoneLayer() {
+    const kind=dragging?.kind||choosing;
+    if(!kind) return null;
+    const boat=kind==='boat', rings=boat ? getRivers?.()||[] : terrain.outline||[];
+    const z=boat ? (lon,lat)=>waterAt?.(lon,lat)?.top ?? terrainHeightAt(lon,lat) : terrainHeightAt;
+    return new deck.PathLayer({ id:'car-drop-zone', data:rings, getPath:ring=>ring.map(p=>[p[0],p[1],z(p[0],p[1])+20]),
+      getColor:[42,138,72,235], getWidth:3, widthUnits:'pixels', pickable:false, parameters:{ depthWriteEnabled:false, depthCompare:'always' },
+      updateTriggers:{getPath:[kind,getRelief(),terrain.GZ]} });
+  }
+  const layers=()=>[dropZoneLayer(),skidLayer(),layer(),...dashLayers()].filter(Boolean);
 
   function click(info) {
     if(info.object?.kind!=='playerCar') return;
@@ -411,6 +421,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   const BOOST_WHEEL=1.25, BOOST_ROCKET=3.2, WET_LOSS=.4, STEER_ASSIST=.7, WHEELSPIN=12, HILL_G=CAR.engineForce/(CAR.mass*SIN_CLIMB);
   const TOP_SPEED=Math.sqrt(CAR.engineForce/CAR.airResist); // ~30.5 m/s (110 km/h) unboosted on the flat
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const tuning={accel:1,brake:1,steer:1}; // driver sensitivity multipliers from Settings; accel is capped at 1 (the stock engine)
 
   // Keep an absolute altitude after crossing the edge: outside-grid heights must not snap the car to zero.
   // Hold the camera at the cliff so the fall stays visible, then restore the overview and dock.
@@ -450,10 +461,10 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     // (less lock at speed, "prevents oversteer at expense of more understeer") is made grip-aware here: the lock is held to
     // what a steady turn needs for STEER_ASSIST of the tyres' grip (bicycle model: tan δ = a_lat·L / v²), so the car corners
     // hard without snapping round. Boosting on wet tyres spins the rear wheels, so the tail still comes round: donuts.
-    c.steer=input.steer ? clamp(c.steer+input.steer*dt*2,-1,1) : c.steer>0 ? Math.max(c.steer-dt,0) : Math.min(c.steer+dt,0);
+    c.steer=input.steer ? clamp(c.steer+input.steer*dt*2*tuning.steer,-1,1) : c.steer>0 ? Math.max(c.steer-dt,0) : Math.min(c.steer+dt,0);
     const absVel=Math.hypot(c.vel[0],c.vel[1]), grip=P.tireGrip*(1-WET_LOSS*c.wet);
     const lock=Math.min(P.maxSteer*(1-Math.min(absVel,250)/280), Math.atan(STEER_ASSIST*grip*P.gravity*WHEELBASE/Math.max(1e-6,absVel*absVel)));
-    const steerAngle=c.steer*lock;
+    const steerAngle=c.steer*lock*tuning.steer;
     // Velocity in car coordinates: x forward, y to the right (heading is clockwise from north, as is yawRate).
     const vx=sin*c.vel[0]+cos*c.vel[1], vy=cos*c.vel[0]-sin*c.vel[1];
     // Slope under the car, read over a span wider than any one terrain cell and low-passed, along and across the heading.
@@ -485,8 +496,8 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
       // Rear-wheel drive (source). Brake, then reverse once (almost) stopped.
       const uphill=Math.min(1,Math.max(0,sinTheta)/SIN_CLIMB);
       let drive=0, brake=0;
-      if(input.throttle) drive=P.engineForce*(boost?BOOST_WHEEL:1);
-      if(input.brake) { if(vx>1) brake=P.brakeForce; else if(!input.throttle) { drive=-.6*P.engineForce; reversing=true; } }
+      if(input.throttle) drive=P.engineForce*Math.min(1,tuning.accel)*(boost?BOOST_WHEEL:1);
+      if(input.brake) { if(vx>1) brake=P.brakeForce*tuning.brake; else if(!input.throttle) { drive=-.6*P.engineForce; reversing=true; } }
       // Traction circle on the driven (rear) tyres (Beckman, "The Physics of Racing", part 5): drive and cornering share one
       // grip budget. Ask for more and the wheels spin. A spinning tyre slides, so it gives sliding grip (the source's
       // lockGrip) directed against its contact patch's slip: the tread running WHEELSPIN m/s ahead of the ground, plus however
@@ -826,5 +837,5 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     });
   }
 
-  return { layer, layers, click, hover, start, tick, state: playerCar, game, driveKeys, place, reset, isPlacing:()=>!!dragging||choosing };
+  return { layer, layers, click, hover, start, tick, state: playerCar, game, driveKeys, tuning, place, reset, isPlacing:()=>!!dragging||choosing };
 };
