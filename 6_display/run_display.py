@@ -168,11 +168,24 @@ def compact_floats(text):
     return LONG_FLOAT.sub(lambda m: repr(round(float(m.group(1)), 6)), text)
 
 
-def _engine(system, basins, basin_forcing, regions, rivers):
+AREA_SIMPLIFY_DEG = 0.004  # ~400 m: the runoff editor's node areas keep their shared borders but not every vertex of the HydroBASINS outline
+
+
+def _areas(nodes, basins):
+    """The runoff areas the page's editor starts from: each node's watershed inside its basin, as {node id: rings of [lon, lat]}.
+    Neighbouring areas are simplified together, so a shared border stays shared and its vertices can be dragged as one."""
+    watersheds = nodes.attrs["watersheds"]
+    parent = basins.set_index("subcatchment").geometry.make_valid()
+    rows = [(n.id, shapely.intersection(shapely.make_valid(watersheds[n.id]), parent[n.basin])) for n in nodes.itertuples() if n.id in watersheds.index]
+    polygonal = [shapely.union_all([p for p in shapely.get_parts(g) if p.geom_type == "Polygon"]) if not g.is_empty else g for _, g in rows]
+    simple = shapely.coverage_simplify(np.array(polygonal, dtype=object), AREA_SIMPLIFY_DEG, simplify_boundary=False)
+    return {"cells": {i: [r for r in _rings(g) if len(r) > 3] for (i, _), g in zip(rows, simple) if not g.is_empty}}
+
+
+def _engine(system, basins, basin_forcing, regions, rivers, nodes):
     """Everything the browser needs to re-run one river system's rainfall-runoff, routing, river flows and ecology on another method pair."""
     names = list(basins["subcatchment"])
     splits = SYSTEMS[system]["splits"]
-    nodes = connected(build_nodes(basins, system), basins)
     storages = SYSTEMS[system].get("storages", {})
     outlet = basin_outlets(nodes)
     return {
@@ -344,12 +357,16 @@ def _run_files(run, methods, units, geo, regions, rivers, dem, fringe, prefix=""
     demo = slice(max(0, shown[0] - LEAD_DAYS), shown[-1] + 1)  # a lead-in so the rolling windows are full on the first shown day
     files = {f"{prefix}demo/{k}": v for k, v in _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, DEMO_GRID_STEP, demo, True, fringe).items()}
     files.update({f"{prefix}full/{k}": v for k, v in _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, GRID_STEP, slice(None), False, fringe).items()})
-    engines = {}
+    engines, areas = {}, {}
     for s, us in units.items():
         basins = pd.concat([geo[u]["basins"] for u in us], ignore_index=True)
         engines[s] = f"engine_{s}_{'_'.join(run)}.json"
+        nodes = connected(build_nodes(basins, s), basins)
+        if not prefix:  # the node areas do not depend on the climate run
+            areas[s] = f"areas_{s}.json"
+            files[areas[s]] = _areas(nodes, basins)
         files[engines[s]] = _engine(s, basins, pd.concat([climate[u][2] for u in us], axis=1), regions[regions["sdl_unit"].isin(us)],
-                                    rivers[rivers["sdl_unit"].isin(us)])
+                                    rivers[rivers["sdl_unit"].isin(us)], nodes)
     if prefix:
         for k in ("demo", "full"):
             del files[f"{prefix}{k}/geometry.json"]
@@ -365,6 +382,7 @@ def _run_files(run, methods, units, geo, regions, rivers, dem, fringe, prefix=""
         # full-run peak flow, so the demo bundle colours its rivers on the same scale as the full series
         "maxQ": round(float(max(max(results[u][0].max(), results[u][1].max().max()) for u in geo))),
         "engines": {s: f"data/{f}" for s, f in engines.items()},  # fetched only when a non-default method is chosen
+        **({"areas": {s: f"data/{f}" for s, f in areas.items()}} if areas else {}),  # the runoff editor's node areas, fetched when it opens
         "engineHash": hashlib.sha1(b"".join((DATA_DIR / f).read_bytes() for f in engines.values())).hexdigest()[:10],  # saved results are keyed by it
         "demoFiles": shared("demo") + [f"data/{n}" for n in files if n.startswith(f"{prefix}demo/") and not n.startswith(f"{prefix}demo/detail_")],
         "details": {s: f"data/{prefix}demo/detail_{s}.json" for s in units},  # fetched when the demo page zooms in on a system

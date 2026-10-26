@@ -117,7 +117,9 @@ def build_nodes(basins, system):
     _place_storages(nodes, fine_deg, ids, storages)
     plains = basins[basins["subcatchment"].str.startswith("LOWLAND")].to_crs("EPSG:4326")
     watersheds = pd.concat([pd.Series(fine_deg.geometry.values, index=[ids[i] for i in fine_deg.index]), pd.Series(plains.geometry.values, index=plains["subcatchment"].values)])
-    return apply_network(_along_river(nodes, watersheds, system), system)
+    result = apply_network(_along_river(nodes, watersheds, system), system)
+    result.attrs["watersheds"] = watersheds
+    return result
 
 
 def _along_river(nodes, watersheds, system):

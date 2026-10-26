@@ -10,7 +10,8 @@ const context = vm.createContext({ console, structuredClone, crypto:require('nod
   localStorage:{getItem:k=>saved.get(k),setItem:(k,v)=>saved.set(k,v)},
   map:{unproject:()=>({lng:145,lat:-35})}, D:{engineHash:'test'}, rtApplied:false, redraw(){},
 });
-vm.runInContext(`let RT = null;` + html.slice(html.indexOf('// Drafts store only'),html.indexOf("$('routing-edit').onclick")),context);
+const areaEditor = html.slice(html.indexOf('// ---- Runoff area editor'), html.indexOf('// ---- end runoff area editor'));
+vm.runInContext(areaEditor + `let RT = null;` + html.slice(html.indexOf('// Drafts store only'),html.indexOf("$('routing-edit').onclick")),context);
 const run = code => vm.runInContext(code,context);
 run(`RT = {nodes:['a','b','c'].map((id,i)=>({id,lon:145+i,lat:-35,model:{id,basin:'basin',share:1/3,area:100,length:10,next:i<2?['b','c'][i]:'',outlet:i===2,river:true}})),links:[]};
 RT.links = [{a:RT.nodes[0],b:RT.nodes[1],path:[[145,-35],[146,-35]],w:3},{a:RT.nodes[1],b:RT.nodes[2],path:[[146,-35],[147,-35]],w:3}];
