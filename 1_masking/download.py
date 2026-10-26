@@ -6,11 +6,11 @@ import xarray as xr
 
 from catchment import load_catchment
 from config import (BBOX_MARGIN, DOWNLOAD_WORKERS, NARCLIM_DIR, RLON_CORRECTION_FILE, RUN, RUN_TAG,
-                    THREDDS_DODS, VARIABLES, YEARS)
+                    THREDDS_DODS, VARIABLES, YEAR_END, YEARS)
 
 
 def url(var, year):
-    return f"{THREDDS_DODS}/{RUN}/{var}/latest/{var}_{RUN_TAG.replace('_day', '')}_day_{year}0101-{year}1231.nc"
+    return f"{THREDDS_DODS}/{RUN}/{var}/latest/{var}_{RUN_TAG.replace('_day', '')}_day_{year}0101-{year}{YEAR_END}.nc"
 
 
 def index_box(ds, bounds):

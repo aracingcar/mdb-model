@@ -193,9 +193,10 @@ HYBAS_NODE_FILE = INPUT / "hydrobasins" / "hybas_au_lev10_v1c.shp"  # routing no
 
 # NARCliM2.0 4 km (SEAus-04), ACCESS-ESM1-5, SSP2-4.5, daily. Remote subsets come from NCI THREDDS (zz63).
 THREDDS_DODS = "https://thredds.nci.org.au/thredds/dodsC/zz63/NARCliM2-0/output-CMIP6/DD"
-# Ensemble member NARCliM2.0 downloaded each global model's run from (checked against the THREDDS server; UKESM1-0-LL not found).
-MEMBERS = {"ACCESS-ESM1-5": "r6i1p1f1", "EC-Earth3-Veg": "r1i1p1f1", "MPI-ESM1-2-HR": "r1i1p1f1", "NorESM2-MM": "r1i1p1f1"}
+# Ensemble member NARCliM2.0 downloaded each global model's run from (checked against the THREDDS server).
+MEMBERS = {"ACCESS-ESM1-5": "r6i1p1f1", "EC-Earth3-Veg": "r1i1p1f1", "MPI-ESM1-2-HR": "r1i1p1f1", "NorESM2-MM": "r1i1p1f1", "UKESM1-0-LL": "r1i1p1f2"}
 MEMBER = MEMBERS.get(GLOBAL_MODEL, "r1i1p1f1")
+YEAR_END = "1230" if GLOBAL_MODEL == "UKESM1-0-LL" else "1231"  # UKESM1-0-LL runs a 360-day calendar, so its yearly files end on 30 December
 DEFAULT_RUN = ("ACCESS-ESM1-5", "ssp245", "WRF412R5")  # the run published in docs/
 # The climate cases the display offers, best to worst. The middle one is the default run.
 CLIMATE_CASES = (

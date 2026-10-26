@@ -14,8 +14,10 @@ def load_year(year):
         with xr.open_dataset(NARCLIM_DIR / f"{var}_{year}.nc") as f:
             arrays.append((f[var].load() * SECONDS_PER_DAY).rename(name))
     ds = xr.merge(arrays, compat="override")
-    if ds.time.dtype == object:  # a 365-day calendar (NorESM2-MM): use real dates, with each missing 29 February repeating 28 February
-        ds = ds.convert_calendar("standard")
+    # A 365-day (NorESM2-MM) or 360-day (UKESM1-0-LL) calendar: use real dates, each missing day repeating the one before.
+    # A 360-day year is spread evenly over the real year, so its 5 or 6 repeated days fall across the seasons.
+    if ds.time.dtype == object:
+        ds = ds.convert_calendar("standard", align_on="year" if ds.time.dt.calendar == "360_day" else None)
         ds = ds.reindex(time=pd.date_range(ds.time.values[0], ds.time.values[-1], freq="D"), method="ffill")
     ds["time"] = ds.time.dt.floor("D")  # daily means are stamped at 12:00
     ds = ds.assign_coords(rlon=ds.rlon % 360 - 180)  # into ROTATED_POLE_CRS's half-turned frame, where rlon never wraps
