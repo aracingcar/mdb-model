@@ -88,6 +88,9 @@
   #climate-fields label, #runoff-fields label, #routing-fields label { display:grid; gap:3px; color:var(--dim); }
   #runoff-fields select, #routing-fields select { width:100%; padding:5px 7px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
   #runoff-fields select:focus-visible, #routing-fields select:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
+  #case-all { justify-self:start; font:inherit; font-size:11px; padding:2px 8px; border:1px solid var(--rule); border-radius:3px; background:#fff; color:var(--head); cursor:pointer; }
+  #case-all:hover { background:#f2f4f5; }
+  #case-all:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
   #case-stops { display:flex; justify-content:space-between; }
   #case-stops button { font:inherit; font-size:11px; padding:2px 4px; border:0; border-radius:3px; background:none; color:var(--dim); cursor:pointer; }
   #case-stops button[aria-pressed="true"] { color:var(--head); font-weight:600; }
@@ -156,6 +159,21 @@
     border:1px solid var(--rule); border-radius:22px; background:rgba(255,255,255,.94); box-shadow:0 2px 10px rgba(0,0,0,.12); z-index:7; }
   body.car-driving #timeline { flex:none; width:180px; height:34px; }
   body.car-driving #map-tools { bottom:20px; }
+  /* ?case=all: the climate cases side by side, each panel the page on one case with only its map and timeline (?panel=1) */
+  body.panel #side, body.panel #model-panels, body.panel #relief, body.panel #site-menu, body.panel #map-tools,
+  body.panel #towns-toggle, body.panel #detail-toggle, body.panel #sdl-toggle, body.panel #storages-toggle { display:none; }
+  body.panel #map { left:0; top:0; }
+  body.all { display:flex; flex-direction:column; }
+  #all-head { display:flex; gap:18px; align-items:baseline; padding:12px 18px; border-bottom:1px solid var(--rule); font-size:12px; }
+  #all-head b { font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--head); }
+  #all-head a { color:var(--dim); }
+  #all-grid { flex:1; min-height:0; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); }
+  #all-grid section { display:flex; flex-direction:column; min-width:0; border-left:1px solid var(--rule); }
+  #all-grid section:first-child { border-left:0; }
+  #all-grid .case-h { padding:8px 14px; font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--head); text-decoration:none; }
+  #all-grid a.case-h:hover { text-decoration:underline; }
+  #all-grid iframe { flex:1; width:100%; border:0; }
+  #all-grid .blank { flex:1; display:grid; place-items:center; color:var(--dim); font-size:13px; }
 </style>
 </head>
 <body>
@@ -208,6 +226,7 @@
 <details id="climate-panel">
   <summary>Climate model<span class="pick" id="climate-pick"></span></summary>
   <div id="climate-fields">
+    <button type="button" id="case-all" title="Show every climate case side by side">All</button>
     <div id="case-stops"></div>
     <input id="case-slider" type="range" min="0" max="2" step="1" value="1" aria-label="Climate case, best to worst">
     <dl id="case-details"></dl>
@@ -273,6 +292,37 @@ const ASK = new URLSearchParams(location.search), FULL = ASK.get('data') === 'fu
 // ?case=<id> shows another built climate case: its run and data files (data/<id>/) replace the default run's.
 const CASE = ASK.get('case') in META.caseData ? ASK.get('case') : null;
 const D = { ...META, ...(CASE ? META.caseData[CASE] : {}) };
+// ?case=all shows every climate case side by side, best to worst: each panel is this page on one case (?panel=1, only its
+// map and timeline), and a day chosen or played in one panel moves the others to it. A case not built yet stays blank.
+if (ASK.get('case') === 'all') {
+  const q = new URLSearchParams(location.search); q.delete('case');
+  const frames = [], head = document.createElement('div'), grid = document.createElement('div'), back = document.createElement('a'), title = document.createElement('b');
+  head.id = 'all-head'; grid.id = 'all-grid';
+  title.textContent = `${META.title} · all climate cases`; back.href = '?' + q; back.textContent = 'Back to one case';
+  head.append(title, back);
+  for (const c of META.cases) {
+    const col = document.createElement('section'), p = new URLSearchParams(q);
+    if (c.id in META.caseData) p.set('case', c.id);
+    if (!c.built) {
+      const h = document.createElement('div'), blank = document.createElement('div');
+      h.className = 'case-h'; h.textContent = c.label; blank.className = 'blank'; blank.textContent = 'Not built yet';
+      col.append(h, blank); grid.append(col); continue;
+    }
+    const h = document.createElement('a'), f = document.createElement('iframe');
+    h.className = 'case-h'; h.textContent = c.label; h.href = '?' + p; h.title = `Open the ${c.label.toLowerCase()} on its own`;
+    p.set('panel', '1'); f.src = '?' + p; f.title = c.label; frames.push(f);
+    col.append(h, f); grid.append(col);
+  }
+  addEventListener('message', e => {
+    if (e.origin !== location.origin || !e.data?.mdbDay) return;
+    for (const f of frames) if (f.contentWindow !== e.source) f.contentWindow.postMessage(e.data, location.origin);
+  });
+  document.body.className = 'all'; document.body.replaceChildren(head, grid);
+  return;
+}
+const PANEL = ASK.get('panel') === '1' && parent !== window;
+let sharedDay = null;
+if (PANEL) document.body.classList.add('panel');
 function goFull(choice) {
   const q = new URLSearchParams({ data: 'full', start: $('climate-start').value, end: $('climate-end').value, rr: $('runoff-model').value, rt: $('routing-model').value, ...(CASE ? { case: CASE } : {}), ...choice });
   location.search = q.toString();
@@ -317,6 +367,11 @@ const pick = (id, text) => { $(id).textContent = text; };
     location.search = q.toString();
   };
   cases.forEach((c, i) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.i = i; b.textContent = c.label; b.onclick = () => choose(i); $('case-stops').append(b); });
+  $('case-all').onclick = () => {
+    const q = new URLSearchParams(location.search);
+    for (const k of ['network', 'areas', 'system']) q.delete(k);
+    q.set('case', 'all'); location.search = q.toString();
+  };
   slider.oninput = () => show(+slider.value);
   slider.onchange = () => choose(+slider.value);
   show(cases.indexOf(current));
@@ -2225,7 +2280,15 @@ function update() {
   $('clock').textContent = nice(D.days[d]);
   eco(); drawBars(d); drawTimeline();
   if (overlay) overlay.setProps({ layers: layers() });
+  if (PANEL && D.days[d] !== sharedDay) { sharedDay = D.days[d]; parent.postMessage({ mdbDay: sharedDay }, location.origin); }
 }
+// In the side-by-side view another panel's day arrives here; following it is not sent back.
+if (PANEL) addEventListener('message', e => {
+  if (e.origin !== location.origin || !e.data?.mdbDay) return;
+  const i = D.days.indexOf(e.data.mdbDay);
+  if (i < W0 || i > W1 || i === Math.floor(day)) return;
+  sharedDay = e.data.mdbDay; day = i; update();
+});
 const cv = $('tl'), cx = cv.getContext('2d');
 function drawTimeline() {
   const dpr = devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
