@@ -129,6 +129,14 @@
   #rt-legend img { width:23px; height:23px; }
   #rt-legend .ring { width:17px; height:17px; border:2px solid #c0392b; border-radius:50%; box-sizing:border-box; }
   #rt-status, #rr-status { margin:2px 0; line-height:1.5; }
+  #rt-flow { display:flex; flex-wrap:wrap; gap:6px 16px; align-items:center; padding:5px 0; border-top:1px solid var(--rule); }
+  #rt-flow[hidden] { display:none; }
+  #rt-flow section { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; }
+  #rt-flow button, #rt-flow select, #rt-flow input { padding:4px 8px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--head); font:inherit; }
+  #rt-flow input { width:52px; }
+  #rt-flow button { cursor:pointer; }
+  #rt-flow button[aria-pressed="true"] { background:#1d4f7c; color:white; }
+  #rt-flow :disabled { opacity:.4; cursor:default; }
   #rt-foot { color:var(--dim); }
   #rt-foot .ramp { width:90px; height:8px; border-radius:4px; background:linear-gradient(90deg,#cfe0ee,#1d4f7c); }
   @media (max-width:900px) { #rt-editor, #rr-editor { left:12px; right:12px; bottom:70px; } }
@@ -346,8 +354,9 @@
     <button id="rt-connect" disabled>Reconnect downstream</button><button id="rt-join" disabled>Join channel</button><button id="rt-detach" disabled>Detach inflow</button><button id="rt-delete" disabled>Delete node</button>
     <label>Tributary runoff share <input id="rt-share" type="number" min="1" max="99" value="25" style="width:50px">%</label><button id="rt-run">Apply &amp; recalculate flows</button><button id="rt-undo" disabled>Undo</button><button id="rt-reset">Reset network</button><button id="rt-export">Export draft</button>
   </div>
+  <div id="rt-flow" hidden></div>
   <p id="rt-status" role="status" aria-live="polite">Select a node to edit.</p>
-  <div>Edits are saved in this browser. Apply to update flows. New tributaries take the chosen share of the selected node’s catchment runoff; total catchment area is preserved. System links, dams, diversions and calibration nodes are protected; deleting a basin outlet moves its basin’s flow reporting to the node below.</div>
+  <div>Edits are saved in this browser. Apply to update flows. A flow split sends the chosen share of a node’s flow to another node (or out of the river system) and the rest continues downstream. A network exit sends a basin’s flow into another river system, and sits exactly on the entry node it feeds. New tributaries take the chosen share of the selected node’s catchment runoff; total catchment area is preserved. System links, dams, diversions and calibration nodes are protected; deleting a basin outlet moves its basin’s flow reporting to the node below.</div>
   <details><summary>Hydrology settings (unchanged)</summary><div id="rt-foot"></div></details>
 </div>
 <div id="tip"></div>
@@ -598,6 +607,7 @@ function recalc(rr, rt, network = false) {
       worker.postMessage({ id, engine, days: D.days, rr: D.runoff.specs[rr], routing: D.routing.specs[rt], upstream });
     });
     getEngines().then(async engines => {  // one river system after another, merged into one result
+      rtAll = Object.fromEntries(Object.keys(D.engines).map((name, i) => [name, engines[i]]));
       const merged = { reachFlow: {}, riverFlow: {}, sdl: {} }, upstream = {};
       const todo = Object.keys(D.engines).map((name, i) => [name, engines[i]]);
       while (todo.length) {  // a system runs once every system sending water into it has
@@ -641,14 +651,14 @@ const rtEngines = {};
 const rtEngine = sys => rtEngines[sys] ||= fetch(D.engines[sys]).then(r => { if (!r.ok) throw new Error(D.engines[sys]); return r.json(); });
 const prettySystem = s => s.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
 for (const s of Object.keys(D.engines)) $('rt-system').add(new Option(prettySystem(s), s));
-let RT = null;  // { nodes, links } while the editor is open; rtLayers() draws them
+let RT = null;  // { nodes, links, exits } while the editor is open; rtLayers() draws them
 const rtShow = { terrain: true, rivers: true, borders: true }, rtShows = k => !(RT || RR) || rtShow[k];  // the editor can hide the terrain and the rivers under its network
 const redraw = () => overlay?.setProps({ layers:layers() });
 async function drawRouting(fit) {
   try { await drawRoutingNetwork(fit); } catch (e) { console.error(e); $('rt-sub').textContent = 'Could not draw the network: ' + e.message; }
 }
 // The routing network of a system as the routing editor edits it: its nodes and reaches (with any draft saved in this browser applied) and the untouched network.
-function rtBuildGraph(sys, eng, spec) {
+function rtBuildGraph(sys, eng, spec, all = rtAll) {
   const p = { ...spec.params, ...eng.calibration }, B = eng.nodes, byId = Object.fromEntries(B.map(b => [b.id, b]));
   const kids = Object.fromEntries(B.map(b => [b.id, []]));
   for (const b of B) if (b.next) kids[b.next].push(b.id);
@@ -673,27 +683,27 @@ function rtBuildGraph(sys, eng, spec) {
     if (to && at[b.id] && at[to]) links.push({ a: at[b.id], b: at[to], path: [[at[b.id].lon, at[b.id].lat], [at[to].lon, at[to].lat]], w: 3, split: true });
     else if (!to && b.splitPath) links.push({ a: at[b.id], path: smooth([[at[b.id].lon, at[b.id].lat], ...b.splitPath]), w: 3, split: true });  // a diversion that leaves the system down its own river
   }  // flow sent somewhere other than downstream
-  const outletNode = Object.fromEntries(B.filter(b => b.outlet).map(b => [b.basin, b.id]));
-  const linked = new Set([...(eng.inflows || []).map(l => l.node), ...(eng.exports || []).map(b => outletNode[b])]);
-  for (const n of nodes) n.link = linked.has(n.id);
-  const base = rtPack({ nodes, links });
-  let graph = { nodes, links };
+  const world = { ...all, [sys]: eng }, exits = rtSeedExits(sys, world), entries = rtEntryIds(sys, world);
+  const start = { nodes, links, exits };
+  rtSnapExits(start, world);
+  const base = rtPack(start);
+  let graph = start;
   try {
     const saved = JSON.parse(localStorage.getItem(rtKey(sys)) || 'null');
-    if (saved) graph = rtUnpack(saved);
+    if (saved) { graph = rtUnpack(saved); graph.exits ||= structuredClone(exits); rtSnapExits(graph, world); }
   } catch (e) { console.warn('Could not restore network draft', e); }
-  for (const n of graph.nodes) n.link = linked.has(n.id);
-  return { graph, base, nodes, p, B, roots, k0, k1 };
+  for (const n of [...nodes, ...graph.nodes]) n.link = !!graph.exits[n.id] || entries.has(n.id);
+  return { graph, base, nodes, p, B, roots, k0, k1, entries };
 }
 async function drawRoutingNetwork(fit) {
   const sys = $('rt-system').value, spec = D.routing.specs[$('routing-model').value];
   $('rt-title').textContent = `Routing network · ${spec.label}`;
   $('rt-sub').textContent = 'Loading…';
   let eng;
-  try { eng = await rtEngine(sys); } catch (e) { $('rt-sub').textContent = 'Could not load the network: ' + e.message; return; }
+  try { rtAll = Object.fromEntries(await Promise.all(Object.keys(D.engines).map(async s => [s, await rtEngine(s)]))); eng = rtAll[sys]; } catch (e) { $('rt-sub').textContent = 'Could not load the network: ' + e.message; return; }
   if (sys !== $('rt-system').value || !$('rt-editor').classList.contains('open')) return;
-  const { graph, base, nodes, p, B, roots, k0, k1 } = rtBuildGraph(sys, eng, spec);
-  rtBase = base;
+  const { graph, base, nodes, p, B, roots, k0, k1, entries } = rtBuildGraph(sys, eng, spec, rtAll);
+  rtBase = base; rtEntries = entries;
   rtSystem = sys;
   rtSelected = null; rtMode = null; rtGhost = null; rtHistory = [];
   RT = graph;
@@ -783,6 +793,7 @@ function rtJoinLayers(at, blend) {  // the new junction the join tool drags onto
 }
 // Drafts store only the editable map graph; engine inputs and parameters are never mutated.
 let rtBusy = false;
+let rtAll = {}, rtEntries = new Set();  // every river system's engine; the nodes of this system that another system's exit feeds
 let rtBase = null, rtSystem = '', rtSelected = null, rtMode = null, rtHistory = [];
 let rtGhost = null;  // the join tool's new junction ({lon, lat, snapped}) while it is being placed
 const rtKey = (sys = rtSystem) => `river-network-draft-v2:${D.engineHash}:${sys}`;
@@ -813,10 +824,11 @@ function rtRole(node) {
 function rtNodeDescription(node) {
   const symbol = RT_SYMBOLS[rtRole(node)];
   const reports = [...(node.model?.outlet ? [node.model.basin] : []), ...(node.model?.reports || [])];
-  return `${symbol.label}: ${symbol.detail}${reports.length ? ` Reports the flow of basin ${reports.join(', ')}.` : ''}${node.ring ? ' Red ring: calibrated loss is applied here.' : ''}`;
+  const exit = RT?.exits?.[node.id], feeds = exit ? ` Its flow enters the ${prettySystem(exit.to)} river system at node ${exit.into}, at these same coordinates.` : rtEntries.has(node.id) ? ' Another river system’s water enters here.' : '';
+  return `${symbol.label}: ${symbol.detail}${feeds}${reports.length ? ` Reports the flow of basin ${reports.join(', ')}.` : ''}${node.ring ? ' Red ring: calibrated loss is applied here.' : ''}`;
 }
 function rtPack(graph) {
-  return JSON.parse(JSON.stringify({ redirects:graph.redirects || {}, folded:graph.folded || {}, nodes:graph.nodes, links:graph.links.map(l => ({ ...l, a:l.a?.id, b:l.b?.id })) }));
+  return JSON.parse(JSON.stringify({ redirects:graph.redirects || {}, folded:graph.folded || {}, exits:graph.exits, nodes:graph.nodes, links:graph.links.map(l => ({ ...l, a:l.a?.id, b:l.b?.id })) }));
 }
 function rtUnpack(data) {
   if (!Array.isArray(data.nodes) || !Array.isArray(data.links)) throw new Error('Invalid draft');
@@ -841,6 +853,7 @@ function rtControls(message) {
   $('rt-run').disabled = rtBusy;
   $('rt-undo').disabled = !rtHistory.length;
   if (RT) $('rt-sub').textContent = `${RT.nodes.length} river nodes · ${RT.links.length} connections · edits apply across downstream systems`;
+  rtFlowPanel();
   $('rt-status').textContent = message || (selected ? `Selected ${selected.id}. ${rtNodeDescription(selected)} ${rtProtected(selected) || 'Choose an action.'} Drag it to move it.` : 'Click a node to select it, or drag a reach line to reshape it. Pan and zoom to find a reach.');
 }
 function rtCommit(change) {
@@ -853,7 +866,7 @@ function rtCommit(change) {
 function rtSave() {
   // deck.gl tracks data-array identity when rebuilding map attributes.
   RT.nodes = [...RT.nodes]; RT.links = [...RT.links];
-  for (const n of RT.nodes) n.outlet = !RT.links.some(l => l.a.id === n.id && l.b && !l.split);
+  for (const n of RT.nodes) { n.outlet = !RT.links.some(l => l.a.id === n.id && l.b && !l.split); n.link = !!RT.exits?.[n.id] || rtEntries.has(n.id); }
   let message = rtSelected ? `Selected ${rtSelected}. Edits saved; apply to update flows.` : 'Edits saved; apply to update flows. Select a node to continue.';
   try { localStorage.setItem(rtKey(), JSON.stringify(rtPack(RT))); }
   catch (e) { message = 'Browser storage unavailable. Export your draft to keep these edits.'; }
@@ -866,6 +879,7 @@ function rtStraight(link) {
 }
 // Moving a node redraws every reach touching it as a straight line (a diversion leaving down its own river keeps its course).
 function rtMoveNode(node, lon, lat) {
+  if (RT?.exits?.[node.id]) return;  // an exit stays on its entry
   node.lon = lon; node.lat = lat;
   for (const link of RT.links) {
     if (link.b && (link.a.id === node.id || link.b.id === node.id)) rtStraight(link);
@@ -937,6 +951,11 @@ function rtClick(info) {
     });
     return true;
   }
+  if (rtMode === 'split' && selected) {
+    if (!hit) rtControls('Click the node that should receive part of this node’s flow.');
+    else rtAddSplit(selected, hit.id);
+    return true;
+  }
   if (rtMode === 'detach' && selected) {
     const from = hit || (info.layer?.id === 'rt-links' ? info.object?.link.a : null);
     const problem = from ? rtDetach(selected, from) : 'Click a reach flowing into the selected node, or the node it comes from.';
@@ -948,6 +967,7 @@ function rtClick(info) {
     return true;
   }
   if ((rtMode === 'move' || rtMode === 'add') && selected) {
+    if (rtMode === 'move' && rtMoveProblem(selected)) { rtControls(rtMoveProblem(selected)); return true; }
     const point = map.unproject([info.x, info.y]);
     const coordinate = info.coordinate;
     const [lon, lat] = coordinate && coordinate.every(Number.isFinite) ? coordinate : [point.lng, point.lat];
@@ -1041,6 +1061,163 @@ function rtJoin(lon, lat) {
   });
   rtControls(`Joined ${from.id} to the channel${deleted.length ? `; removed ${deleted.length} node${deleted.length > 1 ? 's' : ''} left with no inflow, their runoff and basin reporting kept` : ''}. Apply to update flows.`);
 }
+// ---- Flow splits and network exits ----
+// A split node (model.splits: {target node, or '' for out of the river system: share of its outflow}) sends those shares
+// elsewhere and the rest down its main channel. A network exit (graph.exits: {node: {to system, into entry node, basins}})
+// sends the flow of the basins the node reports into another river system, at that entry node: the exit always sits on the
+// entry's coordinates. Exits not yet drafted are read from the engine data's exports and the other systems' inflows.
+const rtMain = node => RT.links.find(l => l.a.id === node.id && l.b && !l.split);
+const rtReported = node => [...(node.model?.outlet ? [node.model.basin] : []), ...(node.model?.reports || [])];
+const rtEsc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+const rtPct = f => Math.round(f * 1000) / 10;
+function rtDraftOf(sys) {
+  try { return JSON.parse(localStorage.getItem(rtKey(sys)) || 'null'); } catch (e) { return null; }
+}
+function rtSeedExits(sys, world) {
+  const eng = world[sys], exits = {};
+  for (const basin of eng?.exports || []) {
+    const node = eng.nodes.find(n => n.river && n.outlet && n.basin === basin);
+    if (!node) continue;
+    for (const [to, other] of Object.entries(world)) for (const l of other.inflows || []) {
+      if (l.from !== sys || l.basin !== basin) continue;
+      const x = exits[node.id] ||= { to, into:l.node, basins:[], ...(l.above ? { above:l.above } : {}) };
+      if (!x.basins.includes(basin)) x.basins.push(basin);
+    }
+  }
+  return exits;
+}
+const rtSystemExits = (sys, world) => (sys === rtSystem && RT ? RT.exits : rtDraftOf(sys)?.exits) ?? rtSeedExits(sys, world);
+function rtEntryIds(sys, world) {  // the nodes of ``sys`` that other systems' exits feed
+  const ids = new Set();
+  for (const s of Object.keys(world)) if (s !== sys) for (const x of Object.values(rtSystemExits(s, world))) if (x.to === sys) ids.add(x.into);
+  return ids;
+}
+function rtInflowsFor(system, source, resolve) {  // the water other systems send into ``system``: its source's inflows, replaced for any system whose exits are drafted
+  const exitsOf = s => s === rtSystem && RT ? RT.exits : rtDraftOf(s)?.exits;
+  const out = (source.inflows || []).filter(l => !exitsOf(l.from));
+  for (const s of Object.keys(rtAll)) {
+    const exits = s !== system && exitsOf(s);
+    for (const x of Object.values(exits || {})) if (x.to === system) for (const basin of x.basins) out.push({ node:x.into, from:s, basin, ...(x.above ? { above:x.above } : {}) });
+  }
+  return out.map(l => ({ ...l, node:resolve(l.node) }));
+}
+function rtEntryPos(x, world) {
+  const node = (rtDraftOf(x.to)?.nodes || world[x.to]?.nodes || []).find(n => n.id === x.into);
+  return node && [node.lon, node.lat];
+}
+function rtPlaceExit(graph, node, [lon, lat]) {  // reaches end at the exit with their routing length unchanged
+  node.lon = lon; node.lat = lat;
+  for (const l of graph.links) {
+    if (l.b === node) l.path = [...l.path.slice(0, -1), [lon, lat]];
+    else if (l.a === node) l.path = [[lon, lat], ...l.path.slice(1)];
+  }
+}
+function rtSnapExits(graph, world) {
+  for (const [id, x] of Object.entries(graph.exits || {})) {
+    const node = graph.nodes.find(n => n.id === id), pos = node && rtEntryPos(x, world);
+    if (pos) rtPlaceExit(graph, node, pos);
+  }
+}
+function rtMoveProblem(node) {
+  const x = RT?.exits?.[node.id];
+  return x ? `A network exit sits exactly on the entry node it feeds. Move node ${x.into} in the ${prettySystem(x.to)} network instead, or stop this being an exit.` : '';
+}
+function rtUpstream(sys) {  // the river systems that send water, directly or not, into ``sys``
+  const feeds = {};
+  for (const s of Object.keys(rtAll)) for (const x of Object.values(rtSystemExits(s, rtAll))) (feeds[x.to] ||= new Set()).add(s);
+  const seen = new Set(), todo = [sys];
+  while (todo.length) for (const s of feeds[todo.pop()] || []) if (!seen.has(s)) { seen.add(s); todo.push(s); }
+  return seen;
+}
+function rtSetSplits(node, splits) {  // the node's split links follow its splits: kept where the target is unchanged
+  const old = RT.links.filter(l => l.split && l.a === node);
+  node.model.splits = splits;
+  RT.links = RT.links.filter(l => !(l.split && l.a === node));
+  for (const to of Object.keys(splits)) {
+    const target = to && RT.nodes.find(n => n.id === to);
+    RT.links.push(old.find(l => (l.b?.id || '') === to) || (target ? { a:node, b:target, w:3, split:true, path:[[node.lon, node.lat], [target.lon, target.lat]] }
+      : { a:node, w:3, split:true, path:[[node.lon, node.lat], [node.lon + .1, node.lat - .05]] }));
+  }
+}
+function rtAddSplit(node, to) {
+  const splits = node.model.splits || {}, left = 1 - Object.values(splits).reduce((a, f) => a + f, 0), target = to && RT.nodes.find(n => n.id === to), main = rtMain(node);
+  const problem = node.model.storage || node.link ? 'Dams and system links keep their configured flows.'
+    : !main ? 'A split keeps the rest of the flow on the main channel, so this node needs a downstream node.'
+    : to in splits ? 'This node already splits flow there.'
+    : to && !target ? 'Choose a node in this network.'
+    : target && (target === node || main.b === target) ? 'Choose a node other than this one or its main downstream node.'
+    : target && rtWouldCycle(node.id, to) ? 'That split would create a loop.'
+    : left < .015 ? 'All of this node’s flow is already diverted; reduce another split first.' : '';
+  if (problem) { rtControls(problem); return; }
+  const share = Math.min(.1, Math.floor(left * 100) / 100);
+  rtCommit(() => rtSetSplits(node, { ...splits, [to]: share }));
+  rtControls(`${node.id} now sends ${rtPct(share)}% ${to ? 'to ' + to : 'out of the river system'}. Set the share in the flow panel; the rest continues down the main channel. Apply to update flows.`);
+}
+function rtChangeSplit(node, to, percent) {
+  const splits = { ...node.model.splits }, others = Object.entries(splits).reduce((a, [k, f]) => k === to ? a : a + f, 0);
+  if (!(to in splits)) return;
+  if (!(percent >= 1 && percent <= rtPct(1 - others) + 1e-9)) { rtControls(`Choose a share from 1% to ${rtPct(1 - others)}%.`); return; }
+  splits[to] = percent / 100;
+  rtCommit(() => rtSetSplits(node, splits));
+  rtControls(`${node.id} sends ${percent}% ${to ? 'to ' + to : 'out of the river system'}; ${rtPct(1 - others - percent / 100)}% continues downstream. Apply to update flows.`);
+}
+function rtSetExit(node, to) {
+  const exits = RT.exits || {};
+  if (!to) {
+    if (!exits[node.id]) return;
+    rtCommit(() => { RT.exits = { ...exits }; delete RT.exits[node.id]; });
+    rtControls(`${node.id} is no longer a network exit. It has no downstream node; use Reconnect downstream to join it to the network again. Apply to update flows.`);
+    return;
+  }
+  const basins = rtReported(node);
+  const problem = !basins.length ? 'Only a node that reports a basin’s flow can be a network exit.' : node.model.storage ? 'Dam node: preserve its storage and release rules.' : node.ring ? 'Calibration node: its position in the network is protected.'
+    : rtUpstream(rtSystem).has(to) ? `${prettySystem(to)} already sends water into this river system, so it cannot also receive from it.` : '';
+  const drafted = rtDraftOf(to), candidates = (drafted?.nodes || (rtAll[to]?.nodes || []).filter(n => n.river)).filter(n => !(n.model?.storage ?? n.storage));
+  const kx = Math.cos(node.lat * Math.PI / 180), dist = n => Math.hypot((n.lon - node.lon) * kx, n.lat - node.lat);
+  const entry = candidates.sort((a, b) => dist(a) - dist(b))[0];
+  if (problem || !entry) { rtControls(problem || `${prettySystem(to)} has no node to receive the flow.`); redraw(); return; }
+  rtCommit(() => {
+    RT.exits = { ...exits, [node.id]: { to, into:entry.id, basins, ...(exits[node.id]?.to === to && exits[node.id].above ? { above:exits[node.id].above } : {}) } };
+    RT.links = RT.links.filter(l => l.a !== node || l.split);  // an exit has no main downstream node
+    rtPlaceExit(RT, node, [entry.lon, entry.lat]);
+  });
+  rtControls(`${node.id} is now a network exit into ${prettySystem(to)}, entering at node ${entry.id}; it moved onto that node’s coordinates. Apply to update flows.`);
+}
+function rtFlowPanel() {
+  const panel = $('rt-flow'), node = RT?.nodes.find(n => n.id === rtSelected);
+  panel.hidden = !node?.model;
+  if (panel.hidden) return;
+  const off = rtBusy ? ' disabled' : '', splits = Object.entries(node.model.splits || {}), main = rtMain(node), kept = 1 - splits.reduce((a, [, f]) => a + f, 0);
+  const canSplit = !!main && !node.model.storage && !node.link, rows = splits.map(([to, f]) =>
+    `<label>${to ? 'to ' + rtEsc(to) : 'out of the river system'} <input type="number" min="1" max="100" step="any" value="${rtPct(f)}" data-act="split-pct" data-key="${rtEsc(to)}"${off}>%</label><button type="button" data-act="split-del" data-key="${rtEsc(to)}"${off}>Remove</button>`).join('');
+  let html = '';
+  if (splits.length || canSplit) html += `<section><b>Flow split</b>${rows}<span>${splits.length ? `${rtPct(kept)}% continues ${main ? 'down to ' + rtEsc(main.b.id) : 'downstream'}` : 'All flow continues downstream'}</span>`
+    + `<button type="button" data-act="split-add" aria-pressed="${rtMode === 'split'}"${canSplit && !off ? '' : ' disabled'}>Divert to a node</button><button type="button" data-act="split-leave"${canSplit && !off ? '' : ' disabled'}>Divert out of the system</button></section>`;
+  if (rtReported(node).length && !node.model.storage) {
+    const now = RT.exits?.[node.id]?.to || '', up = rtUpstream(rtSystem);
+    html += `<section><label><b>Network exit</b> feeds <select data-act="exit"${off}><option value="">No (stays in this system)</option>`
+      + Object.keys(rtAll).filter(s => s !== rtSystem).map(s => `<option value="${rtEsc(s)}"${s === now ? ' selected' : ''}${up.has(s) && s !== now ? ' disabled' : ''}>${rtEsc(prettySystem(s))}${up.has(s) ? ' (feeds this system)' : ''}</option>`).join('') + '</select></label></section>';
+  }
+  panel.innerHTML = html;
+  panel.hidden = !html;
+}
+$('rt-flow').onclick = e => {
+  const { act, key } = e.target.dataset || {}, node = RT?.nodes.find(n => n.id === rtSelected);
+  if (!node || rtBusy) return;
+  if (act === 'split-add') { rtMode = rtMode === 'split' ? null : 'split'; rtGhost = null; rtControls(rtMode ? 'Click the node that should receive part of this node’s flow.' : ''); }
+  else if (act === 'split-leave') rtAddSplit(node, '');
+  else if (act === 'split-del' && key in (node.model.splits || {})) {
+    const splits = { ...node.model.splits }; delete splits[key];
+    rtCommit(() => rtSetSplits(node, splits));
+    rtControls(`Removed the split from ${node.id}. Apply to update flows.`);
+  }
+};
+$('rt-flow').onchange = e => {
+  const { act, key } = e.target.dataset || {}, node = RT?.nodes.find(n => n.id === rtSelected);
+  if (!node || rtBusy) return;
+  if (act === 'split-pct') rtChangeSplit(node, key, Number(e.target.value));
+  else if (act === 'exit') rtSetExit(node, e.target.value);
+};
 $('rt-detach').onclick = () => {
   const selected = RT?.nodes.find(n => n.id === rtSelected);
   if (!selected) return;
@@ -1111,7 +1288,7 @@ function rtProtected(node) {
   if (node.model.storage) return 'Dam node: preserve its storage and release rules.';
   if (node.link) return 'System link: another river system’s water enters or leaves here.';
   if (node.ring) return 'Calibration node: its position in the network is protected.';
-  if (RT.links.some(l => l.split && (l.a.id === node.id || l.b?.id === node.id))) return 'Diversion node: preserve its configured flow split.';
+  if (RT.links.some(l => l.split && (l.a.id === node.id || l.b?.id === node.id))) return 'Diversion node: change its flow split in the flow panel.';
   return '';
 }
 function rtLength(path) {
@@ -1139,6 +1316,8 @@ function rtEditedNetwork(system, source) {
     }
     return id;
   };
+  if (graph.exits) engine.exports = [...new Set(Object.values(graph.exits).flatMap(x => x.basins))];
+  engine.inflows = rtInflowsFor(system, source, resolve);
   engine.nodes = engine.nodes.filter(n => !n.river).map(n => ({...n, next:resolve(n.next)}));
   for (const model of Object.values(graph.folded || {})) engine.nodes.push({ ...model, next:resolve(model.next) });
   for (const node of graph.nodes) {
@@ -1486,9 +1665,10 @@ async function drawRunoffAreas(fit) {
   const sys = $('rr-system').value;
   $('rr-sub').textContent = 'Loading…';
   try {
-    const [engine, areas] = await Promise.all([rtEngine(sys), D.areas?.[sys] ? rrAreas(sys) : Promise.reject(new Error('this build has no area data'))]);
+    const [engine, areas, all] = await Promise.all([rtEngine(sys), D.areas?.[sys] ? rrAreas(sys) : Promise.reject(new Error('this build has no area data')), Promise.all(Object.keys(D.engines).map(async s => [s, await rtEngine(s)]))]);
     if (sys !== $('rr-system').value || !$('rr-editor').classList.contains('open')) return;
-    const route = rtBuildGraph(sys, engine, D.routing.specs[$('routing-model').value]), built = rrBuild(areas, engine);
+    rtAll = Object.fromEntries(all);
+    const route = rtBuildGraph(sys, engine, D.routing.specs[$('routing-model').value], rtAll), built = rrBuild(areas, engine);
     rrBase = rrPack(built);
     RR = Object.assign(built, { system: sys, rev: 0, edited: false });
     rrSelected = null; rrMode = null; rrHistory = [];
@@ -2253,7 +2433,7 @@ function initMap() {
       if (!RT || rtBusy) return;
       const ghost = rtGhost && rtPick(e, 'rt-ghost'), node = !ghost && rtSelected && rtPick(e, 'rt-nodes')?.object, line = !ghost && !node?.id && !rtMode && rtPick(e, 'rt-links')?.object;
       if (ghost) rtGrab = { kind:'ghost' };
-      else if (node?.id === rtSelected) rtGrab = { kind:'node', node };
+      else if (node?.id === rtSelected) { if (rtMoveProblem(node)) { rtControls(rtMoveProblem(node)); return; } rtGrab = { kind:'node', node }; }
       else if (line && !(line.link.split && !line.link.b)) rtGrab = { kind:'line', link:line.link, start:[e.lngLat.lng, e.lngLat.lat] };
       else return;
       e.preventDefault(); rtGrab.moved = false; rtGrab.before = rtPack(RT); rtGrab.point = e.point;

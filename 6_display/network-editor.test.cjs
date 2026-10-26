@@ -8,7 +8,7 @@ const elements = new Map(), saved = new Map();
 const context = vm.createContext({ console, structuredClone, crypto:require('node:crypto').webcrypto,
   $:id => { if (!elements.has(id)) elements.set(id,{setAttribute(){}}); return elements.get(id); },
   localStorage:{getItem:k=>saved.get(k),setItem:(k,v)=>saved.set(k,v)},
-  map:{unproject:()=>({lng:145,lat:-35})}, D:{engineHash:'test'}, rtApplied:false, redraw(){},
+  prettySystem:s=>s, map:{unproject:()=>({lng:145,lat:-35})}, D:{engineHash:'test'}, rtApplied:false, redraw(){},
 });
 const areaEditor = html.slice(html.indexOf('// ---- Runoff area editor'), html.indexOf('// ---- end runoff area editor'));
 vm.runInContext(areaEditor + `let RT = null;` + html.slice(html.indexOf('// Drafts store only'),html.indexOf("$('routing-edit').onclick")),context);
@@ -161,3 +161,62 @@ assert.equal(run("$('rt-detach').disabled"),true); // nothing left to detach
 assert.ok(Math.abs(run("rtEditedEngine('test',{...source,nodes:rtPack(rtUnpack(rtBase)).nodes.map(n=>n.model)})").nodes.find(n=>n.id==='x').length-20)<1e-9);
 elements.get('rt-undo').onclick(); assert.equal(run("RT.links.find(l=>l.a.id==='y').b.id"),'j');
 console.log('Detach inflow: reaches become runoff entries, junctions become reaches, detached reaches keep their length.');
+
+// Flow splits: add, resize and remove a split; the rest of the flow continues down the main channel.
+run(`RT = {nodes:[['s',145,-35,'m','A',.5],['m',146,-35,'o','A',.2],['t',146,-34,'o','A',.2],['o',147,-35,'','A',.1]].map(([id,lon,lat,next,basin,share])=>({id,lon,lat,model:{id,basin,share,area:100*share,length:50,next,outlet:id==='o',river:true}})),links:[],redirects:{},exits:{}};
+RT.links = RT.nodes.filter(n=>n.model.next).map(n=>({a:n,b:at(n.model.next),path:[[n.lon,n.lat],[at(n.model.next).lon,at(n.model.next).lat]],w:3}));
+rtBase = rtPack(RT); rtHistory = []; rtSelected = 's'; rtMode = null;`);
+run("rtAddSplit(at('s'),'t')");
+assert.equal(run("at('s').model.splits.t"),.1);
+assert.equal(run("RT.links.filter(l=>l.split && l.a.id==='s' && l.b.id==='t').length"),1);
+assert.equal(run("rtRole(at('s'))"),'split');
+run("rtAddSplit(at('s'),'m')"); assert.equal(run("Object.keys(at('s').model.splits).length"),1); // its own main downstream node
+run("rtAddSplit(at('s'),'s')"); assert.equal(run("Object.keys(at('s').model.splits).length"),1);
+run("rtAddSplit(at('t'),'s')"); assert.equal(run("Object.keys(at('t').model.splits||{}).length"),0); // s drains through t's split, a loop
+run("rtChangeSplit(at('s'),'t',150)"); assert.equal(run("at('s').model.splits.t"),.1); // over 100%
+run("rtChangeSplit(at('s'),'t',40)"); assert.equal(run("at('s').model.splits.t"),.4);
+run("rtAddSplit(at('s'),'')"); assert.equal(run("at('s').model.splits['']"),.1);
+assert.equal(run("RT.links.some(l=>l.split && !l.b && l.path.length===2)"),true);
+run("rtChangeSplit(at('s'),'',70)"); assert.equal(run("at('s').model.splits['']"),.1); // 40% + 70% is more than all of it
+let flow = run("$('rt-flow').innerHTML"); assert.match(flow,/50% continues down to m/);
+elements.get('rt-flow').onclick({target:{dataset:{act:'split-del',key:''}}});
+assert.deepEqual(JSON.parse(run("JSON.stringify(at('s').model.splits)")),{t:.4});
+assert.equal(run("RT.links.some(l=>l.split && !l.b)"),false);
+const splitEngine = run("rtEditedEngine('test',{...source,nodes:rtPack(RT).nodes.map(n=>n.model),basins:[{id:'A',area:300,next:''}],reachOutlet:{reach:'A'},units:{unit:{outlet:'A',ecology:null}}})");
+assert.equal(JSON.stringify(splitEngine.nodes.find(n=>n.id==='s').splits),'{"t":0.4}');
+elements.get('rt-flow').onclick({target:{dataset:{act:'split-del',key:'t'}}});
+assert.equal(run("rtRole(at('s'))"),'entry'); assert.equal(run("RT.links.some(l=>l.split)"),false);
+console.log('Flow splits: add, resize, remove, loop and over-allocation refused, links follow the splits.');
+
+// Network exits: feed another river system, sit on its entry node, and replace the engines' exports and inflows.
+const sys = (id,lon,lat,extra={}) => ({nodes:[{id:id+'1',lon,lat,basin:id,river:true,outlet:false,share:.5,area:50,next:id+'2'},{id:id+'2',lon:lon+1,lat,basin:id,river:true,outlet:true,share:.5,area:50,next:''}],basins:[{id,area:100,next:''}],...extra});
+context.world = {up:sys('U',145,-35,{exports:['U']}), down:sys('D',150,-33,{inflows:[{node:'D1',from:'up',basin:'U'}]}), other:sys('O',140,-30,{})};
+run(`rtAll = world; rtSystem = 'up'; rtEntries = new Set();
+RT = {nodes:world.up.nodes.map(n=>({id:n.id,lon:n.lon,lat:n.lat,model:{...n}})),links:[],redirects:{},exits:rtSeedExits('up',world)};
+RT.links = [{a:RT.nodes[0],b:RT.nodes[1],path:[[145,-35],[146,-35]],w:3}]; rtHistory = []; rtSelected = 'U2';`);
+assert.deepEqual(JSON.parse(run("JSON.stringify(RT.exits)")),{U2:{to:'down',into:'D1',basins:['U']}}); // seeded from the engine data
+assert.deepEqual(JSON.parse(run("JSON.stringify([...rtEntryIds('down',world)])")),['D1']);
+run("rtSnapExits(RT,world)");
+assert.equal(run("RT.nodes[1].lon"),150); assert.equal(run("RT.nodes[1].lat"),-33); // the exit sits on the entry
+assert.equal(run("RT.links[0].path.at(-1).join()"),'150,-33');
+run("rtMoveNode(RT.nodes[1],140,-34)"); assert.equal(run("RT.nodes[1].lon"),150); // an exit cannot be dragged off its entry
+assert.ok(run("rtMoveProblem(RT.nodes[1])"));
+elements.get('rt-flow').onchange({target:{dataset:{act:'exit'},value:'other'}});
+assert.equal(run("RT.exits.U2.to"),'other'); assert.equal(run("RT.exits.U2.into"),'O2'); // nearest node of the chosen system
+assert.equal(run("RT.nodes[1].lon"),141); assert.equal(run("RT.nodes[1].lat"),-30);
+const asEngine = run("rtEditedNetwork('up',world.up)");
+assert.deepEqual(JSON.parse(JSON.stringify(asEngine.exports)),['U']);
+assert.deepEqual(JSON.parse(run("JSON.stringify(rtInflowsFor('down',world.down,x=>x))")),[]); // down no longer receives from up
+assert.deepEqual(JSON.parse(run("JSON.stringify(rtInflowsFor('other',world.other,x=>x))")),[{node:'O2',from:'up',basin:'U'}]);
+run("rtSystem = 'other'; RT = null"); // up's draft is not open: its saved draft is read
+assert.deepEqual(JSON.parse(run("JSON.stringify(rtInflowsFor('other',world.other,x=>x))")),[{node:'O2',from:'up',basin:'U'}]);
+assert.deepEqual(JSON.parse(run("JSON.stringify([...rtEntryIds('other',world)])")),['O2']);
+run("rtSystem = 'up'; RT = rtUnpack(JSON.parse(localStorage.getItem(rtKey('up'))))");
+elements.get('rt-flow').onchange({target:{dataset:{act:'exit'},value:''}});
+assert.deepEqual(JSON.parse(run("JSON.stringify(RT.exits)")),{});
+assert.deepEqual(JSON.parse(run("JSON.stringify(rtEditedNetwork('up',world.up).exports)")),[]);
+elements.get('rt-undo').onclick(); assert.equal(run("RT.exits.U2.to"),'other');
+run("rtSystem = 'other'"); // a system that feeds this one cannot be fed back
+run("RT = {nodes:world.other.nodes.map(n=>({id:n.id,lon:n.lon,lat:n.lat,model:{...n}})),links:[],redirects:{},exits:{}}");
+run("rtSelected = 'O2'; rtSetExit(RT.nodes[1],'up')"); assert.deepEqual(JSON.parse(run("JSON.stringify(RT.exits)")),{});
+console.log('Network exits: seeded from the engine data, snapped onto the entry, re-targeted, and exports/inflows rebuilt.');
