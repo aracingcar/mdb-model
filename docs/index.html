@@ -336,7 +336,7 @@ if (ASK.get('case') === 'all') {
     col.append(h, f, ecoNA()); grid.append(col);
   }
   addEventListener('message', e => {
-    if (e.origin !== location.origin || !(e.data?.mdbDay || e.data?.mdbCam)) return;
+    if (e.origin !== location.origin || !(e.data?.mdbDay || e.data?.mdbCam || e.data?.mdbPlay)) return;
     for (const f of frames) if (f.contentWindow !== e.source) f.contentWindow.postMessage(e.data, location.origin);
   });
   document.body.className = 'all'; document.body.replaceChildren(head, grid);
@@ -2361,8 +2361,24 @@ function drawTimeline() {
 }
 function seek(e) { const r = cv.getBoundingClientRect(); day = Math.max(W0, Math.min(W1, W0 + Math.round((e.clientX - r.left) / r.width * (W1 - W0)))); update(); }
 let drag = false; cv.onpointerdown = e => { drag = true; cv.setPointerCapture(e.pointerId); seek(e); }; cv.onpointermove = e => drag && seek(e); cv.onpointerup = () => drag = false;
-$('play').onclick = () => { playing = !playing; $('play').innerHTML = playing ? '&#10073;&#10073;' : '&#9654;'; last = performance.now(); if (playing) requestAnimationFrame(tick); };
-$('speed').onclick = () => { si = (si + 1) % speeds.length; $('speed').textContent = speeds[si] + ' d/s'; };
+// Side by side, play, pause and speed are shared: the panel where play was pressed leads, stepping the days, and the
+// others follow its day (above) with their buttons showing the same state, so the panels never drift apart.
+let leading = true;
+function setPlay(on, speed, lead) {
+  si = speed; $('speed').textContent = speeds[si] + ' d/s';
+  const start = on && lead && !(playing && leading);
+  playing = on; leading = lead;
+  $('play').innerHTML = playing ? '&#10073;&#10073;' : '&#9654;';
+  if (start) { last = performance.now(); acc = 0; requestAnimationFrame(tick); }
+}
+const sharePlay = () => { if (PANEL) parent.postMessage({ mdbPlay: { playing, si } }, location.origin); };
+$('play').onclick = () => { setPlay(!playing, si, true); sharePlay(); };
+$('speed').onclick = () => { setPlay(playing, (si + 1) % speeds.length, leading); sharePlay(); };
+if (PANEL) addEventListener('message', e => {
+  if (e.origin !== location.origin || !e.data?.mdbPlay) return;
+  const { playing: on, si: speed } = e.data.mdbPlay;
+  setPlay(on, speed, on && playing && leading);  // a speed change from a follower keeps the leader leading
+});
 $('detailIn').onchange = async e => {
   showDetail = e.target.checked;
   if (showDetail && !roadsLoad) {
@@ -2378,7 +2394,7 @@ $('sdlIn').onchange = e => { showSdl = e.target.checked; if (overlay) overlay.se
 $('riverReliefIn').oninput = e => { riverRelief = +e.target.value; cache = { day: -1 }; update(); };
 $('reliefIn').oninput = e => { relief = +e.target.value; TERR = TERR0 * relief; buildZ(); buildMeshes(); meshGen++; cache = { day: -1 }; update(); };
 function tick(now) {
-  if (!playing) return;
+  if (!playing || !leading) return;
   acc += (now - last) / 1000 * speeds[si]; last = now;
   if (acc >= 1) { const step = Math.floor(acc); acc -= step; day += step; if (day > W1) day = W0 + (day - W1 - 1) % (W1 - W0 + 1); update(); }
   requestAnimationFrame(tick);
