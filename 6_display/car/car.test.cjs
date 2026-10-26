@@ -90,6 +90,30 @@ const wetSpin=spinTest(1), drySpin=spinTest(0);
 assert(wetSpin.turns>1.5,`wet boost at full lock keeps spinning (${wetSpin.turns.toFixed(2)} turns in 6 s)`);
 assert(wetSpin.far<12,`and stays on the spot (${wetSpin.far.toFixed(1)} m)`);
 assert(drySpin.turns<.75&&drySpin.far>50,`dry tyres grip and carve a wide arc (${drySpin.turns.toFixed(2)} turns, ${drySpin.far.toFixed(0)} m)`);
+// Landings: the springs take the hit, so the tyres load up then go light on the rebound; a harder landing uses up the
+// travel, bottoms out and scrubs speed; in the air the body keeps the rotation it took off with.
+function landing(hardness) {
+  const flat={x0:0,y0:12,step:1,NR:13,NC:13,GZ:new Float32Array(169).fill(10),outline:[[[.1,.1],[11.9,.1],[11.9,11.9],[.1,11.9],[.1,.1]]],getExaggeration:()=>1};
+  const c=context.window.createCarMechanics({deck:{SimpleMeshLayer:class{constructor(p){Object.assign(this,p);}}},map,terrain:flat,
+    getRelief:()=>1,setRelief(){},refresh(){},pickTerrain:()=>picked,isWet:()=>0});
+  c.place([6,3]); c.state.vel=[0,20]; c.tick(.01);
+  events.keydown({code:'Space',repeat:false,target:{matches:()=>false},preventDefault(){}});
+  c.state.jumpV*=hardness;
+  const r={maxSusp:0,minSusp:0,scrub:1,airPitch:0};
+  c.tick(.01); assert(c.state.jump>0,'Space leaves the ground');
+  c.state.pitch=0; c.state.pitchV=.5; // nose rotating up as it leaves
+  while(c.state.jump>0) { r.airPitch=c.state.pitch; c.tick(.01); }
+  for(let i=0;i<150;i++) { const b=Math.hypot(...c.state.vel); c.tick(.01);
+    if(i<20) r.scrub=Math.min(r.scrub,Math.hypot(...c.state.vel)/b);
+    r.maxSusp=Math.max(r.maxSusp,c.state.susp); r.minSusp=Math.min(r.minSusp,c.state.susp); }
+  return r;
+}
+const soft=landing(1), hard=landing(3);
+assert(soft.maxSusp>.05&&soft.maxSusp<.15,`a plain jump compresses the springs without bottoming (${soft.maxSusp.toFixed(3)} m)`);
+assert(soft.minSusp<0,'and rebounds past ride height');
+assert(soft.airPitch>.2,`in the air the body keeps rotating as it took off (${soft.airPitch.toFixed(2)} rad by touchdown)`);
+assert(hard.maxSusp>.14&&hard.scrub<.9,`a hard landing bottoms out and scrubs speed (kept ${(hard.scrub*100).toFixed(0)}%)`);
+assert(soft.scrub>.97,`a plain landing barely slows the car (kept ${(soft.scrub*100).toFixed(0)}%)`);
 // Nitro: Shift burns the tank in about 4 s, locks when empty (no boost), and refills after you let go.
 {
   const flat={x0:0,y0:12,step:1,NR:13,NC:13,GZ:new Float32Array(169).fill(10),outline:[[[.1,.1],[11.9,.1],[11.9,11.9],[.1,11.9],[.1,.1]]],getExaggeration:()=>1}; // big enough not to drive off
@@ -161,4 +185,4 @@ assert(drySpin.turns<.75&&drySpin.far>50,`dry tyres grip and carve a wide arc ($
   start.listeners.click();
   assert.equal(g.game.mode,'playing','Play again restarts at once'); assert.equal(g.game.score,0);
 }
-console.log('Car placement, drag cancellation, invalid drops, animated fall, delayed reset, camera restoration, reuse, arrow keys, wet-boost donuts, the nitro tank, the river boat and the town dash passed.');
+console.log('Car placement, drag cancellation, invalid drops, animated fall, delayed reset, camera restoration, reuse, arrow keys, wet-boost donuts, landings, the nitro tank, the river boat and the town dash passed.');

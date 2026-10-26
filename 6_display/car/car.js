@@ -1,6 +1,6 @@
 /* MDB Model's drivable vehicles: a terrain car and a river boat. This file is copied into docs/car for GitHub Pages. */
 window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief, refresh, pickTerrain, isWet, playWhileDriving, getRivers, conditionsAt, waterAt, pickRiver, setReliefs, getPlaces, setTowns }) {
-  const playerCar = { kind:'playerCar', vehicle:'car', waterTop:0, pos:[0,0], placed:false, heading:0, speed:0, vel:[0,0], yawRate:0, steer:0, spin:false, nitro:1, nitroWait:0, nitroLocked:false, boosting:false, selected:false, jump:0, jumpV:0, groundZ:null, groundV:0, pitch:0, roll:0, pitchV:0, rollV:0, accel:0, grade:0, bank:0, stalled:false, wet:0, slip:0, skids:[], offEdge:false, airZ:0, airV:0, falling:false, fallZ:0, fallV:0, fallTime:0, fallGravity:0 };
+  const playerCar = { kind:'playerCar', vehicle:'car', waterTop:0, pos:[0,0], placed:false, heading:0, speed:0, vel:[0,0], yawRate:0, steer:0, spin:false, nitro:1, nitroWait:0, nitroLocked:false, boosting:false, selected:false, jump:0, jumpV:0, groundZ:null, groundV:0, pitch:0, roll:0, pitchV:0, rollV:0, susp:0, suspV:0, accel:0, grade:0, bank:0, stalled:false, wet:0, slip:0, skids:[], offEdge:false, airZ:0, airV:0, falling:false, fallZ:0, fallV:0, fallTime:0, fallGravity:0 };
   const driveKeys = new Set(), driveCodes = new Set(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','ShiftLeft','ShiftRight']);
   const ARROWS = { ArrowUp:'KeyW', ArrowLeft:'KeyA', ArrowDown:'KeyS', ArrowRight:'KeyD' }; // arrows drive exactly like WASD
   const driveCode = code => ARROWS[code] || code;
@@ -50,7 +50,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function place(pos, kind='car') {
     if (!pos || !validFor(kind)(pos[0],pos[1])) return false;
     exitChase();
-    Object.assign(playerCar,{vehicle:kind,waterTop:0,pos:pos.slice(0,2),placed:true,selected:true,heading:0,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,nitro:1,nitroWait:0,nitroLocked:false,boosting:false,jump:0,jumpV:0,groundZ:null,groundV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
+    Object.assign(playerCar,{vehicle:kind,waterTop:0,pos:pos.slice(0,2),placed:true,selected:true,heading:0,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,nitro:1,nitroWait:0,nitroLocked:false,boosting:false,jump:0,jumpV:0,groundZ:null,groundV:0,pitch:0,roll:0,pitchV:0,rollV:0,susp:0,suspV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
     if (kind==='boat') playerCar.heading = alongRiver(pos);
     driveKeys.clear(); stopChoosing();
     for (const k in docks) docks[k].classList.toggle('placed', k===kind);
@@ -63,7 +63,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function reset() {
     const noun=V().noun;
     exitChase(true);
-    Object.assign(playerCar,{placed:false,selected:false,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,jump:0,jumpV:0,groundZ:null,groundV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
+    Object.assign(playerCar,{placed:false,selected:false,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,jump:0,jumpV:0,groundZ:null,groundV:0,pitch:0,roll:0,pitchV:0,rollV:0,susp:0,suspV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
     driveKeys.clear(); choosing=false; drawRadar(); drawHud();
     if(game.mode==='playing') dashFinish('You left the map');
     if(game.mode==='over') { game.mode='off'; dashRender(); } // the result goes with the car
@@ -252,11 +252,11 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     const car=new deck.SimpleMeshLayer({
       id:'player-car', data:playerCar.placed?[playerCar]:[], mesh:boat?boatMesh:carMesh, sizeScale:scale,
       getPosition:d=>boat ? [d.pos[0],d.pos[1],waterZ()-scale*.1] // floats on the drawn river surface, keel just under it
-        : [d.pos[0],d.pos[1],(d.falling?d.fallZ:d.offEdge?d.airZ:terrainHeightAt(d.pos[0],d.pos[1])+d.jump)+scale*1.2],
+        : [d.pos[0],d.pos[1],(d.falling?d.fallZ:d.offEdge?d.airZ:terrainHeightAt(d.pos[0],d.pos[1])+d.jump-d.susp*SUSP_DRAW*carScale())+scale*1.2], // body sinks as the springs compress
       getOrientation:d=>[-d.roll*180/Math.PI,-d.heading*180/Math.PI,d.pitch*180/Math.PI], // deck: [about forward axis, yaw, about side axis]
       getColor:[255,255,255,255], _useMeshColors:true, pickable:true,
       material:{ambient:.55,diffuse:.7,shininess:30,specularColor:[80,80,80]},
-      updateTriggers:{getPosition:[playerCar.pos[0],playerCar.pos[1],getRelief(),playerCar.waterTop,playerCar.vehicle,playerCar.jump,playerCar.falling,playerCar.fallZ,playerCar.airZ,playerCar.offEdge],getOrientation:[playerCar.heading,playerCar.pitch,playerCar.roll]}
+      updateTriggers:{getPosition:[playerCar.pos[0],playerCar.pos[1],getRelief(),playerCar.waterTop,playerCar.vehicle,playerCar.jump,playerCar.falling,playerCar.fallZ,playerCar.airZ,playerCar.offEdge,playerCar.susp],getOrientation:[playerCar.heading,playerCar.pitch,playerCar.roll]}
     });
     return car;
   }
@@ -377,7 +377,8 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   const metresToLon=lat=>1/(111320*Math.max(.2,Math.cos(lat*Math.PI/180))), metresToLat=1/111320;
 
   // Ride the terrain: sample ground under the car's nose/tail/sides, tilt toward that plane, and let a damped spring
-  // chase the target so slopes roll in smoothly with a little squat and dive from accel/brake, and bounce on landing.
+  // chase the target so slopes roll in smoothly with a little squat and dive from accel/brake. In the air nothing touches
+  // the body, so it keeps the rotation it took off with (a crest pitches the nose down); the first wheels down snap it back.
   function groundTilt(mpp) {
     const c=playerCar, half=17*mpp, wide=half*.45, sin=Math.sin(c.heading), cos=Math.cos(c.heading), lat=c.pos[1];
     const at=(f,s)=>terrainHeightAt(c.pos[0]+(sin*f+cos*s)*metresToLon(lat), lat+(cos*f-sin*s)*metresToLat);
@@ -386,9 +387,15 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   }
 
   function updateTilt(dt,mpp) {
-    const c=playerCar, t=groundTilt(mpp), airborne=c.jump>0||c.offEdge;
-    const squat=airborne?0:Math.max(-.06,Math.min(.06,c.accel/CAR.gravity*.05)); // nose lifts when accelerating, dips when braking
-    const target=airborne?{pitch:Math.max(-.35,Math.min(.35,c.jumpV/jumpSpeed(mpp)*.3)),roll:0}:{pitch:t.pitch+squat,roll:t.roll+Math.max(-.3,Math.min(.3,c.slip*.35))};
+    const c=playerCar;
+    if(c.jump>0||c.offEdge) {
+      const drag=Math.exp(-.3*dt);
+      c.pitchV=clamp(c.pitchV*drag,-1.5,1.5); c.rollV=clamp(c.rollV*drag,-1.5,1.5); // capped so a bumpy crest cannot flip it
+      c.pitch=clamp(c.pitch+c.pitchV*dt,-.6,.6); c.roll=clamp(c.roll+c.rollV*dt,-.5,.5);
+      return;
+    }
+    const t=groundTilt(mpp), squat=Math.max(-.06,Math.min(.06,c.accel/CAR.gravity*.05)); // nose lifts when accelerating, dips when braking
+    const target={pitch:t.pitch+squat,roll:t.roll+Math.max(-.3,Math.min(.3,c.slip*.35))};
     const k=70, d=11;
     c.pitchV+=((target.pitch-c.pitch)*k-c.pitchV*d)*dt; c.pitch+=c.pitchV*dt;
     c.rollV+=((target.roll-c.roll)*k-c.rollV*d)*dt; c.roll+=c.rollV*dt;
@@ -421,6 +428,20 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   const BOOST_WHEEL=1.25, BOOST_ROCKET=3.2, WET_LOSS=.4, STEER_ASSIST=.7, WHEELSPIN=12, HILL_G=CAR.engineForce/(CAR.mass*SIN_CLIMB);
   const TOP_SPEED=Math.sqrt(CAR.engineForce/CAR.airResist); // ~30.5 m/s (110 km/h) unboosted on the flat
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  // Suspension (game addition): one heave spring, in real car metres, around the static ride height. A landing drives it
+  // down at LAND_V m/s per plain jump's worth of closing speed; its load scales the tyres' grip, so the car bites hard as
+  // it lands and goes light on the rebound. A landing that uses up SUSP_TRAVEL bottoms out: the bump stops kick the body
+  // back up and the skid plate scrubs speed. SUSP_DRAW exaggerates the drawn sink so it reads at map scale.
+  const SUSP_W=2*Math.PI*1.6, SUSP_ZETA=.35, SUSP_TRAVEL=.15, LAND_V=2, BOTTOM_SCRUB=.06, SUSP_DRAW=2;
+  const suspLoad=c=>Math.max(0,1+(SUSP_W*SUSP_W*c.susp+2*SUSP_ZETA*SUSP_W*c.suspV)/CAR.gravity); // tyre load, in car weights
+  function suspStep(dt) {
+    const c=playerCar;
+    c.suspV-=(SUSP_W*SUSP_W*c.susp+2*SUSP_ZETA*SUSP_W*c.suspV)*dt; c.susp+=c.suspV*dt;
+    if(c.susp<=SUSP_TRAVEL) return;
+    const hit=c.suspV, keep=1-Math.min(.35,BOTTOM_SCRUB*hit);
+    c.susp=SUSP_TRAVEL; c.suspV=-.3*hit;
+    c.vel=c.vel.map(v=>v*keep); c.pitchV-=.4*hit*Math.sign(c.speed); // the nose digs in when it bottoms going forward
+  }
   const tuning={accel:1,brake:1,steer:1}; // driver sensitivity multipliers from Settings; accel is capped at 1 (the stock engine)
 
   // Keep an absolute altitude after crossing the edge: outside-grid heights must not snap the car to zero.
@@ -484,7 +505,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     if(!airborne) {
       // Axle loads, with weight shifting back under acceleration and forward under braking (source).
       const shift=P.weightTransfer*c.accel*P.cgHeight/WHEELBASE;
-      const wFront=P.mass*(P.cgToRearAxle/WHEELBASE*P.gravity-shift), wRear=P.mass*(P.cgToFrontAxle/WHEELBASE*P.gravity+shift);
+      const load=suspLoad(c), wFront=load*P.mass*(P.cgToRearAxle/WHEELBASE*P.gravity-shift), wRear=load*P.mass*(P.cgToFrontAxle/WHEELBASE*P.gravity+shift);
       // Slip angles: wheel velocity includes the body's rotation (source). The front angle is measured in the turned wheel's
       // own frame. The source's shortcut, atan2(v_lat,|v_x|) - sign(v_x)·δ, is the same for small angles but flips the
       // steering when v_x crosses zero, which is exactly what happens mid-donut with the car sliding sideways.
@@ -567,7 +588,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
       c.lastSkid={p:pts,t:now};
       if(c.skids.length>400) c.skids.splice(0,c.skids.length-400);
     } else c.lastSkid=null;
-    updateTilt(dt,mpp);
+    updateTilt(dt,mpp); suspStep(dt);
     // Vertical motion. On the ground the car carries the vertical speed of the slope it is climbing (groundV); where the
     // ground falls away faster than gravity pulls the car down (a crest), it leaves the surface and flies as a projectile
     // until it meets the ground again. While airborne jumpV is the car's own vertical speed, not relative to the ground.
@@ -576,7 +597,10 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     const flying=c.jump>0||c.jumpV!==0, rawV=(ground-c.groundZ)/dt;
     const z=c.groundZ+c.jump+(flying?c.jumpV:c.groundV)*dt-.5*g*dt*dt, v=(flying?c.jumpV:c.groundV)-g*dt;
     if(z-ground>(flying?0:TAKEOFF_PX*mpp)) { c.jump=z-ground; c.jumpV=v; }
-    else { c.jump=0; c.jumpV=0; c.groundV=flying ? rawV : c.groundV+(rawV-c.groundV)*(1-Math.exp(-10*dt)); } // landing matches the slope at once
+    else { // landing matches the slope at once; the closing speed goes into the springs (soft on a downslope, hard on a face)
+      if(flying) c.suspV+=Math.max(0,rawV-v)/jumpSpeed(mpp)*LAND_V;
+      c.jump=0; c.jumpV=0; c.groundV=flying ? rawV : c.groundV+(rawV-c.groundV)*(1-Math.exp(-10*dt));
+    }
     c.groundZ=ground;
   }
 
@@ -693,7 +717,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function tick(dt) {
     if(!playerCar.selected) return false;
     dt=Math.min(.05,dt);
-    const c=playerCar, old=[c.pos[0],c.pos[1],c.heading,c.speed,c.jump,c.pitch,c.roll];
+    const c=playerCar, old=[c.pos[0],c.pos[1],c.heading,c.speed,c.jump,c.pitch,c.roll,c.susp];
     const mpp=metresPerPixel();
     const throttle=driveKeys.has('KeyW');
     const input={throttle, brake:driveKeys.has('KeyS'), steer:(driveKeys.has('KeyD')?1:0)-(driveKeys.has('KeyA')?1:0),
@@ -705,7 +729,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     if(game.mode!=='off') dashStep(dt,old);
     drawRadar(); drawHud();
     if(c.falling||!c.placed) return true;
-    return Math.abs(c.pos[0]-old[0])+Math.abs(c.pos[1]-old[1])>0||c.heading!==old[2]||Math.abs(c.pitch-old[5])+Math.abs(c.roll-old[6])>1e-5||c.speed!==old[3]||c.jump!==old[4];
+    return Math.abs(c.pos[0]-old[0])+Math.abs(c.pos[1]-old[1])>0||c.heading!==old[2]||Math.abs(c.pitch-old[5])+Math.abs(c.roll-old[6])>1e-5||c.speed!==old[3]||c.jump!==old[4]||Math.abs(c.susp-old[7])>1e-5;
   }
 
   function keydown(e) {
