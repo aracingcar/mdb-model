@@ -243,20 +243,22 @@
 <script>
 (async () => {
 // Geometry, climate series and the flow results are separate files (see run_display.py), so editing the page does not rewrite them.
-const META = {"title":"Murrumbidgee, ACT, Lachlan, Lower Darling, NSW Murray, Victorian Murray, Kiewa, Ovens, Goulburn and Broken","focus":"SS15","climate":{"globalModel":"ACCESS-ESM1-5","scenario":"ssp245","regionalConfig":"WRF412R5","period":"2015\u20132100","source":"NARCliM2.0","resolution":"4 km","frequency":"Daily"},"cases":[{"id":"best","label":"Best case","globalModel":"NorESM2-MM","scenario":"ssp126","regionalConfig":"WRF412R3","built":false},{"id":"median","label":"Median","globalModel":"ACCESS-ESM1-5","scenario":"ssp245","regionalConfig":"WRF412R5","built":true},{"id":"worst","label":"Worst case","globalModel":"UKESM1-0-LL","scenario":"ssp370","regionalConfig":"WRF412R5","built":false}],"runoff":{"selected":"gr4j","specs":{"gr4j":{"label":"GR4J","algorithm":"gr4j","params":[350.0,0.0,90.0,1.7]},"gr4j_2":{"label":"GR4J (alt. parameters)","algorithm":"gr4j","params":[300.0,-0.5,80.0,2.2]}}},"routing":{"selected":"muskingum","specs":{"muskingum":{"label":"Muskingum","algorithm":"muskingum","params":{"x":0.2,"velocity_km_day":86.4,"delivery":{"LOWLAND":0.05},"target_scale":1.0,"channel_width_m":10.0,"pet_factor":1.0,"seepage_ML_day_km":0.02,"misc_loss_per_km":0.001}},"muskingum_2":{"label":"Muskingum (alt. parameters)","algorithm":"muskingum","params":{"x":0.15,"velocity_km_day":64.8,"delivery":{"LOWLAND":0.08},"target_scale":0.8888888888888888,"channel_width_m":10.0,"pet_factor":1.0,"seepage_ML_day_km":0.02,"misc_loss_per_km":0.001}}}},"run":"ACCESS-ESM1-5_ssp245_WRF412R5","years":[2015,2100],"demoYears":[2027,2036],"maxQ":128985,"engines":{"murrumbidgee":"data/engine_murrumbidgee_ACCESS-ESM1-5_ssp245_WRF412R5.json","lachlan":"data/engine_lachlan_ACCESS-ESM1-5_ssp245_WRF412R5.json","lower_darling":"data/engine_lower_darling_ACCESS-ESM1-5_ssp245_WRF412R5.json","murray":"data/engine_murray_ACCESS-ESM1-5_ssp245_WRF412R5.json","goulburn_broken":"data/engine_goulburn_broken_ACCESS-ESM1-5_ssp245_WRF412R5.json"},"engineHash":"97e3f98734","demoFiles":["data/demo/geometry.json","data/demo/climate.json","data/demo/climate_murrumbidgee.json","data/demo/flow_murrumbidgee.json","data/demo/climate_lachlan.json","data/demo/flow_lachlan.json","data/demo/climate_lower_darling.json","data/demo/flow_lower_darling.json","data/demo/climate_murray.json","data/demo/flow_murray.json","data/demo/climate_goulburn_broken.json","data/demo/flow_goulburn_broken.json"],"details":{"murrumbidgee":"data/demo/detail_murrumbidgee.json","lachlan":"data/demo/detail_lachlan.json","lower_darling":"data/demo/detail_lower_darling.json","murray":"data/demo/detail_murray.json","goulburn_broken":"data/demo/detail_goulburn_broken.json"},"detailStep":0.01,"files":["data/full/geometry.json","data/full/climate.json","data/full/climate_murrumbidgee.json","data/full/flow_murrumbidgee.json","data/full/climate_lachlan.json","data/full/flow_lachlan.json","data/full/climate_lower_darling.json","data/full/flow_lower_darling.json","data/full/climate_murray.json","data/full/flow_murray.json","data/full/climate_goulburn_broken.json","data/full/flow_goulburn_broken.json"]};
-const D = { ...META };
+const META = {"title":"Murrumbidgee, ACT, Lachlan, Lower Darling, NSW Murray, Victorian Murray, Kiewa, Ovens, Goulburn and Broken","focus":"SS15","climate":{"globalModel":"ACCESS-ESM1-5","scenario":"ssp245","regionalConfig":"WRF412R5","period":"2015\u20132100","source":"NARCliM2.0","resolution":"4 km","frequency":"Daily"},"run":"ACCESS-ESM1-5_ssp245_WRF412R5","years":[2015,2100],"maxQ":128985,"engines":{"murrumbidgee":"data/engine_murrumbidgee_ACCESS-ESM1-5_ssp245_WRF412R5.json","lachlan":"data/engine_lachlan_ACCESS-ESM1-5_ssp245_WRF412R5.json","lower_darling":"data/engine_lower_darling_ACCESS-ESM1-5_ssp245_WRF412R5.json","murray":"data/engine_murray_ACCESS-ESM1-5_ssp245_WRF412R5.json","goulburn_broken":"data/engine_goulburn_broken_ACCESS-ESM1-5_ssp245_WRF412R5.json"},"engineHash":"97e3f98734","demoFiles":["data/demo/geometry.json","data/demo/climate.json","data/demo/climate_murrumbidgee.json","data/demo/flow_murrumbidgee.json","data/demo/climate_lachlan.json","data/demo/flow_lachlan.json","data/demo/climate_lower_darling.json","data/demo/flow_lower_darling.json","data/demo/climate_murray.json","data/demo/flow_murray.json","data/demo/climate_goulburn_broken.json","data/demo/flow_goulburn_broken.json"],"details":{"murrumbidgee":"data/demo/detail_murrumbidgee.json","lachlan":"data/demo/detail_lachlan.json","lower_darling":"data/demo/detail_lower_darling.json","murray":"data/demo/detail_murray.json","goulburn_broken":"data/demo/detail_goulburn_broken.json"},"files":["data/full/geometry.json","data/full/climate.json","data/full/climate_murrumbidgee.json","data/full/flow_murrumbidgee.json","data/full/climate_lachlan.json","data/full/flow_lachlan.json","data/full/climate_lower_darling.json","data/full/flow_lower_darling.json","data/full/climate_murray.json","data/full/flow_murray.json","data/full/climate_goulburn_broken.json","data/full/flow_goulburn_broken.json"],"cases":[{"id":"best","label":"Best case","globalModel":"NorESM2-MM","scenario":"ssp126","regionalConfig":"WRF412R3","run":"NorESM2-MM_ssp126_WRF412R3","built":true},{"id":"median","label":"Median","globalModel":"ACCESS-ESM1-5","scenario":"ssp245","regionalConfig":"WRF412R5","run":"ACCESS-ESM1-5_ssp245_WRF412R5","built":true},{"id":"worst","label":"Worst case","globalModel":"UKESM1-0-LL","scenario":"ssp370","regionalConfig":"WRF412R5","run":"UKESM1-0-LL_ssp370_WRF412R5","built":false}],"caseData":{"best":{"climate":{"globalModel":"NorESM2-MM","scenario":"ssp126","regionalConfig":"WRF412R3","period":"2015\u20132100","source":"NARCliM2.0","resolution":"4 km","frequency":"Daily"},"run":"NorESM2-MM_ssp126_WRF412R3","years":[2015,2100],"maxQ":134228,"engines":{"murrumbidgee":"data/engine_murrumbidgee_NorESM2-MM_ssp126_WRF412R3.json","lachlan":"data/engine_lachlan_NorESM2-MM_ssp126_WRF412R3.json","lower_darling":"data/engine_lower_darling_NorESM2-MM_ssp126_WRF412R3.json","murray":"data/engine_murray_NorESM2-MM_ssp126_WRF412R3.json","goulburn_broken":"data/engine_goulburn_broken_NorESM2-MM_ssp126_WRF412R3.json"},"engineHash":"2befb2e6ec","demoFiles":["data/demo/geometry.json","data/best/demo/climate.json","data/best/demo/climate_murrumbidgee.json","data/best/demo/flow_murrumbidgee.json","data/best/demo/climate_lachlan.json","data/best/demo/flow_lachlan.json","data/best/demo/climate_lower_darling.json","data/best/demo/flow_lower_darling.json","data/best/demo/climate_murray.json","data/best/demo/flow_murray.json","data/best/demo/climate_goulburn_broken.json","data/best/demo/flow_goulburn_broken.json"],"details":{"murrumbidgee":"data/best/demo/detail_murrumbidgee.json","lachlan":"data/best/demo/detail_lachlan.json","lower_darling":"data/best/demo/detail_lower_darling.json","murray":"data/best/demo/detail_murray.json","goulburn_broken":"data/best/demo/detail_goulburn_broken.json"},"files":["data/full/geometry.json","data/best/full/climate.json","data/best/full/climate_murrumbidgee.json","data/best/full/flow_murrumbidgee.json","data/best/full/climate_lachlan.json","data/best/full/flow_lachlan.json","data/best/full/climate_lower_darling.json","data/best/full/flow_lower_darling.json","data/best/full/climate_murray.json","data/best/full/flow_murray.json","data/best/full/climate_goulburn_broken.json","data/best/full/flow_goulburn_broken.json"]}},"runoff":{"selected":"gr4j","specs":{"gr4j":{"label":"GR4J","algorithm":"gr4j","params":[350.0,0.0,90.0,1.7]},"gr4j_2":{"label":"GR4J (alt. parameters)","algorithm":"gr4j","params":[300.0,-0.5,80.0,2.2]}}},"routing":{"selected":"muskingum","specs":{"muskingum":{"label":"Muskingum","algorithm":"muskingum","params":{"x":0.2,"velocity_km_day":86.4,"delivery":{"LOWLAND":0.05},"target_scale":1.0,"channel_width_m":10.0,"pet_factor":1.0,"seepage_ML_day_km":0.02,"misc_loss_per_km":0.001}},"muskingum_2":{"label":"Muskingum (alt. parameters)","algorithm":"muskingum","params":{"x":0.15,"velocity_km_day":64.8,"delivery":{"LOWLAND":0.08},"target_scale":0.8888888888888888,"channel_width_m":10.0,"pet_factor":1.0,"seepage_ML_day_km":0.02,"misc_loss_per_km":0.001}}}},"demoYears":[2027,2036],"detailStep":0.01};
 // The page opens on the small demo bundle (META.demoYears, coarser terrain). Other years or methods reload it with
 // ?data=full and the choices in the URL, on the full series.
 const ASK = new URLSearchParams(location.search), FULL = ASK.get('data') === 'full';
+// ?case=<id> shows another built climate case: its run and data files (data/<id>/) replace the default run's.
+const CASE = ASK.get('case') in META.caseData ? ASK.get('case') : null;
+const D = { ...META, ...(CASE ? META.caseData[CASE] : {}) };
 function goFull(choice) {
-  const q = new URLSearchParams({ data: 'full', start: $('climate-start').value, end: $('climate-end').value, rr: $('runoff-model').value, rt: $('routing-model').value, ...choice });
+  const q = new URLSearchParams({ data: 'full', start: $('climate-start').value, end: $('climate-end').value, rr: $('runoff-model').value, rt: $('routing-model').value, ...(CASE ? { case: CASE } : {}), ...choice });
   location.search = q.toString();
 }
-if (FULL) { const e = document.getElementById('err'); e.textContent = `Loading the full ${META.years[0]}\u2013${META.years[1]} series\u2026`; e.style.display = 'grid'; }
+if (FULL) { const e = document.getElementById('err'); e.textContent = `Loading the full ${D.years[0]}\u2013${D.years[1]} series\u2026`; e.style.display = 'grid'; }
 try {
   // each river system's files add to the same objects (P, PET, evapParts, reachFlow, riverFlow, sdl)
   const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
-  for (const f of await Promise.all((FULL ? META.files : META.demoFiles).map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); }))))
+  for (const f of await Promise.all((FULL ? D.files : D.demoFiles).map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); }))))
     for (const [k, v] of Object.entries(f)) D[k] = isObj(D[k]) && isObj(v) ? { ...D[k], ...v } : v;
   if (FULL) document.getElementById('err').style.display = 'none';
 } catch (e) {
@@ -268,9 +270,11 @@ for (const id in D.riverFlow) { const bin = atob(D.riverFlow[id]), u8 = new Uint
 const N = D.days.length, $ = id => document.getElementById(id);
 const pick = (id, text) => { $(id).textContent = text; };
 // Climate cases, best to worst: a slider and a button per stop; the selected stop's SSP, global and regional model are listed.
-// Only the run embedded in this build can be shown; the other stops describe their run but are not built yet.
+// Choosing a built case reloads the page on its data (?case=<id>, kept with the other choices); the other stops describe
+// their run but are not built yet.
 {
   const cases = D.cases, slider = $('case-slider'), ssp = c => c.scenario.replace(/^ssp(\d)(\d+)$/, (_, a, b) => `SSP${a}-${b[0]}.${b.slice(1)}`);
+  const current = cases.find(c => c.run === D.run);
   const show = i => {
     const c = cases[i];
     slider.value = i;
@@ -279,11 +283,20 @@ const pick = (id, text) => { $(id).textContent = text; };
       const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; return [dt, dd];
     }));
     pick('climate-pick', c.label);
-    $('case-note').textContent = c.built ? '' : 'This case is not built into this page yet; the map shows the median.';
+    $('case-note').textContent = c.built ? '' : `This case is not built into this page yet; the map shows the ${current.label.toLowerCase()}.`;
   };
-  cases.forEach((c, i) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.i = i; b.textContent = c.label; b.onclick = () => show(i); $('case-stops').append(b); });
+  const choose = i => {
+    show(i);
+    const c = cases[i];
+    if (!c.built || c === current) return;
+    const q = new URLSearchParams(location.search);
+    if (c.id in D.caseData) q.set('case', c.id); else q.delete('case');
+    location.search = q.toString();
+  };
+  cases.forEach((c, i) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.i = i; b.textContent = c.label; b.onclick = () => choose(i); $('case-stops').append(b); });
   slider.oninput = () => show(+slider.value);
-  show(Math.max(0, cases.findIndex(c => c.built)));
+  slider.onchange = () => choose(+slider.value);
+  show(cases.indexOf(current));
 }
 // Same for rainfall-runoff: only methods run in this build are listed.
 for (const [id, s] of Object.entries(D.runoff.specs)) $('runoff-model').add(new Option(s.label, id));
@@ -916,7 +929,7 @@ $('routing-model').addEventListener('change', () => { if ($('rt-editor').classLi
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('rt-editor').classList.contains('open')) $('rt-close').click(); });
 $('cache-clear').onclick = async () => { await idb.clear(); say('Saved results cleared.'); };
 $('climate-meta').textContent = `${D.climate.source} · ${D.climate.resolution} · ${D.climate.frequency}`;
-if (FULL) { const back = document.createElement('a'); back.href = location.pathname; back.textContent = `Back to the quick ${D.demoYears[0]}\u2013${D.demoYears[1]} view`; $('climate-meta').append(document.createElement('br'), back); }
+if (FULL) { const back = document.createElement('a'); back.href = location.pathname + (CASE ? `?case=${CASE}` : ''); back.textContent = `Back to the quick ${D.demoYears[0]}\u2013${D.demoYears[1]} view`; $('climate-meta').append(document.createElement('br'), back); }
 // The period is a start and end year within the run; playback and the timeline cover only that window. The demo
 // bundle holds only META.demoYears, so a period outside them reloads the page on the full series.
 const [FIRST_YEAR, LAST_YEAR] = D.years, DEFAULT_PERIOD = D.demoYears;

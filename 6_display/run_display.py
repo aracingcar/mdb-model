@@ -330,82 +330,118 @@ def _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, te
     return files
 
 
-def run_display(run=DEFAULT_RUN, methods=(RAINFALL_RUNOFF_MODEL, ROUTING_MODEL)):
-    """Write the interactive 'river pulse' page for every SDL unit of DISPLAY_SYSTEMS, from their stored geometry,
-    climate and results for one run and method pair.
-
-    The page opens on a small demo bundle (docs/data/demo/): DEMO_YEARS only, 2 km terrain and full-run evaporation
-    normals. Choosing other years or methods reloads it on the full series (docs/data/full/, 1 km terrain), and the
-    browser engine's forcing (docs/data/engine_*.json) is fetched only to recalculate other methods.
-    """
-    units = {s: SYSTEMS[s]["units"] for s in DISPLAY_SYSTEMS}
-    geo = {u: {n: load_geometry(u, n) for n in ("outline", "subcatchments", "basins", "rivers")} for us in units.values() for u in us}
+def _run_files(run, methods, units, geo, regions, rivers, dem, fringe, prefix=""):
+    """Write one climate run's data files under DATA_DIR / prefix and return (their paths under DATA_DIR, the page
+    metadata pointing at them), or None if a unit has no stored results for the run. With a prefix (another climate
+    case), the run shares the default run's geometry files instead of writing its own."""
     climate = {u: load_climate(u, run) for u in geo}
     results = {u: load_results(u, run, methods) for u in geo}
-    missing = [u for u in geo if climate[u] is None or results[u] is None or geo[u]["subcatchments"] is None]
-    if missing:
-        raise RuntimeError(f"no stored {'/'.join(run)} results for {', '.join(missing)}: run python main.py first")
-
-    regions = pd.concat([geo[u]["subcatchments"] for u in geo], ignore_index=True)
-    regions = gpd.GeoDataFrame(regions, crs=geo[next(iter(geo))]["subcatchments"].crs)
-    regions["geometry"] = regions.geometry.make_valid()  # the stored GeoJSON can carry tiny self-touches that break the union
-    rivers = gpd.GeoDataFrame(pd.concat([geo[u]["rivers"] for u in geo], ignore_index=True), crs=regions.crs)
+    if any(climate[u] is None or results[u] is None for u in geo):
+        return None
     river_flow = pd.concat([results[u][2] for u in geo], axis=1)
-    rivers = _drop_duplicate_borders(rivers)
-    fringe = buffer_outline(shapely.union_all([geo[u]["outline"].geometry.union_all() for u in geo]))  # SDL outlines + OUTLINE_BUFFER_KM
-    bx = np.array(fringe.bounds).reshape(2, 2)
-    dem = Dem(np.concatenate([np.minimum(regions.total_bounds[:2], bx[0]), np.maximum(regions.total_bounds[2:], bx[1])]))
     all_days = climate[next(iter(geo))][1].index
     shown = np.flatnonzero((all_days.year >= DEMO_YEARS[0]) & (all_days.year <= DEMO_YEARS[1]))
     demo = slice(max(0, shown[0] - LEAD_DAYS), shown[-1] + 1)  # a lead-in so the rolling windows are full on the first shown day
-    files = {f"demo/{k}": v for k, v in _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, DEMO_GRID_STEP, demo, True, fringe).items()}
-    files.update({f"full/{k}": v for k, v in _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, GRID_STEP, slice(None), False, fringe).items()})
+    files = {f"{prefix}demo/{k}": v for k, v in _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, DEMO_GRID_STEP, demo, True, fringe).items()}
+    files.update({f"{prefix}full/{k}": v for k, v in _payloads(units, geo, climate, results, regions, rivers, river_flow, dem, GRID_STEP, slice(None), False, fringe).items()})
     engines = {}
     for s, us in units.items():
         basins = pd.concat([geo[u]["basins"] for u in us], ignore_index=True)
         engines[s] = f"engine_{s}_{'_'.join(run)}.json"
         files[engines[s]] = _engine(s, basins, pd.concat([climate[u][2] for u in us], axis=1), regions[regions["sdl_unit"].isin(us)],
                                     rivers[rivers["sdl_unit"].isin(us)])
-    files["roads.json"] = json.loads((HERE / "roads.json").read_text())  # fetched only when the Roads switch is turned on
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    if prefix:
+        for k in ("demo", "full"):
+            del files[f"{prefix}{k}/geometry.json"]
+    for name, payload in files.items():  # written as they are made, so only one run's payloads are held at a time
+        (DATA_DIR / name).parent.mkdir(parents=True, exist_ok=True)
+        (DATA_DIR / name).write_text(compact_floats(json.dumps(payload, separators=(",", ":"), allow_nan=False)))
+    shared = lambda k: [f"data/{k}/geometry.json"] if prefix else []
+    meta = {
+        "climate": {"globalModel": run[0], "scenario": run[1], "regionalConfig": run[2],
+                    "period": f"{all_days[0].year}–{all_days[-1].year}", "source": "NARCliM2.0", "resolution": "4 km", "frequency": "Daily"},
+        "run": "_".join(run),
+        "years": [int(all_days[0].year), int(all_days[-1].year)],
+        # full-run peak flow, so the demo bundle colours its rivers on the same scale as the full series
+        "maxQ": round(float(max(max(results[u][0].max(), results[u][1].max().max()) for u in geo))),
+        "engines": {s: f"data/{f}" for s, f in engines.items()},  # fetched only when a non-default method is chosen
+        "engineHash": hashlib.sha1(b"".join((DATA_DIR / f).read_bytes() for f in engines.values())).hexdigest()[:10],  # saved results are keyed by it
+        "demoFiles": shared("demo") + [f"data/{n}" for n in files if n.startswith(f"{prefix}demo/") and not n.startswith(f"{prefix}demo/detail_")],
+        "details": {s: f"data/{prefix}demo/detail_{s}.json" for s in units},  # fetched when the demo page zooms in on a system
+        "files": shared("full") + [f"data/{n}" for n in files if n.startswith(f"{prefix}full/")],
+    }
+    return list(files), meta
+
+
+def run_display(run=DEFAULT_RUN, methods=(RAINFALL_RUNOFF_MODEL, ROUTING_MODEL)):
+    """Write the interactive 'river pulse' page for every SDL unit of DISPLAY_SYSTEMS, from their stored geometry,
+    climate and results for one run and method pair.
+
+    The page opens on a small demo bundle (docs/data/demo/): DEMO_YEARS only, 2 km terrain and full-run evaporation
+    normals. Choosing other years or methods reloads it on the full series (docs/data/full/, 1 km terrain), and the
+    browser engine's forcing (docs/data/engine_*.json) is fetched only to recalculate other methods. Every other climate
+    case (CLIMATE_CASES) stored for all units gets its own files in docs/data/<case id>/, and the page's Climate model
+    panel reloads on them (?case=<id>); cases not stored are listed as not built.
+    """
+    units = {s: SYSTEMS[s]["units"] for s in DISPLAY_SYSTEMS}
+    geo = {u: {n: load_geometry(u, n) for n in ("outline", "subcatchments", "basins", "rivers")} for us in units.values() for u in us}
+    missing = [u for u in geo if geo[u]["subcatchments"] is None]
+    if missing:
+        raise RuntimeError(f"no stored geometry for {', '.join(missing)}: run python main.py first")
+
+    regions = pd.concat([geo[u]["subcatchments"] for u in geo], ignore_index=True)
+    regions = gpd.GeoDataFrame(regions, crs=geo[next(iter(geo))]["subcatchments"].crs)
+    regions["geometry"] = regions.geometry.make_valid()  # the stored GeoJSON can carry tiny self-touches that break the union
+    rivers = gpd.GeoDataFrame(pd.concat([geo[u]["rivers"] for u in geo], ignore_index=True), crs=regions.crs)
+    rivers = _drop_duplicate_borders(rivers)
+    fringe = buffer_outline(shapely.union_all([geo[u]["outline"].geometry.union_all() for u in geo]))  # SDL outlines + OUTLINE_BUFFER_KM
+    bx = np.array(fringe.bounds).reshape(2, 2)
+    dem = Dem(np.concatenate([np.minimum(regions.total_bounds[:2], bx[0]), np.maximum(regions.total_bounds[2:], bx[1])]))
+    built = _run_files(run, methods, units, geo, regions, rivers, dem, fringe)
+    if built is None:
+        raise RuntimeError(f"no stored {'/'.join(run)} results for every unit: run python main.py first")
+    files, run_meta = built
+    cases = {}
+    for c in CLIMATE_CASES:
+        if tuple(c["run"]) == tuple(run):
+            continue
+        other = _run_files(tuple(c["run"]), methods, units, geo, regions, rivers, dem, fringe, prefix=f"{c['id']}/")
+        if other is None:
+            print(f"6_display: {c['label']} ({'/'.join(c['run'])}) is not stored for every unit, listed as not built")
+            continue
+        files += other[0]
+        cases[c["id"]] = other[1]
+    roads = json.loads((HERE / "roads.json").read_text())  # fetched only when the Roads switch is turned on
+    (DATA_DIR / "roads.json").write_text(compact_floats(json.dumps(roads, separators=(",", ":"), allow_nan=False)))
+    files.append("roads.json")
     for old in DATA_DIR.rglob("*.json"):  # keep only the build's own files; unchanged content is rewritten byte-for-byte
         if old.relative_to(DATA_DIR).as_posix() not in files:
             old.unlink()
-    for d in [d for d in DATA_DIR.iterdir() if d.is_dir() and not any(d.iterdir())]:
-        d.rmdir()
-    for name, payload in files.items():
-        (DATA_DIR / name).parent.mkdir(parents=True, exist_ok=True)
-        (DATA_DIR / name).write_text(compact_floats(json.dumps(payload, separators=(",", ":"), allow_nan=False)))
+    for d in sorted((d for d in DATA_DIR.rglob("*") if d.is_dir()), reverse=True):  # deepest first
+        if not any(d.iterdir()):
+            d.rmdir()
     names = [SDL_UNITS[u]["name"] for u in geo]
     title = ", ".join(names[:-1]) + " and " + names[-1] if len(names) > 1 else names[0]
     meta = {
         "title": title,
         "focus": next(iter(geo)),  # the unit whose outlet flow and ecology the page shows first
-        "climate": {"globalModel": run[0], "scenario": run[1], "regionalConfig": run[2],
-                    "period": f"{all_days[0].year}–{all_days[-1].year}", "source": "NARCliM2.0", "resolution": "4 km", "frequency": "Daily"},
+        **run_meta,
         "cases": [{"id": c["id"], "label": c["label"], "globalModel": c["run"][0], "scenario": c["run"][1], "regionalConfig": c["run"][2],
-                   "built": tuple(c["run"]) == tuple(run)} for c in CLIMATE_CASES],  # only the run in this build can be shown
+                   "run": "_".join(c["run"]), "built": tuple(c["run"]) == tuple(run) or c["id"] in cases} for c in CLIMATE_CASES],
+        "caseData": cases,  # per built case other than the default: its own run metadata, swapped in by ?case=<id>
         "runoff": {"selected": methods[0], "specs": runoff_specs()},
         "routing": {"selected": methods[1], "specs": routing_specs()},
-        "run": "_".join(run),
-        "years": [int(all_days[0].year), int(all_days[-1].year)],
         "demoYears": list(DEMO_YEARS),
-        # full-run peak flow, so the demo bundle colours its rivers on the same scale as the full series
-        "maxQ": round(float(max(max(results[u][0].max(), results[u][1].max().max()) for u in geo))),
-        "engines": {s: f"data/{f}" for s, f in engines.items()},  # fetched only when a non-default method is chosen
-        "engineHash": hashlib.sha1(b"".join((DATA_DIR / f).read_bytes() for f in engines.values())).hexdigest()[:10],  # saved results are keyed by it
-        "demoFiles": [f"data/{n}" for n in files if n.startswith("demo/") and not n.startswith("demo/detail_")],
-        "details": {s: f"data/demo/detail_{s}.json" for s in units},  # fetched when the demo page zooms in on a system
         "detailStep": GRID_STEP,
-        "files": [f"data/{n}" for n in files if n.startswith("full/")],
     }
     DISPLAY_FILE.parent.mkdir(parents=True, exist_ok=True)
     html = TEMPLATE.read_text().replace("__TITLE__", title).replace("__META__", json.dumps(meta, separators=(",", ":")))
     DISPLAY_FILE.write_text(html.replace("../../6_display/car/", "car/"))
     publish_assets()
     size = lambda prefix: sum((DATA_DIR / n).stat().st_size for n in files if n.startswith(prefix)) / 1e6
+    extra = "".join(f", {c} case {size(c + '/'):.1f} MB" for c in cases)
     print(f"Wrote river pulse page ({DISPLAY_FILE.stat().st_size / 1e6:.2f} MB) for {title}: demo data {size('demo/'):.1f} MB, "
-          f"full data {size('full/'):.1f} MB, engines {size('engine_'):.1f} MB, roads {size('roads'):.1f} MB: {DISPLAY_FILE}")
+          f"full data {size('full/'):.1f} MB{extra}, engines {size('engine_'):.1f} MB, roads {size('roads'):.1f} MB: {DISPLAY_FILE}")
 
 
 if __name__ == "__main__":

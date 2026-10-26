@@ -7,7 +7,7 @@ ROOT = Path(__file__).parent
 for folder in ("1_masking", "2_rainfall_runoff", "3_routing", "4_ecology", "5_outputs", "6_display"):
     sys.path.insert(0, str(ROOT / folder))
 
-from config import DEFAULT_RUN, LINKS, RUN_KEY, RUN_ORDER, SDL_UNITS, SYSTEM_ID, UNITS
+from config import CLIMATE_CASES, LINKS, RUN_KEY, RUN_ORDER, SDL_UNITS, SYSTEM_ID, UNITS
 from outputs_io import write_data
 from results_db import save_link_flows
 from run_display import run_display
@@ -37,5 +37,5 @@ if __name__ == "__main__":
     else:  # each system in its own process (config is per system), then the page shows them all
         for system in RUN_ORDER:  # a system after those that feed it
             subprocess.run([sys.executable, __file__], env={**os.environ, "SYSTEM": system}, check=True)
-        if RUN_KEY == DEFAULT_RUN:  # docs/ shows the default run only
+        if RUN_KEY in [tuple(c["run"]) for c in CLIMATE_CASES]:  # docs/ shows the climate cases, each once stored
             run_display()
