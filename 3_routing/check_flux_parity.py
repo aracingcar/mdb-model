@@ -58,7 +58,7 @@ def check():
         np.testing.assert_allclose(js['loss'], loss, atol=1e-12)
         worst = 0.
         for i,b in enumerate(basins.subcatchment):
-            values = py[outlets[b]].to_numpy() * 86.4
+            values = py[outlets[b]].to_numpy() * 86.4 if b in outlets else np.zeros(n)
             np.testing.assert_allclose(js['flow'][i], values, atol=1e-7, rtol=1e-10)
             worst = max(worst, float(np.max(np.abs(values - js['flow'][i]))))
         print(f'{SYSTEM_ID} {rr} + {rt}: {n} days, max difference {worst:.3g} ML/day', flush=True)

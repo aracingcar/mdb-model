@@ -156,7 +156,8 @@ const ROUTING = {
       }
     }
     const routed = route(loss, recordBudget);
-    const basinFlow = basins.map(b => routed[outletOf[b.id]].map(v => v * ML_PER_M3S_DAY));
+    // a basin with no node ends off the river system (nodes.connected): it reports no flow
+    const basinFlow = basins.map(b => b.id in outletOf ? routed[outletOf[b.id]].map(v => v * ML_PER_M3S_DAY) : new Float64Array(nDays));
     const lateralMLd = lateralBasin.map(a => a.map(v => v * ML_PER_M3S_DAY));
     return { basinFlow, lateralMLd, loss, calibrationStatus, channelBudget: routed.budgets };
   },

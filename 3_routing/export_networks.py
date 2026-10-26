@@ -23,6 +23,7 @@ def export(force):
     if path.exists() and not force:
         print(f"{path.name}: kept (use --force to rewrite it)")
         return
+    path.unlink(missing_ok=True)  # build_nodes applies an existing file: --force rebuilds without it
     _, basins = terrain_regions(load_units(), HYBAS_FILE, n=N_SUBCATCHMENTS, min_network_km2=SYSTEM.get("min_network_km2"), joins=SYSTEM.get("joins"))
     path.parent.mkdir(exist_ok=True)
     path.write_text(json.dumps(network_json(build_nodes(basins, SYSTEM_ID), SYSTEM_ID), separators=(",", ":")))

@@ -108,9 +108,8 @@ SYSTEMS = {
         # joins Echuca's B5080603920 directly (that stub's own runoff arrives through LINKS). The Edward-Wakool tributaries run
         # through two or more unmodelled basins into the Wakool B5080596500, which joins the Murray at Tooleybuc.
         "joins": {"B5080602660": "B5080603920", "B5080597940": "B5080596500", "B5080599730": "B5080596500"},
-        # OSM's Murray River has 5-9 km gaps between ways from Echuca to Swan Hill, so the Echuca - Torrumbarry - Swan Hill links
-        # find no mapped channel and would be cut; the Edward-Wakool links run over unmapped country to the Wakool
-        "keep_links": ("B5080603590", "B5080601020", "B5080597940", "B5080599730"),
+        # the Edward-Wakool links run over unmapped country to the Wakool
+        "keep_links": ("B5080597940", "B5080599730"),
         "storages": {"Hume Dam": {"lon": 147.03, "lat": -36.10, "max_release_ML_d": 25000},
                      "Dartmouth Dam": {"lon": 147.52, "lat": -36.55, "max_release_ML_d": 12000}},
     },

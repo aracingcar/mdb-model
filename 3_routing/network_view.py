@@ -22,6 +22,8 @@ KM_PER_DEG = 111
 MIN_TRIBUTARY_KM2 = 500  # a branch draining less than this above its mouth is folded into the river it joins
 JUNCTION_SLACK_DEG = 0.02  # a confluence node moves up to where its branches meet only if that is within ~2 km of its own watershed
 DETOUR = 6  # a river path more than this times longer than the straight line is not the same river: draw the straight line
+MAIN_SNAP_DEG = 0.02  # a watershed the main river runs through within ~2 km of its drain sits on the main river, not a nearer side channel
+MAIN_THROUGH_DEG = 0.05  # runs through: ~5 km of it inside the watershed (a tributary's watershed only touches it at the mouth)
 
 
 def _river_point(line, pt):
@@ -127,11 +129,12 @@ def _junction(routes):
     return next(n for n in routes[0] if all(n in r for r in rest))
 
 
-def river_view(nodes, watersheds, river_lines, storages=None, fixed=(), pinned=()):
+def river_view(nodes, watersheds, river_lines, storages=None, fixed=(), pinned=(), main_lines=()):
     """Place ``nodes`` (the frame ``build_nodes`` builds before this step) on the river and keep the river nodes.
 
     ``watersheds`` is each node's polygon (EPSG:4326, indexed by node id), ``river_lines`` the mapped rivers (EPSG:4326
-    geometries), ``storages`` {name: {lon, lat, ...}}, ``fixed`` node ids that always stay and ``pinned`` those of them
+    geometries), ``main_lines`` those of them that are the system's main river, ``storages`` {name: {lon, lat, ...}},
+    ``fixed`` node ids that always stay and ``pinned`` those of them
     that keep their own spot rather than move up to a confluence (flow splits). Returns ``spot`` {kept node:
     (lon, lat) on the river}, ``next`` {every node: the kept node it drains into, '' at an outlet}, and for each kept node
     that drains on: ``path`` ([lon, lat] points along the river to its next node), ``km`` (that path's length), ``straight``
@@ -141,6 +144,7 @@ def river_view(nodes, watersheds, river_lines, storages=None, fixed=(), pinned=(
     storages = storages or {}
     lines = [g for geom in river_lines for g in shapely.get_parts(shapely.line_merge(geom)) if g.length > 0]
     union = shapely.union_all(lines)
+    main = shapely.union_all(list(main_lines)) if len(main_lines) else None
     row = nodes.set_index("id")
     drain = {i: shapely.Point(r.lon, r.lat) for i, r in row.iterrows()}
 
@@ -153,6 +157,10 @@ def river_view(nodes, watersheds, river_lines, storages=None, fixed=(), pinned=(
             pt = shapely.Point(s["lon"], s["lat"])
         else:
             inside = shapely.intersection(union, poly) if poly is not None and not poly.is_empty else None
+            on_main = shapely.intersection(main, poly) if main is not None and inside is not None else None
+            # an anabranch or creek beside the main river can pass nearer the drain; on it the node misses the main river's reaches
+            if on_main is not None and on_main.length >= MAIN_THROUGH_DEG and on_main.distance(drain[i]) <= MAIN_SNAP_DEG:
+                inside = on_main
             if inside is not None and not inside.is_empty:
                 pt = shapely.ops.nearest_points(inside, drain[i])[0]
             else:

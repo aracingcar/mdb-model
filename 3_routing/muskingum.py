@@ -6,7 +6,7 @@ import warnings
 from channel_fluxes import channel_inputs
 
 from config import LINKS, RUN_KEY, SYSTEM, SYSTEM_ID
-from nodes import basin_outlets, build_nodes
+from nodes import basin_outlets, build_nodes, connected
 from results_db import load_link_flow
 from river_flows import river_flows
 from routing import route_network
@@ -127,7 +127,7 @@ def route(runoff, basins, subcatchments, p=PARAMS, *, basin_forcing=None):
     ["storages"] holds each storage's daily inflow-routed release and stored volume (ML/d, ML).
     """
     p = {**p, **CALIBRATION}
-    nodes = build_nodes(basins, SYSTEM_ID)
+    nodes = connected(build_nodes(basins, SYSTEM_ID), basins)
     outlet_node = basin_outlets(nodes)
     outlet = outlet_node[basins.loc[basins["next_id"] == "", "subcatchment"].iloc[0]]
     local, fluxes = channel_inputs(runoff, nodes, basins, basin_forcing, p, delivery)
@@ -137,7 +137,8 @@ def route(runoff, basins, subcatchments, p=PARAMS, *, basin_forcing=None):
     print(f"3_routing: {SYSTEM_ID}, {len(basins)} basins as {len(nodes)} nodes routed, " + (f"calibrated misc loss /km over the last {p['loss_regions']} reaches = {loss:.6f}"
                                                                                            if p["target_outlet_m3s"] is not None else "no outlet calibration"))
     routed = _route(runoff, nodes, loss, p, channel, record_budget="totals")
-    basin_flow = pd.DataFrame({b: routed[outlet_node[b]] for b in basins["subcatchment"]}) * M3S_TO_ML_DAY
+    none = pd.Series(0.0, index=routed.index)  # a basin whose every node ends off the river system
+    basin_flow = pd.DataFrame({b: routed[outlet_node[b]] if b in outlet_node else none for b in basins["subcatchment"]}) * M3S_TO_ML_DAY
     basin_flow.attrs['channel_budget_ML'] = pd.DataFrame(routed.attrs['channel_budget']).T.rename(
         columns=lambda c: c.replace('_m3s', '_ML')) * M3S_TO_ML_DAY
     basin_flow.attrs['misc_loss_per_km'] = loss

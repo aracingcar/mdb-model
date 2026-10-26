@@ -135,8 +135,10 @@ def _along_river(nodes, watersheds, system):
     ways = gpd.read_file(waterways_file(system))
     ways = ways[(ways.waterway == "river") & ~ways["name"].isin(spec.get("other_rivers", ()))]
     reach = shapely.union_all(watersheds.values).buffer(0.05)
-    lines = [g for g in shapely.intersection(ways.geometry.values, reach) if not g.is_empty]
-    view = river_view(nodes, watersheds, lines, spec.get("storages"), ends, splitting)
+    clipped = shapely.intersection(ways.geometry.values, reach)
+    lines = [g for g in clipped if not g.is_empty]
+    main = [g for g, name in zip(clipped, ways["name"]) if name == spec.get("mainstem") and not g.is_empty]
+    view = river_view(nodes, watersheds, lines, spec.get("storages"), ends, splitting, main)
     nodes = nodes.copy()
     nodes["river"] = nodes["id"].isin(view["spot"])
     nodes["next"] = nodes["id"].map(view["next"])
@@ -243,7 +245,8 @@ def apply_network(nodes, system):
     for i in river - set(drafted):
         at = nodes.index[nodes["id"] == i][0]
         if i not in folded:
-            nodes = nodes.drop(at)
+            if i in redirects:  # deleted in the editor; a node the draft never had (excluded from the page: ``connected``) stays
+                nodes = nodes.drop(at)
             continue
         f = folded[i]
         nodes.loc[at, ["share", "area_km2", "length_km", "next", "outlet", "loss_rank", "river", "straight"]] = [f["share"], f["area"], 0.0, f["next"], False, 0, False, False]
@@ -259,6 +262,21 @@ def apply_network(nodes, system):
     if lost := set(totals.index) - set(basin_outlets(nodes)):
         raise ValueError(f"{path}: basins with no node reporting their flow ({', '.join(sorted(lost)[:5])})")
     return nodes
+
+
+def connected(nodes, basins):
+    """The nodes whose water reaches a system outlet (a basin with no downstream basin). The rest end at an exit of their
+    own, a stream that stops on the plains or a terminal lake: they are not part of the river system, so their runoff is
+    not routed and a basin left with no node reports no flow."""
+    ends = set(basins.loc[basins["next_id"] == "", "subcatchment"])
+    down, basin = dict(zip(nodes["id"], nodes["next"])), dict(zip(nodes["id"], nodes["basin"]))
+
+    def end(i):
+        while down.get(i):
+            i = down[i]
+        return i
+
+    return nodes[[basin[end(i)] in ends for i in nodes["id"]]].reset_index(drop=True)
 
 
 def network_json(nodes, system):

@@ -834,7 +834,8 @@ $('rt-export').onclick = () => {
   if (!RT) return;
   const payload = { version:2, kind:'hydrology-network-draft', system:rtSystem, engineHash:D.engineHash, hydrologyParametersUnchanged:true, ...rtPack(RT) };
   const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'}));
-  const a = document.createElement('a'); a.href = url; a.download = rtSystem + '-network.json';  // drop it into river_systems/ to make it the model's network a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const a = document.createElement('a'); a.href = url; a.download = rtSystem + '-network.json';  // drop it into river_systems/ to make it the model's network
+  a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 function rtProtected(node) {
   if (!node?.model) return 'This node has no catchment source.';
@@ -884,7 +885,9 @@ function rtEditedEngine(system, source) {
     const total = engine.nodes.filter(n => n.basin === basin.id).reduce((sum,n) => sum+n.share,0);
     const original = source.nodes.filter(n => n.basin === basin.id).reduce((sum,n) => sum+n.share,0);
     if (Math.abs(total - original) > 1e-9) throw new Error('Catchment runoff shares must preserve the original total.');
-    if (!engine.nodes.some(n => (n.basin === basin.id && n.outlet) || n.reports?.includes(basin.id))) throw new Error('A basin outlet is missing.');
+    const reported = nodes => nodes.some(n => (n.basin === basin.id && n.outlet) || n.reports?.includes(basin.id));
+    // a basin whose outlet ends off the river system (nodes.connected) reports no flow, in the source network too
+    if (reported(source.nodes) && !reported(engine.nodes)) throw new Error('A basin outlet is missing.');
   }
   return engine;
 }

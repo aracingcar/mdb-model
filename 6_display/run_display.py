@@ -23,7 +23,7 @@ for folder in ("1_masking", "2_rainfall_runoff", "3_routing", "5_outputs"):  # a
 from catchment import buffer_outline
 from config import CLIMATE_CASES, DEFAULT_RUN, DISPLAY_SYSTEMS, LINKS, SDL_UNITS, SYSTEMS, waterways_file
 from evap_grid import PIXEL_DEG
-from nodes import basin_outlets, build_nodes
+from nodes import basin_outlets, build_nodes, connected
 from results_db import load_climate, load_geometry, load_results
 from run_rainfall_runoff import RAINFALL_RUNOFF_MODEL, model_specs as runoff_specs
 from run_routing import ROUTING_MODEL, model_specs as routing_specs
@@ -172,7 +172,7 @@ def _engine(system, basins, basin_forcing, regions, rivers):
     """Everything the browser needs to re-run one river system's rainfall-runoff, routing, river flows and ecology on another method pair."""
     names = list(basins["subcatchment"])
     splits = SYSTEMS[system]["splits"]
-    nodes = build_nodes(basins, system)
+    nodes = connected(build_nodes(basins, system), basins)
     storages = SYSTEMS[system].get("storages", {})
     outlet = basin_outlets(nodes)
     return {
