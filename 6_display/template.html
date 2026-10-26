@@ -164,11 +164,12 @@
   body.panel #towns-toggle, body.panel #detail-toggle, body.panel #sdl-toggle, body.panel #storages-toggle { display:none; }
   body.panel #map { left:0; top:0; }
   #panel-info { display:none; }
-  body.panel #panel-info { position:absolute; left:14px; right:14px; top:8px; z-index:6; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; padding:8px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); font-size:11px; }
+  body.panel #panel-info { position:absolute; left:14px; right:14px; top:8px; z-index:6; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; padding:8px 12px 11px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); font-size:11px; }
   #panel-info span { display:block; color:var(--dim); font-weight:600; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #panel-info .val { display:flex; align-items:center; gap:6px; margin:3px 0 5px; color:var(--head); font-size:15px; font-weight:600; white-space:nowrap; }
   #panel-info .val i { width:11px; height:11px; border-radius:2px; flex:none; }
   #panel-info .track { position:relative; height:4px; border-radius:2px; }
+  #panel-info .track u { position:absolute; top:7px; width:1px; height:5px; background:var(--dim); opacity:.6; }
   #panel-info .track i { position:absolute; top:-4px; width:12px; height:12px; margin-left:-6px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px var(--head); }
   body.all { display:flex; flex-direction:column; }
   #all-head { display:flex; gap:18px; align-items:baseline; padding:12px 18px; border-bottom:1px solid var(--rule); font-size:12px; }
@@ -204,9 +205,9 @@
 </details>
 <div id="map"></div>
 <div id="panel-info" aria-label="Basin today">
-  <div id="pi-pet"><span title="Potential evaporation, basin mean over the last 30 days">PET, 30 days</span><div class="val"><i></i><b></b></div><div class="track"><i></i></div></div>
-  <div id="pi-rain"><span title="Rainfall, basin mean over the last 60 days">Rain, 60 days</span><div class="val"><i></i><b></b></div><div class="track"><i></i></div></div>
-  <div id="pi-sa"><span title="The Murray where it leaves for South Australia">Flow to SA</span><div class="val"><i></i><b></b></div><div class="track"><i></i></div></div>
+  <div id="pi-pet"><span title="Potential evaporation, basin mean over the last 30 days">PET, 30 days</span><div class="val"><i></i><b></b></div><div class="track"><u></u><i></i></div></div>
+  <div id="pi-rain"><span title="Rainfall, basin mean over the last 60 days">Rain, 60 days</span><div class="val"><i></i><b></b></div><div class="track"><u></u><i></i></div></div>
+  <div id="pi-sa"><span title="The Murray where it leaves for South Australia">Flow to SA</span><div class="val"><i></i><b></b></div><div class="track"><u></u><i></i></div></div>
 </div>
 <div id="side">
   <div id="kicker"><span id="kicker-title">__TITLE__</span> / <select id="climate-start" aria-label="Start year" title="Start year"><option>2027</option></select>&ndash;<select id="climate-end" aria-label="End year" title="End year"><option>2036</option></select></div>
@@ -2320,17 +2321,28 @@ function update() {
 }
 // The side-by-side panels' top strip: basin-mean PET and rain, and the flow leaving for South Australia, each as a number,
 // a colour and a position on a fixed scale so the panels compare. Flow to SA is the reach with the largest mean flow,
-// the Murray at the border, read from D.reachFlow so a recalculation shows too.
+// the Murray at the border, read from D.reachFlow so a recalculation shows too. A faint tick under each track marks the
+// average from the start of the period to the day shown.
 const PI_ROWS = [
-  ['pi-pet', d => rollValley(RE, d), v => v / EVAP_MAX, [250,236,214], [196,98,40], v => `${fmt(v)} mm`],
-  ['pi-rain', d => rollValley(RP, d), v => v / 250, [228,238,246], [36,96,168], v => `${fmt(v)} mm`],
-  ['pi-sa', d => D.reachFlow[SA_REACH][d], v => (Math.log10(Math.max(v, 100)) - 2) / 3, [140,225,250], [28,111,176], v => `${fmt(v)} ML/d`],
+  ['pi-pet', d => rollValley(RE, d), v => v / EVAP_MAX, [250,236,214], [196,98,40], v => `${fmt(v)} mm`, () => RE],
+  ['pi-rain', d => rollValley(RP, d), v => v / 250, [228,238,246], [36,96,168], v => `${fmt(v)} mm`, () => RP],
+  ['pi-sa', d => D.reachFlow[SA_REACH][d], v => (Math.log10(Math.max(v, 100)) - 2) / 3, [140,225,250], [28,111,176], v => `${fmt(v)} ML/d`, () => D.reachFlow[SA_REACH]],
 ];
+const PI_SUMS = {};  // per row: running sums of its value over the run, and the series they were summed from
+function runningSums(id, get, src) {
+  if (PI_SUMS[id]?.src === src) return PI_SUMS[id].sum;
+  const sum = new Float64Array(N + 1);
+  for (let i = 0; i < N; i++) sum[i + 1] = sum[i] + get(i);
+  PI_SUMS[id] = { src, sum };
+  return sum;
+}
 const SA_REACH = PANEL ? Object.keys(D.reachFlow).reduce((a, k) => { const s = D.reachFlow[k].reduce((x, y) => x + y, 0); return s > a[1] ? [k, s] : a; }, ['', -1])[0] : null;
 if (PANEL) for (const [id, , , lo, hi] of PI_ROWS) $(id).querySelector('.track').style.background = `linear-gradient(90deg, rgb(${lo}), rgb(${hi}))`;
 function panelInfo(d) {
-  for (const [id, get, pos, lo, hi, text] of PI_ROWS) {
+  for (const [id, get, pos, lo, hi, text, src] of PI_ROWS) {
     const v = get(d), t = Math.max(0, Math.min(1, pos(v))), col = `rgb(${lerp(lo, hi, t)})`, el = $(id);
+    const sum = runningSums(id, get, src()), from = Math.min(W0, d), avg = (sum[d + 1] - sum[from]) / (d + 1 - from);
+    el.querySelector('.track u').style.left = `${Math.max(0, Math.min(1, pos(avg))) * 100}%`;
     el.querySelector('b').textContent = text(v);
     el.querySelector('.val i').style.background = col;
     Object.assign(el.querySelector('.track i').style, { left: `${t * 100}%`, background: col });
