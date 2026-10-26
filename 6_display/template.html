@@ -163,6 +163,13 @@
   body.panel #side, body.panel #model-panels, body.panel #relief, body.panel #site-menu, body.panel #map-tools,
   body.panel #towns-toggle, body.panel #detail-toggle, body.panel #sdl-toggle, body.panel #storages-toggle { display:none; }
   body.panel #map { left:0; top:0; }
+  #panel-info { display:none; }
+  body.panel #panel-info { position:absolute; left:14px; right:14px; top:8px; z-index:6; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; padding:8px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); font-size:11px; }
+  #panel-info span { display:block; color:var(--dim); font-weight:600; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #panel-info .val { display:flex; align-items:center; gap:6px; margin:3px 0 5px; color:var(--head); font-size:15px; font-weight:600; white-space:nowrap; }
+  #panel-info .val i { width:11px; height:11px; border-radius:2px; flex:none; }
+  #panel-info .track { position:relative; height:4px; border-radius:2px; }
+  #panel-info .track i { position:absolute; top:-4px; width:12px; height:12px; margin-left:-6px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px var(--head); }
   body.all { display:flex; flex-direction:column; }
   #all-head { display:flex; gap:18px; align-items:baseline; padding:12px 18px; border-bottom:1px solid var(--rule); font-size:12px; }
   #all-head b { font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--head); }
@@ -174,6 +181,10 @@
   #all-grid a.case-h:hover { text-decoration:underline; }
   #all-grid iframe { flex:1; width:100%; border:0; }
   #all-grid .blank { flex:1; display:grid; place-items:center; color:var(--dim); font-size:13px; }
+  #all-grid .eco-na { padding:10px 14px 12px; border-top:1px solid var(--rule); font-size:12px; }
+  #all-grid .eco-na b { display:block; margin-bottom:4px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); }
+  #all-grid .eco-na div { display:flex; justify-content:space-between; color:var(--ink); }
+  #all-grid .eco-na em { font-style:normal; color:var(--dim); }
 </style>
 </head>
 <body>
@@ -192,6 +203,11 @@
   </div>
 </details>
 <div id="map"></div>
+<div id="panel-info" aria-label="Basin today">
+  <div id="pi-pet"><span title="Potential evaporation, basin mean over the last 30 days">PET, 30 days</span><div class="val"><i></i><b></b></div><div class="track"><i></i></div></div>
+  <div id="pi-rain"><span title="Rainfall, basin mean over the last 60 days">Rain, 60 days</span><div class="val"><i></i><b></b></div><div class="track"><i></i></div></div>
+  <div id="pi-sa"><span title="The Murray where it leaves for South Australia">Flow to SA</span><div class="val"><i></i><b></b></div><div class="track"><i></i></div></div>
+</div>
 <div id="side">
   <div id="kicker"><span id="kicker-title">__TITLE__</span> / <select id="climate-start" aria-label="Start year" title="Start year"><option>2027</option></select>&ndash;<select id="climate-end" aria-label="End year" title="End year"><option>2036</option></select></div>
   <h1>Water on the land,<br>day by day</h1>
@@ -300,21 +316,27 @@ if (ASK.get('case') === 'all') {
   head.id = 'all-head'; grid.id = 'all-grid';
   title.textContent = `${META.title} · all climate cases`; back.href = '?' + q; back.textContent = 'Back to one case';
   head.append(title, back);
+  // ecological outcomes are not modelled for these runs yet: each panel keeps a place for them
+  const ecoNA = () => {
+    const e = document.createElement('div'); e.className = 'eco-na';
+    e.innerHTML = '<b>Ecological outcomes</b>' + ['Native fish', 'Colonial waterbirds', 'River red gum'].map(k => `<div><span>${k}</span><em>N/A</em></div>`).join('');
+    return e;
+  };
   for (const c of META.cases) {
     const col = document.createElement('section'), p = new URLSearchParams(q);
     if (c.id in META.caseData) p.set('case', c.id);
     if (!c.built) {
       const h = document.createElement('div'), blank = document.createElement('div');
       h.className = 'case-h'; h.textContent = c.label; blank.className = 'blank'; blank.textContent = 'Not built yet';
-      col.append(h, blank); grid.append(col); continue;
+      col.append(h, blank, ecoNA()); grid.append(col); continue;
     }
     const h = document.createElement('a'), f = document.createElement('iframe');
     h.className = 'case-h'; h.textContent = c.label; h.href = '?' + p; h.title = `Open the ${c.label.toLowerCase()} on its own`;
     p.set('panel', '1'); f.src = '?' + p; f.title = c.label; frames.push(f);
-    col.append(h, f); grid.append(col);
+    col.append(h, f, ecoNA()); grid.append(col);
   }
   addEventListener('message', e => {
-    if (e.origin !== location.origin || !e.data?.mdbDay) return;
+    if (e.origin !== location.origin || !(e.data?.mdbDay || e.data?.mdbCam)) return;
     for (const f of frames) if (f.contentWindow !== e.source) f.contentWindow.postMessage(e.data, location.origin);
   });
   document.body.className = 'all'; document.body.replaceChildren(head, grid);
@@ -2147,6 +2169,19 @@ function initMap() {
       rrSave(grab.kind === 'vertex' ? 'Moved a border. Apply to update flows.' : grab.cell.river ? `Moved river node ${grab.cell.id}; its reaches are now straight lines. Apply to update flows.` : `Moved the dot of ${grab.cell.id}.`);
     });
   map.on('zoomend', () => overlay.setProps({layers:layers()}));
+  // side by side, the panels share one camera: a pan, zoom, rotate or tilt here is sent on, and one arriving is followed
+  if (PANEL) {
+    let following = false;
+    map.on('move', () => {
+      if (following) return;
+      const { lng, lat } = map.getCenter();
+      parent.postMessage({ mdbCam: { center: [lng, lat], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() } }, location.origin);
+    });
+    addEventListener('message', e => {
+      if (e.origin !== location.origin || !e.data?.mdbCam) return;
+      following = true; map.jumpTo(e.data.mdbCam); following = false;
+    });
+  }
   map.on('moveend', () => {  // zoomed in on a system: fetch its detail (demo bundle only)
     if (FULL || map.getZoom() < DETAIL_ZOOM) return;
     const { lng, lat } = map.getCenter(), u = D.units.find(x => x.rings.some(r => inRing(r, lng, lat)));
@@ -2280,7 +2315,26 @@ function update() {
   $('clock').textContent = nice(D.days[d]);
   eco(); drawBars(d); drawTimeline();
   if (overlay) overlay.setProps({ layers: layers() });
+  if (PANEL) panelInfo(d);
   if (PANEL && D.days[d] !== sharedDay) { sharedDay = D.days[d]; parent.postMessage({ mdbDay: sharedDay }, location.origin); }
+}
+// The side-by-side panels' top strip: basin-mean PET and rain, and the flow leaving for South Australia, each as a number,
+// a colour and a position on a fixed scale so the panels compare. Flow to SA is the reach with the largest mean flow,
+// the Murray at the border, read from D.reachFlow so a recalculation shows too.
+const PI_ROWS = [
+  ['pi-pet', d => rollValley(RE, d), v => v / EVAP_MAX, [250,236,214], [196,98,40], v => `${fmt(v)} mm`],
+  ['pi-rain', d => rollValley(RP, d), v => v / 250, [228,238,246], [36,96,168], v => `${fmt(v)} mm`],
+  ['pi-sa', d => D.reachFlow[SA_REACH][d], v => (Math.log10(Math.max(v, 100)) - 2) / 3, [140,225,250], [28,111,176], v => `${fmt(v)} ML/d`],
+];
+const SA_REACH = PANEL ? Object.keys(D.reachFlow).reduce((a, k) => { const s = D.reachFlow[k].reduce((x, y) => x + y, 0); return s > a[1] ? [k, s] : a; }, ['', -1])[0] : null;
+if (PANEL) for (const [id, , , lo, hi] of PI_ROWS) $(id).querySelector('.track').style.background = `linear-gradient(90deg, rgb(${lo}), rgb(${hi}))`;
+function panelInfo(d) {
+  for (const [id, get, pos, lo, hi, text] of PI_ROWS) {
+    const v = get(d), t = Math.max(0, Math.min(1, pos(v))), col = `rgb(${lerp(lo, hi, t)})`, el = $(id);
+    el.querySelector('b').textContent = text(v);
+    el.querySelector('.val i').style.background = col;
+    Object.assign(el.querySelector('.track i').style, { left: `${t * 100}%`, background: col });
+  }
 }
 // In the side-by-side view another panel's day arrives here; following it is not sent back.
 if (PANEL) addEventListener('message', e => {
