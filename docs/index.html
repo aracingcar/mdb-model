@@ -163,6 +163,7 @@
   body.panel #side, body.panel #model-panels, body.panel #relief, body.panel #site-menu, body.panel #map-tools,
   body.panel #towns-toggle, body.panel #detail-toggle, body.panel #sdl-toggle, body.panel #storages-toggle { display:none; }
   body.panel #map { left:0; top:0; }
+  body.panel #bar { display:none; }  /* the side-by-side page carries the one timeline */
   #panel-info { display:none; }
   body.panel #panel-info { position:absolute; left:14px; right:14px; top:8px; z-index:6; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:0 14px; padding:8px 12px 11px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); font-size:11px; }
   #panel-info span { display:block; color:var(--dim); font-weight:600; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -175,7 +176,7 @@
   body.no-bp #panel-info .bp { display:none; }
   #panel-info .st { display:none; }
   /* the diagnostics view: the readings fill the panel in large rows, lined up across the panels; the map is a faint strip */
-  body.panel.diag #panel-info { left:0; right:0; top:0; bottom:calc(74px + 22%); display:flex; flex-direction:column; gap:16px; padding:14px 22px; border:0; border-radius:0; background:var(--bg); font-size:12px; overflow-y:auto; }
+  body.panel.diag #panel-info { left:0; right:0; top:0; bottom:22%; display:flex; flex-direction:column; gap:16px; padding:14px 22px; border:0; border-radius:0; background:var(--bg); font-size:12px; overflow-y:auto; }
   body.diag #panel-info .val { margin:2px 0 8px; font-size:24px; font-weight:300; }
   body.diag #panel-info .val i { width:14px; height:14px; }
   body.diag #panel-info .track { height:6px; border-radius:3px; }
@@ -190,9 +191,7 @@
   /* the compare view: each reading with the cases stacked under one another on one scale, then the ecological outcomes */
   #all-cmp { display:none; flex:1; min-height:0; overflow-y:auto; padding:18px 28px 24px; }
   body.all.cmp #all-cmp { display:block; }
-  body.all.cmp #all-grid { flex:none; border-top:1px solid var(--rule); }
-  body.all.cmp #all-grid iframe { flex:none; height:74px; }
-  body.all.cmp #all-grid .eco-na, body.all.cmp #all-grid .blank { display:none; }
+  body.all.cmp #all-grid { position:absolute; left:0; top:0; width:100%; height:300px; visibility:hidden; pointer-events:none; }  /* the panels still run, feeding the readings and the timeline */
   #all-cmp section { max-width:1100px; margin:0 auto 24px; }
   #all-cmp h3 { margin:0 0 6px; font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); }
   #all-cmp .cr { display:grid; grid-template-columns:110px 140px minmax(0, 1fr); align-items:center; gap:16px; padding:8px 0; border-top:1px solid var(--rule); }
@@ -214,7 +213,7 @@
   #all-cmp .eco h4 { margin:0 0 4px; font-size:12px; font-weight:600; color:var(--head); }
   #all-cmp .eco-k > div { display:flex; justify-content:space-between; padding:3px 0; border-top:1px solid var(--rule); font-size:12px; }
   #all-cmp .eco em { font-style:normal; color:var(--dim); }
-  body.panel.diag #map { top:auto; height:22%; bottom:74px; opacity:.55; border-top:1px solid var(--rule); }
+  body.panel.diag #map { top:auto; height:22%; bottom:0; opacity:.55; border-top:1px solid var(--rule); }
   #panel-info .bp { position:relative; height:7px; margin-top:10px; }
   #panel-info .bp i { position:absolute; top:0; height:7px; }
   #panel-info .bp .w { top:3px; height:1px; background:var(--dim); opacity:.6; }
@@ -223,6 +222,7 @@
   #panel-info .track u { position:absolute; top:7px; width:1px; height:5px; background:var(--dim); opacity:.6; }
   #panel-info .track i { position:absolute; top:-4px; width:12px; height:12px; margin-left:-6px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px var(--head); }
   body.all { display:flex; flex-direction:column; }
+  body.all #bar { position:static; flex:none; border-top:1px solid var(--rule); }
   #all-head { display:flex; gap:18px; align-items:baseline; padding:12px 18px; border-bottom:1px solid var(--rule); font-size:12px; }
   #all-head b { min-width:0; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--head); }
   #all-head a { color:var(--dim); white-space:nowrap; }
@@ -410,6 +410,44 @@ if (ASK.get('case') === 'all') {
   ecoSec.innerHTML = '<h3>Ecological outcomes</h3><div class="eco">' + ECO.map(k => `<div class="eco-k"><h4>${k}</h4>`
     + META.cases.map(c => `<div><span>${c.label}</span><em>N/A</em></div>`).join('') + '</div>').join('') + '</div>';
   cmp.append(ecoSec);
+  // the one timeline for every panel, at the foot of the page: it holds the day and the play state, and the panels follow
+  const bar = document.createElement('div'); bar.id = 'bar';
+  bar.innerHTML = '<button id="play">&#9654;</button><div id="timeline"><canvas id="tl"></canvas></div><div id="clock"></div><button id="speed"></button>';
+  const $b = id => bar.querySelector('#' + id), cv = $b('tl');
+  let S = null, at = 0, playing = false, si = 2, acc = 0, last = 0;
+  const tell = m => { for (const f of frames) f.contentWindow?.postMessage(m, location.origin); };
+  const nice = s => { const [y, m, d] = s.split('-'); return `${+d} ${META_MONTHS[+m - 1]} ${y}`; };
+  const META_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const draw = () => {
+    if (!S) return;
+    const cx = cv.getContext('2d'), dpr = devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight, n = S.days.length;
+    if (cv.width !== w * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, w, h);
+    const base = h - 16, top = 6, X = i => i / Math.max(1, n - 1) * w, Y = q => base - Math.sqrt(q / S.fq) * (base - top);
+    cx.fillStyle = 'rgba(138,142,148,.16)'; cx.strokeStyle = '#a9adb3'; cx.lineWidth = 1;
+    cx.beginPath(); cx.moveTo(0, base);
+    const stride = Math.max(2, Math.floor(n / w / 2)); for (let i = 0; i < n; i += stride) cx.lineTo(X(i), Y(S.flow[i]));
+    cx.lineTo(w, base); cx.closePath(); cx.fill(); cx.stroke();
+    cx.fillStyle = '#8a8e94'; cx.font = '300 11px "Source Sans 3", sans-serif'; cx.textAlign = 'left';
+    const years = n / 365.25, ystep = [1, 2, 5, 10, 20].find(k => w / years * k >= 48) || 20;
+    for (let i = 0; i < n; i++) { const d = S.days[i]; if (d.slice(5) === '07-01') { cx.fillRect(X(i), base, 1, 4); if (+d.slice(0, 4) % ystep === 0) cx.fillText(d.slice(0, 4), X(i) + 3, h - 2); } }
+    const x = X(at);
+    cx.fillStyle = '#3a3d42'; cx.fillRect(x - 0.75, 0, 1.5, base); cx.beginPath(); cx.arc(x, Y(S.flow[at]), 4, 0, 7); cx.fill();
+  };
+  const show = () => { $b('clock').textContent = S ? nice(S.days[at]) : ''; $b('speed').textContent = (S ? S.speeds[si] : 30) + ' d/s'; draw(); };
+  const goto = i => { at = Math.max(0, Math.min(S.days.length - 1, i)); tell({ mdbDay: S.days[at] }); show(); };
+  const setPlay = on => { playing = on; $b('play').innerHTML = on ? '&#10073;&#10073;' : '&#9654;'; tell({ mdbPlay: { playing, si } }); if (on) { last = performance.now(); acc = 0; requestAnimationFrame(tick); } };
+  const tick = now => {
+    if (!playing) return;
+    acc += (now - last) / 1000 * S.speeds[si]; last = now;
+    if (acc >= 1) { const step = Math.floor(acc); acc -= step; goto((at + step) % S.days.length); }
+    requestAnimationFrame(tick);
+  };
+  const seek = e => { const r = cv.getBoundingClientRect(); goto(Math.round((e.clientX - r.left) / r.width * (S.days.length - 1))); };
+  let drag = false; cv.onpointerdown = e => { if (!S) return; drag = true; cv.setPointerCapture(e.pointerId); seek(e); }; cv.onpointermove = e => drag && seek(e); cv.onpointerup = () => drag = false;
+  $b('play').onclick = () => S && setPlay(!playing);
+  $b('speed').onclick = () => { if (!S) return; si = (si + 1) % S.speeds.length; tell({ mdbPlay: { playing, si } }); show(); };
+  addEventListener('resize', draw);
   const caseOf = new Map();
   const showRead = (cid, read) => {
     for (const [id, r] of Object.entries(read)) {
@@ -443,10 +481,12 @@ if (ASK.get('case') === 'all') {
   addEventListener('message', e => {
     const from = frames.find(f => f.contentWindow === e.source);
     if (e.origin === location.origin && from && e.data?.mdbRead) { showRead(caseOf.get(from), e.data.mdbRead); return; }
+    if (e.origin === location.origin && from && e.data?.mdbSeries) { if (!S) { S = e.data.mdbSeries; si = S.speeds.indexOf(30) < 0 ? 0 : S.speeds.indexOf(30); at = 0; show(); } return; }
+    if (e.origin === location.origin && from && e.data?.mdbDay && S) { const i = S.days.indexOf(e.data.mdbDay); if (i >= 0 && i !== at) { at = i; show(); } }
     if (e.origin !== location.origin || !(e.data?.mdbDay || e.data?.mdbCam || e.data?.mdbPlay || e.data?.mdbBox)) return;
     for (const f of frames) if (f.contentWindow !== e.source) f.contentWindow.postMessage(e.data, location.origin);
   });
-  document.body.className = VIEW === 'cmp' ? 'all cmp' : 'all'; document.body.replaceChildren(head, cmp, grid);
+  document.body.className = VIEW === 'cmp' ? 'all cmp' : 'all'; document.body.replaceChildren(head, cmp, grid, bar); show();
   return;
 }
 const PANEL = ASK.get('panel') === '1' && parent !== window;
@@ -1599,6 +1639,7 @@ function setPeriod() {
   $('kicker-title').textContent = D.title;
   if (day < W0 || day > W1) day = W0;
   update();
+  if (PANEL) parent.postMessage({ mdbSeries: { days: D.days.slice(W0, W1 + 1), flow: D.flow.slice(W0, W1 + 1), fq: FQ, speeds } }, location.origin);
 }
 const fmt = n => Math.round(n).toLocaleString('en-AU');
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
