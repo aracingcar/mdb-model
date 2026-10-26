@@ -67,7 +67,8 @@ SDL_UNITS = {
 SYSTEMS = {
     "murrumbidgee": {
         "units": ("SS15", "SS1"), "n_subcatchments": 11, "mainstem": "Murrumbidgee River",
-        "routing": {"loss_regions": 3, "target_outlet_m3s": 27.0},  # recorded mean at Balranald, ~27 m3/s (Wikipedia, "Murrumbidgee River")
+        # no outlet target: Balranald's recorded mean is regulated flow (Snowy transfers in, irrigation out) that this model does not represent.
+        "routing": {"loss_regions": None, "target_outlet_m3s": None},
         # Yanco Creek leaves the river at Narrandera and runs out to the Billabong and Edward systems, outside this system: an
         # indicative ~8% of the flow there (not a measured allocation)
         "splits": {"B5080595380": {"": 0.08}},

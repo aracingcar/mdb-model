@@ -1,0 +1,217 @@
+{
+  "source": "Bureau of Meteorology Hydrologic Reference Stations, daily streamflow (ML/day) with quality codes",
+  "source_url": "https://www.bom.gov.au/water/hrs/content/data/<station>/<station>_daily_ts.csv",
+  "station_details": "data/input/routing/hrs_station_details.csv",
+  "dataset_version": "September 2026",
+  "quality_codes": {
+    "A": "best available",
+    "B": "good",
+    "C": "poor",
+    "E": "unreliable",
+    "G": "gap filled"
+  },
+  "start": "2012-01-01",
+  "stations": {
+    "410024": {
+      "name": "Goodradigbee River at Wee Jasper (Kashmir)",
+      "lat": -35.1672,
+      "lon": 148.6855,
+      "area_km2": 990.0,
+      "sdl_unit": "SS15",
+      "basin": "B5080596390",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410026": {
+      "name": "Yass River at Yass",
+      "lat": -34.8367,
+      "lon": 148.9103,
+      "area_km2": 1229.0,
+      "sdl_unit": "SS15",
+      "basin": "B5080596910",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410033": {
+      "name": "Murrumbidgee River at Mittagang Crossing",
+      "lat": -36.17,
+      "lon": 149.09,
+      "area_km2": 1890.0,
+      "sdl_unit": "SS15",
+      "basin": "B5080603610",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410038": {
+      "name": "Adjungbilly Creek at Darbalara",
+      "lat": -35.0192,
+      "lon": 148.2457,
+      "area_km2": 390.9,
+      "sdl_unit": "SS15",
+      "basin": "B5080597490",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410044": {
+      "name": "Muttama Creek at Coolac",
+      "lat": -34.9319,
+      "lon": 148.1616,
+      "area_km2": 1072.0,
+      "sdl_unit": "SS15",
+      "basin": "B5080597290",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410047": {
+      "name": "Tarcutta Creek at Old Borambola",
+      "lat": -35.1639,
+      "lon": 147.6543,
+      "area_km2": 1653.0,
+      "sdl_unit": "SS15",
+      "basin": "B5080598370",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410057": {
+      "name": "Goobarragandra River at Lacmalac",
+      "lat": -35.32905,
+      "lon": 148.34845,
+      "area_km2": 667.9,
+      "sdl_unit": "SS15",
+      "basin": "B5080599320",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410061": {
+      "name": "Adelong Creek at Batlow Road",
+      "lat": -35.33165,
+      "lon": 148.06915,
+      "area_km2": 146.1,
+      "sdl_unit": "SS15",
+      "basin": "B5080598060",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410062": {
+      "name": "Numeralla River at Numeralla School",
+      "lat": -36.1793,
+      "lon": 149.3485,
+      "area_km2": 669.8,
+      "sdl_unit": "SS15",
+      "basin": "B5080603620",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410088": {
+      "name": "Goodradigbee River at Brindabella (No.2 and No.3-Cabbans)",
+      "lat": -35.42,
+      "lon": 148.73,
+      "area_km2": 432.1,
+      "sdl_unit": "SS15",
+      "basin": "B5080596390",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410091": {
+      "name": "Billabong Creek at Walbundrie",
+      "lat": -35.69,
+      "lon": 146.72,
+      "area_km2": 2808.0,
+      "sdl_unit": "SS15",
+      "basin": "LOWLAND-SS15",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410141": {
+      "name": "Micaligo Creek at Michelago",
+      "lat": -35.7053,
+      "lon": 149.1488,
+      "area_km2": 189.8,
+      "sdl_unit": "SS15",
+      "basin": "B5080600620",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410156": {
+      "name": "Kyeamba Creek at Book Book",
+      "lat": -35.35,
+      "lon": 147.55,
+      "area_km2": 145.4,
+      "sdl_unit": "SS15",
+      "basin": "B5080597860",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410705": {
+      "name": "Molonglo River at Burbong",
+      "lat": -35.3367,
+      "lon": 149.31625,
+      "area_km2": 508.6,
+      "sdl_unit": "SS15",
+      "basin": "B5080598860",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410713": {
+      "name": "Paddy's River at Riverlea",
+      "lat": -35.3843,
+      "lon": 148.9656,
+      "area_km2": 224.4,
+      "sdl_unit": "SS1",
+      "basin": "B5080599380",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410730": {
+      "name": "Cotter River at Gingera",
+      "lat": -35.5917,
+      "lon": 148.82125,
+      "area_km2": 130.0,
+      "sdl_unit": "SS1",
+      "basin": "B5080599330",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410731": {
+      "name": "Gudgenby River at Tennent",
+      "lat": -35.574851,
+      "lon": 149.06625,
+      "area_km2": 671.6,
+      "sdl_unit": "SS1",
+      "basin": "B5080600610",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410734": {
+      "name": "Queanbeyan River at Tinderry",
+      "lat": -35.61375,
+      "lon": 149.3498186,
+      "area_km2": 563.7,
+      "sdl_unit": "SS15",
+      "basin": "B5080598860",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "410761": {
+      "name": "Murrumbidgee River below Lobbs Hole Creek",
+      "lat": -35.539928,
+      "lon": 149.10125,
+      "area_km2": 5158.0,
+      "sdl_unit": "SS15",
+      "basin": "B5080600620",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "411003": {
+      "name": "Butmaroo Creek at Butmaroo",
+      "lat": -35.2567,
+      "lon": 149.5422,
+      "area_km2": 61.1,
+      "sdl_unit": "SS15",
+      "basin": "B5080092690",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    }
+  },
+  "attribution": "\u00a9 Commonwealth of Australia (Bureau of Meteorology); Hydrologic Reference Stations, CC BY 4.0."
+}

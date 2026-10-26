@@ -15,11 +15,13 @@ RAINFALL_RUNOFF_MODEL = "gr4j"
 
 
 def model_specs():
-    """{module name: {label, algorithm, params}} for every selectable method, so the browser can re-run them."""
+    """{module name: {label, algorithm, params}} for every selectable method, so the browser can re-run them. params is
+    one list, or {system: list} for a method calibrated per river system."""
     out = {}
     for name in AVAILABLE_MODELS:
         m = import_module(name)
-        out[name] = {"label": m.LABEL, "algorithm": m.ALGORITHM, "params": list(m.PARAMS)}
+        params = {s: list(p) for s, p in m.PARAMS.items()} if isinstance(m.PARAMS, dict) else list(m.PARAMS)
+        out[name] = {"label": m.LABEL, "algorithm": m.ALGORITHM, "params": params}
     return out
 
 

@@ -1,12 +1,28 @@
 """GR4J daily rainfall-runoff model (Perrin, Michel & Andreassian 2003, J. Hydrol. 279)."""
+import sys
+from pathlib import Path
+
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "1_masking"))
+
+from config import DISPLAY_SYSTEMS, SYSTEM_ID
+
 # Median parameter set from Perrin et al. (2003): x1 production store (mm), x2 exchange (mm/d),
-# x3 routing store (mm), x4 unit hydrograph time base (days). Not calibrated to the Murrumbidgee.
+# x3 routing store (mm), x4 unit hydrograph time base (days).
 DEFAULT_PARAMS = (350.0, 0.0, 90.0, 1.7)
+# Per river system, the regional set fitted by calibrate_gr4j.py to unregulated headwater gauges on observed climate,
+# 2013-2019 (data/calibration/gr4j_systems.json, with each set's validation KGE). x3 sits near its 1 mm lower bound and the
+# Murray's x1 at its 2500 mm upper bound. The Lower Darling has no HRS gauge, so it keeps the median set.
+CALIBRATED = {
+    "murrumbidgee": (362.6467, -3.7956, 10.6427, 1.2552),  # from 410734 Queanbeyan River at Tinderry
+    "lachlan": (291.7566, -2.2397, 1.2058, 1.4496),  # from 412029 Boorowa River at Prossers Crossing
+    "murray": (2499.9984, -2.4784, 4.9333, 1.288),  # from 401210 Snowy Creek below Granite Flat
+    "goulburn_broken": (1401.8726, -1.4118, 1.8823, 2.0),  # from 405228 Hughes Creek at Tarcombe Road
+}
 LABEL = "GR4J"
 ALGORITHM = "gr4j"  # the browser engine (docs/engine.js) implements this algorithm and takes PARAMS from here
-PARAMS = DEFAULT_PARAMS
+PARAMS = {s: CALIBRATED.get(s, DEFAULT_PARAMS) for s in DISPLAY_SYSTEMS}  # per system: the engine picks its own
 
 
 def _unit_hydrographs(x4):
@@ -63,4 +79,4 @@ def gr4j(precip, pet, params=DEFAULT_PARAMS):
 
 def simulate(precip, pet):
     """Rainfall-runoff model interface: runoff depth (mm/day) with this model's parameters."""
-    return gr4j(precip, pet, PARAMS)
+    return gr4j(precip, pet, PARAMS[SYSTEM_ID])

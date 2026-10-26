@@ -1,0 +1,164 @@
+{
+  "source": "User-provided quality-filtered Bureau of Meteorology daily mean observations from mdb-river-pulse/data/river.db.",
+  "source_project_readme": "/Users/roryhackett/Desktop/mdb-river-pulse/README.md",
+  "record_table": "daily_obs",
+  "parameter": "flow",
+  "units": "m3/s (cumec)",
+  "selection": "gauges in, or within 3 km of, the system's model basins (results.db); basin is the nearest one",
+  "period": {
+    "start": "2012-06-30",
+    "end": "2026-10-18",
+    "daily_rows": 5224
+  },
+  "stations": {
+    "414203": {
+      "name": "MURRAY @ EUSTON",
+      "lat": -34.5767,
+      "lon": 142.7675,
+      "sdl_unit": "SS18",
+      "basin": "LOWLAND-SS18",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "425005": {
+      "name": "DARLING@POONCARIE",
+      "lat": -33.3864,
+      "lon": 142.5678,
+      "sdl_unit": "SS18",
+      "basin": "B5080585060",
+      "units": "m3/s",
+      "valid_daily_values": 5207,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "425007": {
+      "name": "DARLING@BURTUNDY",
+      "lat": -33.74641667,
+      "lon": 142.26827778,
+      "sdl_unit": "SS18",
+      "basin": "B5080587260",
+      "units": "m3/s",
+      "valid_daily_values": 4943,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "425008": {
+      "name": "DARLING@WILC. MAIN C",
+      "lat": -31.560942,
+      "lon": 143.377251,
+      "sdl_unit": "SS18",
+      "basin": "B5080562410",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "425010": {
+      "name": "MURRAY@L10 WENTWORTH",
+      "lat": -34.10966,
+      "lon": 141.89912,
+      "sdl_unit": "SS18",
+      "basin": "B5080591010",
+      "units": "m3/s",
+      "valid_daily_values": 2278,
+      "first_date": "2012-06-30",
+      "last_date": "2026-09-28"
+    },
+    "425012": {
+      "name": "DARLING@U/S WEIR 32",
+      "lat": -32.43684,
+      "lon": 142.38023,
+      "sdl_unit": "SS18",
+      "basin": "B5080571560",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "425013": {
+      "name": "DARLING ANABR@WYCOT",
+      "lat": -32.967524,
+      "lon": 142.058085,
+      "sdl_unit": "SS18",
+      "basin": "LOWLAND-SS18",
+      "units": "m3/s",
+      "valid_daily_values": 4411,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "425029": {
+      "name": "TALYAWALKA@KANGA W/H",
+      "lat": -31.845167,
+      "lon": 143.237444,
+      "sdl_unit": "SS18",
+      "basin": "B5080564710",
+      "units": "m3/s",
+      "valid_daily_values": 522,
+      "first_date": "2025-04-24",
+      "last_date": "2026-10-18"
+    },
+    "425053": {
+      "name": "ANABRANCH D/S 183",
+      "lat": -33.457974,
+      "lon": 141.80655,
+      "sdl_unit": "SS18",
+      "basin": "LOWLAND-SS18",
+      "units": "m3/s",
+      "valid_daily_values": 4739,
+      "first_date": "2013-10-28",
+      "last_date": "2026-10-18"
+    },
+    "425058": {
+      "name": "Darling R @ MOORABIN",
+      "lat": -31.59037,
+      "lon": 143.35695,
+      "sdl_unit": "SS18",
+      "basin": "B5080562410",
+      "units": "m3/s",
+      "valid_daily_values": 2446,
+      "first_date": "2020-02-07",
+      "last_date": "2026-10-18"
+    },
+    "425059": {
+      "name": "DARLING @ TREVALLYN",
+      "lat": -31.37779,
+      "lon": 144.034528,
+      "sdl_unit": "SS18",
+      "basin": "LOWLAND-SS18",
+      "units": "m3/s",
+      "valid_daily_values": 963,
+      "first_date": "2024-02-29",
+      "last_date": "2026-10-18"
+    },
+    "425061": {
+      "name": "TERYAWYNIA@TALYLAKE",
+      "lat": -32.199482,
+      "lon": 143.230583,
+      "sdl_unit": "SS18",
+      "basin": "B5080568800",
+      "units": "m3/s",
+      "valid_daily_values": 515,
+      "first_date": "2025-05-01",
+      "last_date": "2026-10-18"
+    },
+    "425900": {
+      "name": "DARLING@TILPA",
+      "lat": -30.936751,
+      "lon": 144.417698,
+      "sdl_unit": "SS18",
+      "basin": "LOWLAND-SS18",
+      "units": "m3/s",
+      "valid_daily_values": 5214,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    }
+  },
+  "notes": [
+    "Blank cells preserve days with no recorded value; they are not interpolated.",
+    "The user confirmed these source records have been filtered for good quality.",
+    "Gauges on regulated rivers reflect dam releases, diversions and weirs as well as runoff.",
+    "A gauge within the buffer of two systems is listed in both."
+  ]
+}

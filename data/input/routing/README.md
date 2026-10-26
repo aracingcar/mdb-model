@@ -13,6 +13,18 @@ calibration and validation.
   The wide CSV preserves missing days as blank cells. Metadata lists station
   names, spans and valid-day counts. This is the preferred observed-flow set
   for calibration because the user confirmed its quality filter.
+  `3_routing/load_observed_flow.py` rebuilds it and the same set for every
+  river system (`<system>_observed_flow_daily.csv`), taking the gauges in or
+  within 3 km of the system's model basins; each gauge's metadata names its
+  SDL unit and nearest model basin. Balranald (410130), the Murrumbidgee's
+  mean-flow target, is not in the store.
+- **Observed climate for calibration:** `1_masking/download_awo_climate.py`
+  writes BoM AWO daily rainfall and FAO56 PET for each model basin,
+  2012-01-01 to 2026-10-19, to
+  `../climate/<system>_basin_P_PET_2012_2026.csv` (columns `<basin>_P`,
+  `<basin>_PET`, as in the model's basin forcing). NARCliM projections do not
+  follow the observed weather day by day, so calibrating against gauged flow
+  needs this forcing.
 - The broader BoM station sweep is in
   `../observed_flow/observed_flow_daily.csv`. It includes station 410008 from
   1961 to 2026, but that download did not retain observation quality codes;

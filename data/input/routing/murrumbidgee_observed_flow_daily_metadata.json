@@ -4,28 +4,52 @@
   "record_table": "daily_obs",
   "parameter": "flow",
   "units": "m3/s (cumec)",
+  "selection": "gauges in, or within 3 km of, the system's model basins (results.db); basin is the nearest one",
   "period": {
     "start": "2012-06-30",
     "end": "2026-10-18",
     "daily_rows": 5224
   },
   "stations": {
+    "409014": {
+      "name": "EDWARD R @ MOULAMEIN",
+      "lat": -35.0899,
+      "lon": 144.0331,
+      "sdl_unit": "SS15",
+      "basin": "LOWLAND-SS15",
+      "units": "m3/s",
+      "valid_daily_values": 4292,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "409035": {
+      "name": "EDWARD R @ LIEWAH",
+      "lat": -34.9888,
+      "lon": 143.6228,
+      "sdl_unit": "SS15",
+      "basin": "LOWLAND-SS15",
+      "units": "m3/s",
+      "valid_daily_values": 4288,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
     "410001": {
       "name": "M/BIDGEE R @ WAGGA",
+      "lat": -35.10080647,
+      "lon": 147.367593175,
+      "sdl_unit": "SS15",
+      "basin": "B5080597860",
       "units": "m3/s",
       "valid_daily_values": 5191,
       "first_date": "2012-06-30",
       "last_date": "2026-10-18"
     },
-    "410039": {
-      "name": "TUMUT @ BRUNGLE BDGE",
-      "units": "m3/s",
-      "valid_daily_values": 5224,
-      "first_date": "2012-06-30",
-      "last_date": "2026-10-18"
-    },
-    "410073": {
-      "name": "TUMUT @ ODDYS BDGE",
+    "410006": {
+      "name": "TUMUT RIVER @ TUMUT",
+      "lat": -35.302526734,
+      "lon": 148.23331308,
+      "sdl_unit": "SS15",
+      "basin": "B5080599090",
       "units": "m3/s",
       "valid_daily_values": 5224,
       "first_date": "2012-06-30",
@@ -33,69 +57,87 @@
     },
     "410026": {
       "name": "YASS RIVER @ YASS",
+      "lat": -34.8352,
+      "lon": 148.9115,
+      "sdl_unit": "SS15",
+      "basin": "B5080596910",
       "units": "m3/s",
       "valid_daily_values": 5219,
       "first_date": "2012-06-30",
       "last_date": "2026-10-18"
     },
-    "410176": {
-      "name": "YASS @ U/S B/JUCK",
-      "units": "m3/s",
-      "valid_daily_values": 5208,
-      "first_date": "2012-06-30",
-      "last_date": "2026-10-18"
-    },
-    "410090": {
-      "name": "YASS RV @ GUNDAROO",
-      "units": "m3/s",
-      "valid_daily_values": 5212,
-      "first_date": "2012-06-30",
-      "last_date": "2026-10-18"
-    },
-    "410081": {
-      "name": "COOMA CK @ COOMA NO2",
-      "units": "m3/s",
-      "valid_daily_values": 5217,
-      "first_date": "2012-06-30",
-      "last_date": "2026-10-18"
-    },
-    "410731": {
-      "name": "Gudgenby at Tennent",
+    "410039": {
+      "name": "TUMUT @ BRUNGLE BDGE",
+      "lat": -35.1216,
+      "lon": 148.2057,
+      "sdl_unit": "SS15",
+      "basin": "B5080597560",
       "units": "m3/s",
       "valid_daily_values": 5224,
-      "first_date": "2012-06-30",
-      "last_date": "2026-10-18"
-    },
-    "410774": {
-      "name": "Burra Ck at Burra Rd",
-      "units": "m3/s",
-      "valid_daily_values": 5224,
-      "first_date": "2012-06-30",
-      "last_date": "2026-10-18"
-    },
-    "410082": {
-      "name": "M/BIDGEE D/S GOGEL W",
-      "units": "m3/s",
-      "valid_daily_values": 5224,
-      "first_date": "2012-06-30",
-      "last_date": "2026-10-18"
-    },
-    "410136": {
-      "name": "M/BIDGEE DS HAY WEIR",
-      "units": "m3/s",
-      "valid_daily_values": 5219,
       "first_date": "2012-06-30",
       "last_date": "2026-10-18"
     },
     "410041": {
       "name": "M/BIDGEE D/S REDBANK",
+      "lat": -34.3798,
+      "lon": 143.7817,
+      "sdl_unit": "SS15",
+      "basin": "B5080594380",
       "units": "m3/s",
       "valid_daily_values": 5216,
       "first_date": "2012-06-30",
       "last_date": "2026-10-18"
     },
+    "410073": {
+      "name": "TUMUT @ ODDYS BDGE",
+      "lat": -35.3886,
+      "lon": 148.2478,
+      "sdl_unit": "SS15",
+      "basin": "B5080599310",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410081": {
+      "name": "COOMA CK @ COOMA NO2",
+      "lat": -36.2619,
+      "lon": 149.1352,
+      "sdl_unit": "SS15",
+      "basin": "B5080603620",
+      "units": "m3/s",
+      "valid_daily_values": 5217,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410082": {
+      "name": "M/BIDGEE D/S GOGEL W",
+      "lat": -34.6151,
+      "lon": 146.2562,
+      "sdl_unit": "SS15",
+      "basin": "B5080594820",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410090": {
+      "name": "YASS RV @ GUNDAROO",
+      "lat": -35.0653,
+      "lon": 149.2642,
+      "sdl_unit": "SS15",
+      "basin": "B5080596910",
+      "units": "m3/s",
+      "valid_daily_values": 5212,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
     "410091": {
       "name": "B'BONG @ WALBUNDRIE",
+      "lat": -35.6927,
+      "lon": 146.7218,
+      "sdl_unit": "SS15",
+      "basin": "LOWLAND-SS15",
       "units": "m3/s",
       "valid_daily_values": 5224,
       "first_date": "2012-06-30",
@@ -103,8 +145,78 @@
     },
     "410134": {
       "name": "BILLABONG @ DARLOT",
+      "lat": -35.0442,
+      "lon": 144.4464,
+      "sdl_unit": "SS15",
+      "basin": "LOWLAND-SS15",
       "units": "m3/s",
       "valid_daily_values": 5220,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410136": {
+      "name": "M/BIDGEE DS HAY WEIR",
+      "lat": -34.5247,
+      "lon": 144.7111,
+      "sdl_unit": "SS15",
+      "basin": "B5080593710",
+      "units": "m3/s",
+      "valid_daily_values": 5219,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410176": {
+      "name": "YASS @ U/S B/JUCK",
+      "lat": -34.8633,
+      "lon": 148.7931,
+      "sdl_unit": "SS15",
+      "basin": "B5080596910",
+      "units": "m3/s",
+      "valid_daily_values": 5208,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410731": {
+      "name": "Gudgenby at Tennent",
+      "lat": -35.57187222,
+      "lon": 149.0681139,
+      "sdl_unit": "SS1",
+      "basin": "B5080600610",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410774": {
+      "name": "Burra Ck at Burra Rd",
+      "lat": -35.54263889,
+      "lon": 149.2281389,
+      "sdl_unit": "SS15",
+      "basin": "B5080598860",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "410851": {
+      "name": "YASS @ MACKS REEF RD",
+      "lat": -35.1871,
+      "lon": 149.2741,
+      "sdl_unit": "SS15",
+      "basin": "B5080596910",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "411003": {
+      "name": "BUTMAROO CK@BUTMAROO",
+      "lat": -35.2551,
+      "lon": 149.5434,
+      "sdl_unit": "SS15",
+      "basin": "B5080092690",
+      "units": "m3/s",
+      "valid_daily_values": 5158,
       "first_date": "2012-06-30",
       "last_date": "2026-10-18"
     }
@@ -112,6 +224,7 @@
   "notes": [
     "Blank cells preserve days with no recorded value; they are not interpolated.",
     "The user confirmed these source records have been filtered for good quality.",
-    "Mainstem sites provide downstream calibration/check points; tributary sites provide additional inflow checks."
+    "Gauges on regulated rivers reflect dam releases, diversions and weirs as well as runoff.",
+    "A gauge within the buffer of two systems is listed in both."
   ]
 }

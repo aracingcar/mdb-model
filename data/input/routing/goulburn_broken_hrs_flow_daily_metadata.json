@@ -1,0 +1,277 @@
+{
+  "source": "Bureau of Meteorology Hydrologic Reference Stations, daily streamflow (ML/day) with quality codes",
+  "source_url": "https://www.bom.gov.au/water/hrs/content/data/<station>/<station>_daily_ts.csv",
+  "station_details": "data/input/routing/hrs_station_details.csv",
+  "dataset_version": "September 2026",
+  "quality_codes": {
+    "A": "best available",
+    "B": "good",
+    "C": "poor",
+    "E": "unreliable",
+    "G": "gap filled"
+  },
+  "start": "2012-01-01",
+  "stations": {
+    "403213": {
+      "name": "Fifteen Mile Creek at Greta South",
+      "lat": -36.61953,
+      "lon": 146.24375,
+      "area_km2": 230.9,
+      "sdl_unit": "SS5",
+      "basin": "B5080605380",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "404207": {
+      "name": "Holland Creek at Kelfeera",
+      "lat": -36.611525,
+      "lon": 146.059025,
+      "area_km2": 448.0,
+      "sdl_unit": "SS5",
+      "basin": "B5080605380",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405205": {
+      "name": "Murrindindi River at Murrindindi above Colwells",
+      "lat": -37.4138538,
+      "lon": 145.5638538,
+      "area_km2": 105.8,
+      "sdl_unit": "SS6",
+      "basin": "B5080609210",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405209": {
+      "name": "Acheron River at Taggerty",
+      "lat": -37.31772866,
+      "lon": 145.71375,
+      "area_km2": 629.4,
+      "sdl_unit": "SS6",
+      "basin": "B5080609470",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405212": {
+      "name": "Sunday Creek at Tallarook",
+      "lat": -37.1,
+      "lon": 145.06,
+      "area_km2": 336.8,
+      "sdl_unit": "SS6",
+      "basin": "B5080608320",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405214": {
+      "name": "Delatite River at Tonga Bridge",
+      "lat": -37.159,
+      "lon": 146.11,
+      "area_km2": 357.4,
+      "sdl_unit": "SS6",
+      "basin": "B5080609280",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405215": {
+      "name": "Howqua River at Glen Esk",
+      "lat": -37.22964985,
+      "lon": 146.2071498,
+      "area_km2": 374.0,
+      "sdl_unit": "SS6",
+      "basin": "B5080609310",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405217": {
+      "name": "Yea River at Devlins Bridge",
+      "lat": -37.38375,
+      "lon": 145.47319,
+      "area_km2": 360.6,
+      "sdl_unit": "SS6",
+      "basin": "B5080609210",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405218": {
+      "name": "Jamieson River at Gerrang Bridge",
+      "lat": -37.29125,
+      "lon": 146.1876,
+      "area_km2": 364.2,
+      "sdl_unit": "SS6",
+      "basin": "B5080609310",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405219": {
+      "name": "Goulburn River at Dohertys",
+      "lat": -37.330415,
+      "lon": 146.129585,
+      "area_km2": 700.2,
+      "sdl_unit": "SS6",
+      "basin": "B5080609310",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405226": {
+      "name": "Pranjip Creek at Moorilim",
+      "lat": -36.621015,
+      "lon": 145.306485,
+      "area_km2": 749.4,
+      "sdl_unit": "SS6",
+      "basin": "B5080606340",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405227": {
+      "name": "Big River at Jamieson",
+      "lat": -37.366955,
+      "lon": 146.056955,
+      "area_km2": 626.9,
+      "sdl_unit": "SS6",
+      "basin": "B5080609310",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405228": {
+      "name": "Hughes Creek at Tarcombe Road",
+      "lat": -36.95,
+      "lon": 145.28,
+      "area_km2": 474.8,
+      "sdl_unit": "SS6",
+      "basin": "B5080607860",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405229": {
+      "name": "Wanalta Creek at Wanalta",
+      "lat": -36.635,
+      "lon": 144.87,
+      "area_km2": 108.6,
+      "sdl_unit": "SS6",
+      "basin": "B5080603970",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405230": {
+      "name": "Cornella Creek at Colbinabbin",
+      "lat": -36.604,
+      "lon": 144.81,
+      "area_km2": 259.3,
+      "sdl_unit": "SS6",
+      "basin": "B5080603970",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405231": {
+      "name": "King Parrot Creek at Flowerdale",
+      "lat": -37.347,
+      "lon": 145.29,
+      "area_km2": 179.3,
+      "sdl_unit": "SS6",
+      "basin": "B5080609020",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405234": {
+      "name": "Seven Creeks River d/s of Polly McQuinns Weir",
+      "lat": -36.888,
+      "lon": 145.68,
+      "area_km2": 149.6,
+      "sdl_unit": "SS6",
+      "basin": "B5080605420",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405238": {
+      "name": "Mollison Creek at Pyalong",
+      "lat": -37.12049,
+      "lon": 144.85701,
+      "area_km2": 164.1,
+      "sdl_unit": "SS6",
+      "basin": "B5080608320",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405240": {
+      "name": "Sugarloaf Creek at Ash Bridge",
+      "lat": -37.061,
+      "lon": 145.06,
+      "area_km2": 609.2,
+      "sdl_unit": "SS6",
+      "basin": "B5080608320",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405241": {
+      "name": "Rubicon River at Rubicon",
+      "lat": -37.291,
+      "lon": 145.83,
+      "area_km2": 127.9,
+      "sdl_unit": "SS6",
+      "basin": "B5080609420",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405245": {
+      "name": "Ford Creek at Mansfield",
+      "lat": -37.03875,
+      "lon": 146.05375,
+      "area_km2": 115.4,
+      "sdl_unit": "SS6",
+      "basin": "B5080609280",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405248": {
+      "name": "Major Creek at Graytown",
+      "lat": -36.85375,
+      "lon": 144.9146,
+      "area_km2": 287.6,
+      "sdl_unit": "SS6",
+      "basin": "B5080607630",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405251": {
+      "name": "Brankeet Creek at Ancona",
+      "lat": -36.96886,
+      "lon": 145.78375,
+      "area_km2": 121.8,
+      "sdl_unit": "SS6",
+      "basin": "B5080609280",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405263": {
+      "name": "Goulburn River u/s of Snake Creek Junction",
+      "lat": -37.462845,
+      "lon": 146.247155,
+      "area_km2": 328.9,
+      "sdl_unit": "SS6",
+      "basin": "B5080609310",
+      "days": 0,
+      "last_date": NaN
+    },
+    "405264": {
+      "name": "Big River d/s of Frenchman Creek Junction",
+      "lat": -37.52125,
+      "lon": 146.07596,
+      "area_km2": 335.4,
+      "sdl_unit": "SS6",
+      "basin": "B5080609310",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "405274": {
+      "name": "Home Creek at Yarck",
+      "lat": -37.10625,
+      "lon": 145.60513,
+      "area_km2": 186.7,
+      "sdl_unit": "SS6",
+      "basin": "B5080609090",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    }
+  },
+  "attribution": "\u00a9 Commonwealth of Australia (Bureau of Meteorology); Hydrologic Reference Stations, CC BY 4.0."
+}

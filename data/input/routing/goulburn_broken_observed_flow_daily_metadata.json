@@ -1,0 +1,186 @@
+{
+  "source": "User-provided quality-filtered Bureau of Meteorology daily mean observations from mdb-river-pulse/data/river.db.",
+  "source_project_readme": "/Users/roryhackett/Desktop/mdb-river-pulse/README.md",
+  "record_table": "daily_obs",
+  "parameter": "flow",
+  "units": "m3/s (cumec)",
+  "selection": "gauges in, or within 3 km of, the system's model basins (results.db); basin is the nearest one",
+  "period": {
+    "start": "2012-06-30",
+    "end": "2026-10-18",
+    "daily_rows": 5224
+  },
+  "stations": {
+    "404214": {
+      "name": "BROKEN @ KATAMATITE",
+      "lat": -36.09853841,
+      "lon": 145.6851538,
+      "sdl_unit": "SS5",
+      "basin": "B5080602770",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "404216": {
+      "name": "BROKEN @ CASEY WEIR",
+      "lat": -36.47353488,
+      "lon": 145.9417393,
+      "sdl_unit": "SS5",
+      "basin": "B5080605380",
+      "units": "m3/s",
+      "valid_daily_values": 5221,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "404217": {
+      "name": "BROKEN @ CASEY WEIR",
+      "lat": -36.47314,
+      "lon": 145.94144,
+      "sdl_unit": "SS5",
+      "basin": "B5080605380",
+      "units": "m3/s",
+      "valid_daily_values": 5177,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "404222": {
+      "name": "BROKEN @ ORRVALE",
+      "lat": -36.4313885,
+      "lon": 145.4497833,
+      "sdl_unit": "SS5",
+      "basin": "B5080605380",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "404224": {
+      "name": "BROKEN @ GOWANGARDIE",
+      "lat": -36.43366659,
+      "lon": 145.6691815,
+      "sdl_unit": "SS5",
+      "basin": "B5080605380",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "405200": {
+      "name": "GOULBURN @ MURCHISON",
+      "lat": -36.61703491,
+      "lon": 145.2195882,
+      "sdl_unit": "SS6",
+      "basin": "B5080606310",
+      "units": "m3/s",
+      "valid_daily_values": 5211,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "405201": {
+      "name": "GOULBURN @ TRAWOOL",
+      "lat": -37.0916115,
+      "lon": 145.2025134,
+      "sdl_unit": "SS6",
+      "basin": "B5080608380",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "405202": {
+      "name": "GOULBURN @ SEYMOUR",
+      "lat": -37.01990004,
+      "lon": 145.1089547,
+      "sdl_unit": "SS6",
+      "basin": "B5080607880",
+      "units": "m3/s",
+      "valid_daily_values": 5196,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "405203": {
+      "name": "GOULBURN @ EILDON",
+      "lat": -37.2467952,
+      "lon": 145.8892935,
+      "sdl_unit": "SS6",
+      "basin": "B5080609420",
+      "units": "m3/s",
+      "valid_daily_values": 5213,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "405219": {
+      "name": "GOULBURN @ DOHERTYS",
+      "lat": -37.33088353,
+      "lon": 146.1307397,
+      "sdl_unit": "SS6",
+      "basin": "B5080609310",
+      "units": "m3/s",
+      "valid_daily_values": 5213,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "405223": {
+      "name": "GOULBURN @ MOLESWORT",
+      "lat": -37.16465661,
+      "lon": 145.5441525,
+      "sdl_unit": "SS6",
+      "basin": "B5080609170",
+      "units": "m3/s",
+      "valid_daily_values": 836,
+      "first_date": "2024-06-18",
+      "last_date": "2026-10-18"
+    },
+    "405253": {
+      "name": "GOULBURN @GOUL. WEIR",
+      "lat": -36.71284,
+      "lon": 145.17394,
+      "sdl_unit": "SS6",
+      "basin": "B5080606310",
+      "units": "m3/s",
+      "valid_daily_values": 4651,
+      "first_date": "2014-01-09",
+      "last_date": "2026-10-18"
+    },
+    "405276": {
+      "name": "GOULBURN @ GARRY",
+      "lat": -36.24143297,
+      "lon": 145.2869464,
+      "sdl_unit": "SS6",
+      "basin": "B5080603790",
+      "units": "m3/s",
+      "valid_daily_values": 758,
+      "first_date": "2012-06-30",
+      "last_date": "2018-08-31"
+    },
+    "405321": {
+      "name": "DELATITE R SAWMILL",
+      "lat": -37.1057,
+      "lon": 146.3692,
+      "sdl_unit": "SS6",
+      "basin": "B5080609280",
+      "units": "m3/s",
+      "valid_daily_values": 5217,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "409215": {
+      "name": "MURRAY @ BARMAH",
+      "lat": -36.01760591,
+      "lon": 144.9610344,
+      "sdl_unit": "SS6",
+      "basin": "B5080603740",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    }
+  },
+  "notes": [
+    "Blank cells preserve days with no recorded value; they are not interpolated.",
+    "The user confirmed these source records have been filtered for good quality.",
+    "Gauges on regulated rivers reflect dam releases, diversions and weirs as well as runoff.",
+    "A gauge within the buffer of two systems is listed in both."
+  ]
+}

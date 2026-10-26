@@ -1,0 +1,61 @@
+{
+  "calibration": [
+    "2013-01-01",
+    "2019-12-31"
+  ],
+  "validation": [
+    "2020-01-01",
+    "2026-02-28"
+  ],
+  "objective": "KGE, daily runoff depth",
+  "systems": {
+    "murrumbidgee": {
+      "params": [
+        362.6467,
+        -3.7956,
+        10.6427,
+        1.2552
+      ],
+      "donor_station": "410734",
+      "gauges": 6,
+      "median_kge_val": 0.554,
+      "default_median_kge_val": -1.398
+    },
+    "lachlan": {
+      "params": [
+        291.7566,
+        -2.2397,
+        1.2058,
+        1.4496
+      ],
+      "donor_station": "412029",
+      "gauges": 2,
+      "median_kge_val": 0.703,
+      "default_median_kge_val": -0.858
+    },
+    "murray": {
+      "params": [
+        2499.9984,
+        -2.4784,
+        4.9333,
+        1.288
+      ],
+      "donor_station": "401210",
+      "gauges": 18,
+      "median_kge_val": 0.518,
+      "default_median_kge_val": -1.426
+    },
+    "goulburn_broken": {
+      "params": [
+        1401.8726,
+        -1.4118,
+        1.8823,
+        2.0
+      ],
+      "donor_station": "405228",
+      "gauges": 25,
+      "median_kge_val": 0.361,
+      "default_median_kge_val": -1.072
+    }
+  }
+}

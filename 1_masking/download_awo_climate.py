@@ -2,8 +2,12 @@
 
 The BoM Australian Water Outlook image service is sampled at its 0.05 degree
 grid-cell centres. Values are combined into area-weighted daily means for the
-existing Murrumbidgee model regions. The archive service supplies 2012-2025;
-the current service supplies 2026 onward.
+model basins of a river system (SYSTEM, default murrumbidgee; the basins stored in results.db, so run main.py
+first), named and ordered like the model's basin forcing. This is observed climate for calibrating against gauged
+flow, which the NARCliM projections cannot be. The archive service supplies 2012-2025; the current service supplies
+2026 onward.
+
+Run from the repository root with ``SYSTEM=<system> python 1_masking/download_awo_climate.py``.
 """
 
 from __future__ import annotations
@@ -19,18 +23,23 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+import sys
+
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 from shapely.geometry import Point
-from config import SUBCATCHMENT_FILE
+from config import SYSTEM_ID, UNITS
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REGIONS_FILE = SUBCATCHMENT_FILE
+sys.path.insert(0, str(ROOT / "5_outputs"))
+
+from results_db import load_geometry
+
 OUT_DIR = ROOT / "data/input/climate"
-OUT_CSV = OUT_DIR / "murrumbidgee_subcatchment_P_PET_2012_2026.csv"
-OUT_META = OUT_DIR / "murrumbidgee_subcatchment_P_PET_2012_2026_metadata.json"
+OUT_CSV = OUT_DIR / f"{SYSTEM_ID}_basin_P_PET_2012_2026.csv"
+OUT_META = OUT_DIR / f"{SYSTEM_ID}_basin_P_PET_2012_2026_metadata.json"
 
 SERVICE_ROOT = "https://image-stg.wsapi-stg.cloud.bom.gov.au/arcgis/rest/services/awra_historical"
 ARCHIVE = SERVICE_ROOT + "/physical_day_crf_multivariable_archive_2005_2019_data/ImageServer/getSamples"
@@ -67,8 +76,11 @@ def make_grid_points(regions: gpd.GeoDataFrame):
                 lat = round(-44.0 + GRID_SIZE * j, 3)
                 if geom.covers(Point(lon, lat)):
                     cells.append((lon, lat, math.cos(math.radians(lat))))
-        if not cells:
-            continue
+        if not cells:  # a basin smaller than a cell: the cell holding a point inside it
+            inside = geom.representative_point()
+            lon, lat = (round(112.0 + GRID_SIZE * round((inside.x - 112.0) / GRID_SIZE), 3),
+                        round(-44.0 + GRID_SIZE * round((inside.y + 44.0) / GRID_SIZE), 3))
+            cells.append((lon, lat, math.cos(math.radians(lat))))
 
         # Farthest-point selection spreads representative cells over the region.
         # Each selected cell represents the area-weighted cluster of all cells
@@ -187,14 +199,12 @@ def download_variable(variable, label, points, dates, regions):
 
 def main():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    regions_gdf = gpd.read_file(REGIONS_FILE).sort_values("route_order")
+    regions_gdf = gpd.GeoDataFrame(pd.concat([load_geometry(u, "basins") for u in UNITS]), crs="EPSG:4326")
+    if regions_gdf.empty:
+        raise RuntimeError(f"No basins stored for {SYSTEM_ID}: run main.py first")
     regions = regions_gdf["subcatchment"].tolist()
     points = make_grid_points(regions_gdf)
     dates = pd.date_range(START, LATEST_END, freq="D")
-
-    # Verify that the archive and latest services cover the intended halves before a full pull.
-    for service in (ARCHIVE, LATEST):
-        pass
 
     values = {}
     coverage = {}
@@ -219,7 +229,8 @@ def main():
         "end_date": LATEST_END.isoformat(),
         "grid_resolution_degrees": GRID_SIZE,
         "area_weighting": "Within each model region, 10 spatially distributed 0.05-degree cell centres represent clusters of all in-region grid cells; each representative is weighted by the cluster's summed cos(latitude) cell-area factors.",
-        "region_file": str(REGIONS_FILE.relative_to(ROOT)),
+        "system": SYSTEM_ID,
+        "region_source": f"model basins of SDL units {', '.join(UNITS)} (results.db geometry table)",
         "regions": regions,
         "sampled_grid_cell_count": len(points),
         "full_grid_cell_count_represented": int(sum(p["represented_cells"] for p in points)),
@@ -227,7 +238,7 @@ def main():
         "limitations": [
             "AWO precipitation and PET are gridded model products, not raw gauge observations.",
             "Ten representative cells per region approximate the full grid-cell area-weighted mean; this is not a pixel-exact polygon zonal statistic.",
-            "Model regions are the current terrain-derived regions in the project and should be checked before interpreting them as natural drainage catchments.",
+            "Basins are the HydroBASINS-derived model basins at download time; rerun this script if the system's basins change.",
         ],
         "downloaded_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "attribution": "© Commonwealth of Australia (Bureau of Meteorology) 2022; Australian Water Outlook / AWRA-L.",

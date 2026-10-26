@@ -58,7 +58,6 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     enterChase(); playWhileDriving?.(); placedAt=performance.now(); // the climate scenario plays on while you drive
     hint.classList.add('active');
     setHint(hintDrive());
-    if(gameStart) dashRender();
     refresh(); return true;
   }
   function reset() {
@@ -69,7 +68,6 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     if(game.mode==='playing') dashFinish('You left the map');
     if(game.mode==='over') { game.mode='off'; dashRender(); } // the result goes with the car
     for (const k in docks) docks[k].classList.remove('placed','choosing'); hint.classList.remove('active');
-    if(gameStart) dashRender();
     setHint(`Drag the ${noun} onto the map to drive again.`); refresh();
   }
   function dropPosition(e, kind) {
@@ -820,7 +818,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function dashRender() {
     const playing=game.mode==='playing', t=game.target, c=playerCar;
     const gone=game.mode==='over'&&!c.selected; // the result and Play again only show from the driver's seat
-    panel.hidden=game.mode==='off'||gone; gameStart.hidden=gone||(game.mode==='off'&&!c.placed);
+    panel.hidden=game.mode==='off'||gone; gameStart.hidden=gone;
     gameStart.textContent=playing||game.mode==='waiting'?'■ End game':game.mode==='over'?'🏁 Play again':'🏁 Start game';
     if(panel.hidden) return;
     const left=Math.max(0,game.left), km=playing?Math.round(dashDist(t.lon,t.lat)/1000):0;

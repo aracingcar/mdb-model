@@ -1,0 +1,186 @@
+{
+  "source": "User-provided quality-filtered Bureau of Meteorology daily mean observations from mdb-river-pulse/data/river.db.",
+  "source_project_readme": "/Users/roryhackett/Desktop/mdb-river-pulse/README.md",
+  "record_table": "daily_obs",
+  "parameter": "flow",
+  "units": "m3/s (cumec)",
+  "selection": "gauges in, or within 3 km of, the system's model basins (results.db); basin is the nearest one",
+  "period": {
+    "start": "2012-06-30",
+    "end": "2026-10-18",
+    "daily_rows": 5224
+  },
+  "stations": {
+    "412002": {
+      "name": "LACHLAN R @ COWRA",
+      "lat": -33.833,
+      "lon": 148.6839,
+      "sdl_unit": "SS16",
+      "basin": "B5080586020",
+      "units": "m3/s",
+      "valid_daily_values": 5219,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "412005": {
+      "name": "LACHLAN @ BOOLIGAL",
+      "lat": -33.8695,
+      "lon": 144.8811,
+      "sdl_unit": "SS16",
+      "basin": "B5080590670",
+      "units": "m3/s",
+      "valid_daily_values": 5221,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "412012": {
+      "name": "WILLANDRA @ ROAD BDG",
+      "lat": -33.345664,
+      "lon": 145.879248,
+      "sdl_unit": "SS16",
+      "basin": "B5080584890",
+      "units": "m3/s",
+      "valid_daily_values": 5212,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "412027": {
+      "name": "LACHLAN @ REIDS FLAT",
+      "lat": -34.129803,
+      "lon": 149.020018,
+      "sdl_unit": "SS16",
+      "basin": "B5080589070",
+      "units": "m3/s",
+      "valid_daily_values": 4323,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "412042": {
+      "name": "WILLANDRA HOMESTEAD",
+      "lat": -33.197765,
+      "lon": 145.123197,
+      "sdl_unit": "SS16",
+      "basin": "LOWLAND-SS16",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "412045": {
+      "name": "LACHLAN @ CORRONG",
+      "lat": -34.2176,
+      "lon": 144.4638,
+      "sdl_unit": "SS16",
+      "basin": "B5080593360",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "412057": {
+      "name": "LACHLAN R @ NANAMI",
+      "lat": -33.5739,
+      "lon": 148.4181,
+      "sdl_unit": "SS16",
+      "basin": "B5080584750",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "412065": {
+      "name": "LACHLAN @ NARRAWA",
+      "lat": -34.397285,
+      "lon": 149.090731,
+      "sdl_unit": "SS16",
+      "basin": "B5080592820",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "412077": {
+      "name": "BELUBULA @ CARCOAR",
+      "lat": -33.614572,
+      "lon": 149.144915,
+      "sdl_unit": "SS16",
+      "basin": "B5080585950",
+      "units": "m3/s",
+      "valid_daily_values": 4060,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "412078": {
+      "name": "LACHLAN @ WHEALBAH",
+      "lat": -33.6544,
+      "lon": 145.2488,
+      "sdl_unit": "SS16",
+      "basin": "B5080590670",
+      "units": "m3/s",
+      "valid_daily_values": 5217,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "412129": {
+      "name": "MERRIMAJEEL @ B/BANL",
+      "lat": -33.794896,
+      "lon": 144.856509,
+      "sdl_unit": "SS16",
+      "basin": "B5080593360",
+      "units": "m3/s",
+      "valid_daily_values": 696,
+      "first_date": "2020-08-26",
+      "last_date": "2022-07-22"
+    },
+    "412187": {
+      "name": "WILLANDRA @ YILGA",
+      "lat": -33.2222,
+      "lon": 145.5053,
+      "sdl_unit": "SS16",
+      "basin": "LOWLAND-SS16",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "412189": {
+      "name": "BOOBEROI @ OFFTAKE 2",
+      "lat": -33.0419,
+      "lon": 146.638,
+      "sdl_unit": "SS16",
+      "basin": "B5080581690",
+      "units": "m3/s",
+      "valid_daily_values": 5103,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "412194": {
+      "name": "LACHLAN @ 4 MILE",
+      "lat": -34.248,
+      "lon": 144.1987,
+      "sdl_unit": "SS16",
+      "basin": "B5080593360",
+      "units": "m3/s",
+      "valid_daily_values": 5131,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    },
+    "412195": {
+      "name": "BELUBULA RV @ LYNDON",
+      "lat": -33.57694444,
+      "lon": 148.67527778,
+      "sdl_unit": "SS16",
+      "basin": "B5080585950",
+      "units": "m3/s",
+      "valid_daily_values": 5224,
+      "first_date": "2012-06-30",
+      "last_date": "2026-10-18"
+    }
+  },
+  "notes": [
+    "Blank cells preserve days with no recorded value; they are not interpolated.",
+    "The user confirmed these source records have been filtered for good quality.",
+    "Gauges on regulated rivers reflect dam releases, diversions and weirs as well as runoff.",
+    "A gauge within the buffer of two systems is listed in both."
+  ]
+}

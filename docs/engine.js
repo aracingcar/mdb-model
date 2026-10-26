@@ -234,7 +234,8 @@ function b64ToU16(b64) {
   const buf = Buffer.from(b64, 'base64'); return new Uint16Array(buf.buffer, buf.byteOffset, buf.length / 2).slice();
 }
 
-/** engine: one river system's engine data file; days: the date strings; rr / routing: {algorithm, params}; upstream:
+/** engine: one river system's engine data file; days: the date strings; rr / routing: {algorithm, params} (rr.params may be
+ * {system: params}); upstream:
  * {system: {basin: ML/d series}}, the outflows other systems returned (engine.inflows names the ones this system takes).
  * Returns the reach and river flows plus, per SDL unit, the flow at its outlet and its ecology scores, and the outflow of
  * every basin other systems take water from (engine.exports). */
@@ -248,7 +249,7 @@ function run(engine, days, rr, routing, upstream = {}) {
   const runoff = engine.basins.map((b, i) => {
     const p = Float64Array.from(P.subarray(i * n, (i + 1) * n), v => v / sc), e = Float64Array.from(PET.subarray(i * n, (i + 1) * n), v => v / sc);
     climate[b.id] = {P: p, PET: e};
-    const depth = simulate(p, e, rr.params);
+    const depth = simulate(p, e, Array.isArray(rr.params) ? rr.params : rr.params[engine.system]);  // one set, or one per system
     return depth.map(v => v * b.area * 1000 / 86400);  // mm/day over km2 -> m3/s
   });
   const inflows = {};

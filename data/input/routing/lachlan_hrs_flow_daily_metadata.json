@@ -1,0 +1,57 @@
+{
+  "source": "Bureau of Meteorology Hydrologic Reference Stations, daily streamflow (ML/day) with quality codes",
+  "source_url": "https://www.bom.gov.au/water/hrs/content/data/<station>/<station>_daily_ts.csv",
+  "station_details": "data/input/routing/hrs_station_details.csv",
+  "dataset_version": "September 2026",
+  "quality_codes": {
+    "A": "best available",
+    "B": "good",
+    "C": "poor",
+    "E": "unreliable",
+    "G": "gap filled"
+  },
+  "start": "2012-01-01",
+  "stations": {
+    "412028": {
+      "name": "Abercrombie River at Abercrombie",
+      "lat": -33.9548,
+      "lon": 149.3252,
+      "area_km2": 2631.0,
+      "sdl_unit": "SS16",
+      "basin": "B5080589310",
+      "days": 1075,
+      "last_date": "2014-12-10"
+    },
+    "412029": {
+      "name": "Boorowa River at Prossers Crossing",
+      "lat": -34.1441,
+      "lon": 148.8101,
+      "area_km2": 1552.0,
+      "sdl_unit": "SS16",
+      "basin": "B5080589300",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "412050": {
+      "name": "Crookwell River at Narrawa North",
+      "lat": -34.31125,
+      "lon": 149.167269,
+      "area_km2": 761.9,
+      "sdl_unit": "SS16",
+      "basin": "B5080592830",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "412066": {
+      "name": "Abercrombie River at Hadley No.2",
+      "lat": -34.1128,
+      "lon": 149.5978,
+      "area_km2": 1630.0,
+      "sdl_unit": "SS16",
+      "basin": "B5080589500",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    }
+  },
+  "attribution": "\u00a9 Commonwealth of Australia (Bureau of Meteorology); Hydrologic Reference Stations, CC BY 4.0."
+}

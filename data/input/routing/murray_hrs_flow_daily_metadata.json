@@ -1,0 +1,267 @@
+{
+  "source": "Bureau of Meteorology Hydrologic Reference Stations, daily streamflow (ML/day) with quality codes",
+  "source_url": "https://www.bom.gov.au/water/hrs/content/data/<station>/<station>_daily_ts.csv",
+  "station_details": "data/input/routing/hrs_station_details.csv",
+  "dataset_version": "September 2026",
+  "quality_codes": {
+    "A": "best available",
+    "B": "good",
+    "C": "poor",
+    "E": "unreliable",
+    "G": "gap filled"
+  },
+  "start": "2012-01-01",
+  "stations": {
+    "401009": {
+      "name": "Maragle Creek at Maragle",
+      "lat": -35.9266,
+      "lon": 148.1009,
+      "area_km2": 217.3,
+      "sdl_unit": "SS14",
+      "basin": "B5080603490",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "401012": {
+      "name": "Murray River at Biggara",
+      "lat": -36.31875,
+      "lon": 148.0519476,
+      "area_km2": 1257.0,
+      "sdl_unit": "SS14",
+      "basin": "B5080603680",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "401013": {
+      "name": "Jingellic Creek at Jingellic",
+      "lat": -35.8972,
+      "lon": 147.6917,
+      "area_km2": 395.0,
+      "sdl_unit": "SS14",
+      "basin": "B5080602520",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "401015": {
+      "name": "Bowna Creek at Yambla",
+      "lat": -35.91625,
+      "lon": 146.975091,
+      "area_km2": 290.1,
+      "sdl_unit": "SS14",
+      "basin": "B5080603340",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "401016": {
+      "name": "Welumba Creek at the Square",
+      "lat": -36.04,
+      "lon": 148.12,
+      "area_km2": 50.7,
+      "sdl_unit": "SS14",
+      "basin": "B5080603490",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "401017": {
+      "name": "Mannus Creek at Yarramundi",
+      "lat": -35.77,
+      "lon": 147.93,
+      "area_km2": 194.3,
+      "sdl_unit": "SS14",
+      "basin": "B5080603490",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "401203": {
+      "name": "Mitta Mitta River at Hinnomunjie",
+      "lat": -36.94763174,
+      "lon": 147.6073683,
+      "area_km2": 1519.0,
+      "sdl_unit": "SS2",
+      "basin": "B5080607230",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "401208": {
+      "name": "Cudgewa Creek at Berringama",
+      "lat": -36.21375,
+      "lon": 147.67782,
+      "area_km2": 351.1,
+      "sdl_unit": "SS2",
+      "basin": "B5080603370",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "401210": {
+      "name": "Snowy Creek below Granite Flat",
+      "lat": -36.56845402,
+      "lon": 147.413454,
+      "area_km2": 415.7,
+      "sdl_unit": "SS2",
+      "basin": "B5080606030",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "401212": {
+      "name": "Nariel Creek at Upper Nariel",
+      "lat": -36.446035,
+      "lon": 147.828535,
+      "area_km2": 251.6,
+      "sdl_unit": "SS2",
+      "basin": "B5080603670",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "401216": {
+      "name": "Big River at Jokers Creek",
+      "lat": -36.932475,
+      "lon": 147.472475,
+      "area_km2": 356.8,
+      "sdl_unit": "SS2",
+      "basin": "B5080608090",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "401217": {
+      "name": "Gibbo River at Gibbo Park",
+      "lat": -36.75616392,
+      "lon": 147.7088361,
+      "area_km2": 389.8,
+      "sdl_unit": "SS2",
+      "basin": "B5080607240",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "401220": {
+      "name": "Tallangatta Creek at McCallums",
+      "lat": -36.213,
+      "lon": 147.34,
+      "area_km2": 450.5,
+      "sdl_unit": "SS2",
+      "basin": "B5080604470",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "402204": {
+      "name": "Yackandandah Creek at Osbornes Flat",
+      "lat": -36.30375,
+      "lon": 146.9060831,
+      "area_km2": 284.1,
+      "sdl_unit": "SS3",
+      "basin": "B5080603880",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "402206": {
+      "name": "Running Creek at Running Creek",
+      "lat": -36.540185,
+      "lon": 147.044815,
+      "area_km2": 128.1,
+      "sdl_unit": "SS3",
+      "basin": "B5080603880",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "402213": {
+      "name": "Kinchington Creek at Osbornes Flat",
+      "lat": -36.31636,
+      "lon": 146.89375,
+      "area_km2": 123.8,
+      "sdl_unit": "SS3",
+      "basin": "B5080603880",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "402217": {
+      "name": "Flaggy Creek at Myrtleford Road Bridge",
+      "lat": -36.386265,
+      "lon": 146.876265,
+      "area_km2": 26.3,
+      "sdl_unit": "SS3",
+      "basin": "B5080603880",
+      "days": 0,
+      "last_date": NaN
+    },
+    "403213": {
+      "name": "Fifteen Mile Creek at Greta South",
+      "lat": -36.61953,
+      "lon": 146.24375,
+      "area_km2": 230.9,
+      "sdl_unit": "SS4",
+      "basin": "B5080604420",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "403214": {
+      "name": "Happy Valley Creek at Rosewhite",
+      "lat": -36.57756,
+      "lon": 146.81994,
+      "area_km2": 138.0,
+      "sdl_unit": "SS4",
+      "basin": "B5080606050",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "403217": {
+      "name": "Rose River at Matong North",
+      "lat": -36.824275,
+      "lon": 146.583225,
+      "area_km2": 180.3,
+      "sdl_unit": "SS4",
+      "basin": "B5080606070",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "403221": {
+      "name": "Reedy Creek at Woolshed",
+      "lat": -36.31125,
+      "lon": 146.60125,
+      "area_km2": 205.5,
+      "sdl_unit": "SS4",
+      "basin": "B5080604360",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "403222": {
+      "name": "Buffalo River at Abbeyard",
+      "lat": -36.91068,
+      "lon": 146.70125,
+      "area_km2": 415.0,
+      "sdl_unit": "SS4",
+      "basin": "B5080606070",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "403224": {
+      "name": "Hurdle Creek at Bobinawarrah",
+      "lat": -36.513,
+      "lon": 146.45,
+      "area_km2": 153.8,
+      "sdl_unit": "SS4",
+      "basin": "B5080605260",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "403226": {
+      "name": "Boggy Creek at Angleside",
+      "lat": -36.60562,
+      "lon": 146.36188,
+      "area_km2": 108.4,
+      "sdl_unit": "SS4",
+      "basin": "B5080605260",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    },
+    "403232": {
+      "name": "Morses Creek at Wandiligong",
+      "lat": -36.75154,
+      "lon": 146.97875,
+      "area_km2": 124.1,
+      "sdl_unit": "SS4",
+      "basin": "B5080606730",
+      "days": 5173,
+      "last_date": "2026-02-28"
+    }
+  },
+  "attribution": "\u00a9 Commonwealth of Australia (Bureau of Meteorology); Hydrologic Reference Stations, CC BY 4.0."
+}

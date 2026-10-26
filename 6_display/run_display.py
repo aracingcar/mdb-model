@@ -213,6 +213,7 @@ def _engine(system, basins, basin_forcing, regions, rivers, nodes):
     storages = SYSTEMS[system].get("storages", {})
     outlet = basin_outlets(nodes)
     return {
+        "system": system,
         "scale": 100,
         "basins": [{"id": b.subcatchment, "area": float(b.area_km2), "next": b.next_id, "lossRank": int(b.from_outlet),
                     "lon": round(b.geometry.representative_point().x, 4), "lat": round(b.geometry.representative_point().y, 4)}
