@@ -117,9 +117,45 @@ def build_nodes(basins, system):
     _place_storages(nodes, fine_deg, ids, storages)
     plains = basins[basins["subcatchment"].str.startswith("LOWLAND")].to_crs("EPSG:4326")
     watersheds = pd.concat([pd.Series(fine_deg.geometry.values, index=[ids[i] for i in fine_deg.index]), pd.Series(plains.geometry.values, index=plains["subcatchment"].values)])
-    result = apply_network(_along_river(nodes, watersheds, system), system)
+    result, watersheds = _fold_watersheds(apply_network(_along_river(nodes, watersheds, system), system), watersheds)
     result.attrs["watersheds"] = watersheds
     return result
+
+
+def _fold_watersheds(nodes, watersheds):
+    """Merge every watershed that only joins the river directly into the river node it drains to.
+
+    Those nodes have no channel of their own, so their runoff already enters that river node: adding their share and
+    area to it leaves the routed flows unchanged and leaves one node, with one drawn area, per river point. Those that drain
+    into another basin's node (their own basin has no river node) merge into one per basin and drain. Outlets and storages stay.
+    """
+    down, basin = dict(zip(nodes["id"], nodes["next"])), dict(zip(nodes["id"], nodes["basin"]))
+    keep = set(nodes.loc[nodes["river"] | nodes["outlet"] | (nodes["storage"] != ""), "id"])
+
+    def target(i):
+        seen = set()
+        while i not in keep and i not in seen:
+            seen.add(i)
+            i = down.get(i, "")
+        return i if i in keep else None
+
+    into = {i: t for i in nodes["id"] if i not in keep and (t := target(i)) is not None and basin[t] == basin[i]}
+    loose = nodes[~nodes["id"].isin(keep | set(into))]  # watersheds that join a node of another basin: those of one basin that drain to the same node become one
+    for _, group in loose.groupby(["basin", "next"]):
+        biggest = group.loc[group["area_km2"].idxmax(), "id"]
+        into.update({i: biggest for i in group["id"] if i != biggest})
+    if not into:
+        return nodes, watersheds
+    nodes = nodes.copy()
+    for col in ("share", "area_km2"):
+        added = nodes[col].groupby(nodes["id"].map(into)).sum()
+        nodes[col] += nodes["id"].map(added).fillna(0)
+    nodes["next"] = [into.get(n, n) for n in nodes["next"]]
+    merged = watersheds.copy()
+    folded = pd.Series(into)
+    for t, group in folded.groupby(folded):
+        merged[t] = shapely.union_all([watersheds[t], *watersheds[group.index].values])
+    return nodes[~nodes["id"].isin(into)].reset_index(drop=True), merged.drop(index=list(into))
 
 
 def _along_river(nodes, watersheds, system):
