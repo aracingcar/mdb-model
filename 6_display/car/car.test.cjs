@@ -127,4 +127,30 @@ assert(drySpin.turns<.75&&drySpin.far>50,`dry tyres grip and carve a wide arc ($
   assert.deepEqual(reliefs,[1,1],'relief restored when the boat is put away');
   assert.equal(b.place([1.2,1.2],'car'),true,'the car still works after the boat'); assert.equal(b.state.vehicle,'car');
 }
-console.log('Car placement, drag cancellation, invalid drops, animated fall, delayed reset, camera restoration, reuse, arrow keys, wet-boost donuts, the nitro tank and the river boat passed.');
+// Town dash: Start switches the towns on and names a town; arriving scores and names the next; the clock runs out.
+{
+  const flat={x0:0,y0:12,step:1,NR:13,NC:13,GZ:new Float32Array(169).fill(10),outline:[[[.1,.1],[11.9,.1],[11.9,11.9],[.1,11.9],[.1,.1]]],getExaggeration:()=>1};
+  const places=[{name:'Alpha',lon:2,lat:9},{name:'Beta',lon:5,lat:6},{name:'Gamma',lon:9,lat:3},{name:'Outside',lon:30,lat:3}];
+  let townsOn=false, redrawn=0;
+  const g=context.window.createCarMechanics({deck:{SimpleMeshLayer:class{constructor(p){Object.assign(this,p);}},ScatterplotLayer:class{constructor(p){Object.assign(this,p);}},
+    LineLayer:class{constructor(p){Object.assign(this,p);}},TextLayer:class{constructor(p){Object.assign(this,p);}}},map,terrain:flat,
+    getRelief:()=>1,setRelief(){},refresh:()=>redrawn++,pickTerrain:()=>picked,isWet:()=>0,getPlaces:()=>places,setTowns:on=>{townsOn=on;}});
+  const start=elements.find(e=>e.id==='game-start');
+  assert(start,'the Start button exists when the page supplies towns');
+  start.listeners.click();
+  assert.equal(townsOn,true,'Start switches the towns on'); assert.equal(g.game.mode,'waiting','waits for the car to be placed');
+  g.place([6,6]);
+  g.tick(.01);
+  assert.equal(g.game.mode,'playing'); assert(g.game.target&&g.game.target.name!=='Outside','a town on the map is named');
+  assert(g.game.left>8,`the clock allows time for the drive (${g.game.left.toFixed(1)} s)`);
+  assert.equal(g.layers().filter(l=>l.id?.startsWith('dash-')).length,3,'the target is marked on the map');
+  const before=g.game.left; g.tick(.05);
+  assert(g.game.left<before,'the clock counts down');
+  const first=g.game.target; g.state.pos=[first.lon,first.lat]; g.tick(.01);
+  assert.equal(g.game.score,1,'arriving scores'); assert.notEqual(g.game.target,first,'and names a new town');
+  g.game.left=.01; g.tick(.05);
+  assert.equal(g.game.mode,'over','running out of time ends the game'); assert.equal(g.game.best,1);
+  start.listeners.click();
+  assert.equal(g.game.mode,'playing','Play again restarts at once'); assert.equal(g.game.score,0);
+}
+console.log('Car placement, drag cancellation, invalid drops, animated fall, delayed reset, camera restoration, reuse, arrow keys, wet-boost donuts, the nitro tank, the river boat and the town dash passed.');

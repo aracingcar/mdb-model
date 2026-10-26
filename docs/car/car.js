@@ -1,5 +1,5 @@
 /* MDB Model's drivable vehicles: a terrain car and a river boat. This file is copied into docs/car for GitHub Pages. */
-window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief, refresh, pickTerrain, isWet, playWhileDriving, getRivers, conditionsAt, waterAt, pickRiver, setReliefs }) {
+window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief, refresh, pickTerrain, isWet, playWhileDriving, getRivers, conditionsAt, waterAt, pickRiver, setReliefs, getPlaces, setTowns }) {
   const playerCar = { kind:'playerCar', vehicle:'car', waterTop:0, pos:[0,0], placed:false, heading:0, speed:0, vel:[0,0], yawRate:0, steer:0, spin:false, nitro:1, nitroWait:0, nitroLocked:false, boosting:false, selected:false, jump:0, jumpV:0, groundZ:null, groundV:0, pitch:0, roll:0, pitchV:0, rollV:0, accel:0, grade:0, bank:0, stalled:false, wet:0, slip:0, skids:[], offEdge:false, airZ:0, airV:0, falling:false, fallZ:0, fallV:0, fallTime:0, fallGravity:0 };
   const driveKeys = new Set(), driveCodes = new Set(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','ShiftLeft','ShiftRight']);
   const ARROWS = { ArrowUp:'KeyW', ArrowLeft:'KeyA', ArrowDown:'KeyS', ArrowRight:'KeyD' }; // arrows drive exactly like WASD
@@ -30,6 +30,8 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     b.setAttribute('aria-label', `Place ${v.noun}: drag onto ${v.where}, or click then click a location`);
     tools.append(b);
   }
+  const gameStart = getPlaces && document.createElement('button');
+  if (gameStart) { gameStart.id = 'game-start'; gameStart.type = 'button'; gameStart.className = 'game-start'; gameStart.title = 'Town dash: reach each town named before the clock runs out'; tools.append(gameStart); }
   const towns = document.getElementById('towns-toggle');
   if (towns) tools.append(towns);
   const detailToggle = document.getElementById('detail-toggle');
@@ -63,6 +65,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     exitChase(true);
     Object.assign(playerCar,{placed:false,selected:false,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,jump:0,jumpV:0,groundZ:null,groundV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
     driveKeys.clear(); choosing=false; drawRadar(); drawHud();
+    if(game.mode==='playing') dashFinish('You left the map');
     for (const k in docks) docks[k].classList.remove('placed','choosing'); hint.classList.remove('active');
     setHint(`Drag the ${noun} onto the map to drive again.`); refresh();
   }
@@ -264,7 +267,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
       updateTriggers:{getColor:now} });
   }
 
-  const layers=()=>[skidLayer(),layer()];
+  const layers=()=>[skidLayer(),layer(),...dashLayers()];
 
   function click(info) {
     if(info.object?.kind!=='playerCar') return;
@@ -686,6 +689,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     const n=Math.ceil(dt/(1/120)); // fixed small substeps keep the result independent of frame rate
     for(let i=0;i<n&&c.selected;i++) physicsStep(dt/n,input,mpp);
     if(c.selected&&!c.falling) { chaseCamera(dt); updateHint(); }
+    if(game.mode!=='off') dashStep(dt,old);
     drawRadar(); drawHud();
     if(c.falling||!c.placed) return true;
     return Math.abs(c.pos[0]-old[0])+Math.abs(c.pos[1]-old[1])>0||c.heading!==old[2]||Math.abs(c.pitch-old[5])+Math.abs(c.roll-old[6])>1e-5||c.speed!==old[3]||c.jump!==old[4];
@@ -729,5 +733,95 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     requestAnimationFrame(frame);
   }
 
-  return { layer, layers, click, hover, start, tick, state: playerCar, driveKeys, place, reset, isPlacing:()=>!!dragging||choosing };
+  // ---- Town dash, an endless minigame. Start switches the towns on and names one to reach before the clock runs out. Reaching it
+  // names the next with a fresh clock, sized to the distance and tightening with every town, until the time is up.
+  const DASH={ ARRIVE_PX:70, MIN_PX:150, CHOICES:12, BASE_S:8, SLACK:1.5, REF_KMH:100, TIGHTEN:.03, FLOOR:.7 }; // ARRIVE_PX/MIN_PX: on-screen radius to arrive, and how far away the next town is at least; the clock allows a REF_KMH drive plus SLACK
+  const game={ mode:'off', target:null, left:0, score:0, best:0, message:'' }; // mode: off, waiting (for the car to be placed), playing, over
+  const panel=document.createElement('div'); panel.id='game-panel'; panel.hidden=true; panel.setAttribute('role','status');
+  panel.innerHTML='<span class="game-arrow" aria-hidden="true">▲</span><div class="game-main"><small></small><b></b></div><div class="game-clock"></div><div class="game-score"></div>';
+  document.body.append(panel);
+  const gArrow=panel.querySelector('.game-arrow'), gSmall=panel.querySelector('.game-main small'), gName=panel.querySelector('.game-main b'), gClock=panel.querySelector('.game-clock'), gScore=panel.querySelector('.game-score');
+  const dashDist=(lon,lat)=>Math.hypot((lon-playerCar.pos[0])*Math.cos(playerCar.pos[1]*Math.PI/180),lat-playerCar.pos[1])*111320;
+  function dashNext() {
+    const min=DASH.MIN_PX*metresPerPixel(), far=[];
+    for(const p of getPlaces()) if(p!==game.target&&onTerrain(p.lon,p.lat)) { const d=dashDist(p.lon,p.lat); if(d>min) far.push([d,p]); }
+    far.sort((a,b)=>a[0]-b[0]);
+    const pool=far.slice(0,DASH.CHOICES);
+    if(!pool.length) return false;
+    const [d,t]=pool[Math.floor(Math.random()*pool.length)];
+    game.target=t;
+    game.left=(DASH.BASE_S+d/(DASH.REF_KMH/3.6*carScale()*SPEED_SCALE)*DASH.SLACK)*Math.max(DASH.FLOOR,1-DASH.TIGHTEN*game.score);
+    return true;
+  }
+  function dashBegin() {
+    game.mode='playing'; game.score=0; game.message='';
+    if(!dashNext()) dashFinish('No towns to drive to');
+  }
+  function dashFinish(message) {
+    game.mode='over'; game.target=null; game.message=message; game.best=Math.max(game.best,game.score);
+    dashRender(); refresh();
+  }
+  // Did the car's step from -> now pass within the arrival radius? Checked along the step, since a fast car covers kilometres per frame.
+  function dashReached(from) {
+    const t=game.target, k=Math.cos(t.lat*Math.PI/180)*111320, r=DASH.ARRIVE_PX*metresPerPixel();
+    const ax=(from[0]-t.lon)*k, ay=(from[1]-t.lat)*111320, bx=(playerCar.pos[0]-t.lon)*k, by=(playerCar.pos[1]-t.lat)*111320;
+    const dx=bx-ax, dy=by-ay, len=dx*dx+dy*dy, u=len>0?clamp(-(ax*dx+ay*dy)/len,0,1):0;
+    return Math.hypot(ax+dx*u,ay+dy*u)<r;
+  }
+  function dashStep(dt,from) {
+    if(game.mode==='waiting'&&playerCar.placed&&playerCar.vehicle==='car'&&!playerCar.falling) dashBegin();
+    if(game.mode==='playing'&&!playerCar.falling) {
+      game.left-=dt;
+      if(dashReached(from)) { game.score++; game.message=`${game.target.name}!`; if(!dashNext()) dashFinish('You visited every town'); refresh(); }
+      else if(game.left<=0) dashFinish("Time's up");
+    }
+    dashRender();
+  }
+  let dashText='';
+  function dashRender() {
+    const playing=game.mode==='playing', t=game.target, c=playerCar;
+    panel.hidden=game.mode==='off';
+    gameStart.textContent=playing||game.mode==='waiting'?'■ End game':game.mode==='over'?'🏁 Play again':'🏁 Start game';
+    if(panel.hidden) return;
+    const left=Math.max(0,game.left), km=playing?Math.round(dashDist(t.lon,t.lat)/1000):0;
+    const small=playing?`Go to · ${km} km${game.message?` · ${game.message}`:''}`:game.mode==='over'?game.message:'Town dash',
+      name=playing?t.name:game.mode==='over'?`${game.score} ${game.score===1?'town':'towns'} · best ${game.best}`:'Drag the car onto the map to start the clock',
+      clock=playing?`${left.toFixed(left<10?1:0)} s`:'', score=playing?`${game.score} so far`:'';
+    const text=[small,name,clock,score].join('|');
+    if(text!==dashText) { dashText=text; gSmall.textContent=small; gName.textContent=name; gClock.textContent=clock; gScore.textContent=score; }
+    gClock.classList.toggle('low',playing&&left<5);
+    gArrow.hidden=!playing;
+    if(playing) { // points to the town, relative to the way the car faces
+      const bearing=Math.atan2((t.lon-c.pos[0])*Math.cos(c.pos[1]*Math.PI/180),t.lat-c.pos[1]);
+      gArrow.style.transform=`rotate(${((bearing-c.heading)*180/Math.PI).toFixed(1)}deg)`;
+    }
+  }
+  function dashLayers() {
+    if(game.mode!=='playing'||!game.target) return [];
+    const t=game.target, ground=terrainHeightAt(t.lon,t.lat), top=ground+130*chaseMpp(), blend={ depthWriteEnabled:false, depthCompare:'always' };
+    return [
+      new deck.ScatterplotLayer({ id:'dash-target', data:[t], getPosition:d=>[d.lon,d.lat,ground], getRadius:DASH.ARRIVE_PX*metresPerPixel(), radiusUnits:'meters',
+        filled:true, getFillColor:[229,87,53,70], stroked:true, getLineColor:[229,87,53,255], getLineWidth:3, lineWidthUnits:'pixels', pickable:false, parameters:blend,
+        updateTriggers:{getPosition:[getRelief(),t.name]} }),
+      new deck.LineLayer({ id:'dash-beacon', data:[t], getSourcePosition:d=>[d.lon,d.lat,ground], getTargetPosition:d=>[d.lon,d.lat,top], getColor:[229,87,53,255],
+        getWidth:4, widthUnits:'pixels', pickable:false, parameters:blend, updateTriggers:{getSourcePosition:[getRelief(),t.name],getTargetPosition:[getRelief(),t.name,top]} }),
+      new deck.TextLayer({ id:'dash-label', data:[t], getPosition:d=>[d.lon,d.lat,top], getText:d=>d.name, getSize:18, sizeUnits:'pixels', fontFamily:'Arial, sans-serif', fontWeight:700,
+        getColor:[255,255,255,255], getTextAnchor:'middle', getAlignmentBaseline:'bottom', getPixelOffset:[0,-6], background:true, getBackgroundColor:[229,87,53,235], backgroundPadding:[6,3],
+        billboard:true, pickable:false, parameters:blend, updateTriggers:{getPosition:[getRelief(),t.name,top]} }),
+    ];
+  }
+  if(gameStart) {
+    dashRender();
+    gameStart.addEventListener('click',()=>{
+      if(game.mode==='playing') { dashFinish('Game ended'); return; }
+      if(game.mode==='waiting') { game.mode='off'; dashRender(); return; }
+      setTowns?.(true);
+      game.score=0; game.message=''; game.target=null;
+      if(playerCar.placed&&playerCar.vehicle==='car'&&!playerCar.falling) { if(!playerCar.selected) toggleSelected(); dashBegin(); }
+      else game.mode='waiting';
+      dashRender(); refresh();
+    });
+  }
+
+  return { layer, layers, click, hover, start, tick, state: playerCar, game, driveKeys, place, reset, isPlacing:()=>!!dragging||choosing };
 };

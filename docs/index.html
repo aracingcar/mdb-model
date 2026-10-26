@@ -1522,6 +1522,7 @@ function initMap() {
       return before;
     },
     playWhileDriving:()=>{si=0;$('speed').textContent=speeds[si]+' d/s';if(!playing)$('play').click();},
+    getPlaces:()=>PLACES, setTowns:on=>{ showTowns=on; $('townsIn').checked=on; },
     isWet:riverWetAt,pickTerrain:(x,y)=>overlay?.pickObject({x,y,layerIds:['terrain-'+meshGen],unproject3D:true})?.coordinate});
   const lighting = new deck.LightingEffect({ ambientLight:new deck.AmbientLight({ color:[255,255,255], intensity:0.75 }), dirLight:new deck.DirectionalLight({ color:[255,248,238], intensity:0.9, direction:[1.0,-1.1,-0.85] }) });
   // The near clipping plane scales with camera altitude, and the exaggerated terrain is kilometres high: close up (the boat)

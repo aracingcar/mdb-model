@@ -78,3 +78,25 @@
   .car-nitro { width:110px; right:150px; bottom:58px; }
   .car-here { width:200px; left:12px; top:12px; }
 }
+#map-tools .game-start {
+  padding:9px 12px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94);
+  color:var(--head); font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;
+}
+#map-tools .game-start:focus-visible { outline:2px solid #2d6aa8; outline-offset:2px; }
+#game-panel {
+  position:absolute; z-index:8; top:14px; left:50%; transform:translateX(-50%);
+  display:flex; align-items:center; gap:14px; padding:9px 16px; border-radius:8px;
+  background:rgba(20,24,30,.88); color:#fff; font:12px/1.35 var(--sans); box-shadow:0 3px 14px rgba(0,0,0,.35);
+  pointer-events:none; max-width:calc(100% - 24px);
+}
+#game-panel[hidden] { display:none; }
+#game-panel .game-arrow { font-size:22px; color:#ff8a65; transition:transform .1s linear; }
+#game-panel .game-main small { display:block; color:rgba(255,255,255,.65); font-size:10px; }
+#game-panel .game-main b { font-size:18px; }
+#game-panel .game-clock { font:700 22px/1 var(--sans); font-variant-numeric:tabular-nums; min-width:58px; text-align:right; }
+#game-panel .game-clock.low { color:#ff5252; }
+#game-panel .game-score { color:rgba(255,255,255,.65); font-size:11px; }
+@media (max-width:760px) {
+  #game-panel { top:50px; gap:10px; padding:7px 12px; }
+  #game-panel .game-main b { font-size:15px; }
+}
