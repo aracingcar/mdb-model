@@ -171,14 +171,38 @@ def compact_floats(text):
 AREA_SIMPLIFY_DEG = 0.004  # ~400 m: the runoff editor's node areas keep their shared borders but not every vertex of the HydroBASINS outline
 
 
+DOT_DISC_DEG, DOT_BRIDGE_DEG, DOT_SPOT_DEG = 0.01, 0.002, 0.0005  # ~1 km disc round a dot that falls outside its area, the ~200 m strip joining it to the area, and the ~50 m spot every dot keeps
+
+
+def _contain_dots(areas, dots):
+    """Give every node an area that holds its dot (a point on the river): an area that misses it takes in a small disc round the
+    dot and a strip to the area (a node with no watershed, such as an added junction, gets the disc alone). The patch is carved
+    from the neighbours it crosses but never from the spot round another dot nor an earlier patch, so the areas still do not overlap."""
+    areas, held = list(areas), shapely.Polygon()
+    spots = [shapely.buffer(d, DOT_SPOT_DEG) for d in dots]
+    for k, dot in enumerate(dots):
+        if not areas[k].is_empty and areas[k].covers(dot):
+            continue
+        disc = shapely.buffer(dot, DOT_DISC_DEG)
+        patch = disc if areas[k].is_empty else shapely.union(shapely.buffer(shapely.shortest_line(areas[k], dot), DOT_BRIDGE_DEG), disc)
+        patch = shapely.union(shapely.difference(patch, shapely.union_all([held, *spots[:k], *spots[k + 1:]])), spots[k])
+        areas = [shapely.union(g, patch) if j == k else g if g.is_empty else shapely.difference(g, patch) for j, g in enumerate(areas)]
+        held = shapely.union(held, patch)
+    return areas
+
+
 def _areas(nodes, basins):
     """The runoff areas the page's editor starts from: each node's watershed inside its basin, as {node id: rings of [lon, lat]}.
-    Neighbouring areas are simplified together, so a shared border stays shared and its vertices can be dragged as one."""
+    Neighbouring areas are simplified together, so a shared border stays shared and its vertices can be dragged as one.
+    Every node has an area, and it holds the node's dot."""
     watersheds = nodes.attrs["watersheds"]
     parent = basins.set_index("subcatchment").geometry.make_valid()
-    rows = [(n.id, shapely.intersection(shapely.make_valid(watersheds[n.id]), parent[n.basin])) for n in nodes.itertuples() if n.id in watersheds.index]
+    empty = shapely.Polygon()
+    rows = [(n.id, shapely.intersection(shapely.make_valid(watersheds[n.id]), parent[n.basin]) if n.id in watersheds.index else empty) for n in nodes.itertuples()]
     polygonal = [shapely.union_all([p for p in shapely.get_parts(g) if p.geom_type == "Polygon"]) if not g.is_empty else g for _, g in rows]
     simple = shapely.coverage_simplify(np.array(polygonal, dtype=object), AREA_SIMPLIFY_DEG, simplify_boundary=False)
+    dots = nodes.set_index("id").loc[[i for i, _ in rows]]
+    simple = _contain_dots(simple, shapely.points(dots["lon"].to_numpy(), dots["lat"].to_numpy()))
     return {"cells": {i: [r for r in _rings(g) if len(r) > 3] for (i, _), g in zip(rows, simple) if not g.is_empty}}
 
 

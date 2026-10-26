@@ -974,6 +974,7 @@ let rrSourceNodes = [], rrSelected = null, rrMode = null, rrHistory = [], rrBase
 const rrKey = sys => `runoff-areas-draft-v1:${D.engineHash}:${sys}`;
 const rrAreaFiles = {};
 const rrAreas = sys => rrAreaFiles[sys] ||= fetch(D.areas[sys]).then(r => { if (!r.ok) throw new Error(D.areas[sys]); return r.json(); });
+const RR_DISC_DEG = 0.01;  // radius of the area a routing node made in the editor starts with, about 1 km
 const rrKm = (p, lat0) => [p[0] * Math.cos(lat0 * Math.PI / 180) * 111.32, p[1] * 110.57];
 function rrRingKm2(ring, V) {
   const lat0 = ring.reduce((s, i) => s + V[i][1], 0) / ring.length, pts = ring.map(i => rrKm(V[i], lat0));
@@ -1174,6 +1175,15 @@ function rrFollowRouting(engine) {
   for (const c of RR.cells) {
     if (at[c.id]) c.dot = [at[c.id].lon, at[c.id].lat];
     c.river = !!at[c.id];
+  }
+  // a node made in the routing editor has no watershed: it takes a small disc round its dot, so every routing node has a runoff area
+  const has = new Set(RR.cells.map(c => c.id));
+  for (const n of graph.nodes) {
+    if (has.has(n.id) || !(n.model?.share > 0) || !(n.model.area > 0)) continue;
+    const ring = Array.from({ length: 8 }, (_, k) => { RR.V.push([n.lon + RR_DISC_DEG * Math.cos(k * Math.PI / 4) / Math.cos(n.lat * Math.PI / 180), n.lat + RR_DISC_DEG * Math.sin(k * Math.PI / 4)]); return RR.V.length - 1; });
+    const cell = { id: n.id, basin: n.model.basin, rings: [ring], river: true, dot: [n.lon, n.lat], share0: n.model.share, area0: n.model.area };
+    const km2 = rrCellKm2(cell, RR.V);
+    RR.cells.push(Object.assign(cell, { dens: cell.share0 / km2, densKm2: cell.area0 / km2 }));
   }
 }
 // ---- end runoff area editor ----

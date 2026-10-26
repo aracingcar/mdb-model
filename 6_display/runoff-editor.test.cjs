@@ -90,8 +90,18 @@ assert.equal(run('JSON.stringify(RR.cells[0].dot)'), '[145.16,-34.96]');
 assert.equal(run('RR.cells[0].river'), true);
 near(shares().b, .7, 'area followed the redirect');
 
+// A node made in the routing editor (no watershed) gets a small area round its dot, holding its share, so the two sets of nodes match.
+run(`RR.route.graph.nodes.push({ id: 'tributary-1', lon: 145.3, lat: -34.9, model: { basin: 'B', share: .1, area: 40 } })`);
+run('rrFollowRouting({ nodes: [{ id: "c" }, { id: "b", river: true }] })');
+const made = run('RR.cells.find(c => c.id === "tributary-1")');
+assert.ok(made && made.river && run('rrCellKm2(RR.cells.find(c => c.id === "tributary-1"), RR.V)') > 0);
+assert.deepEqual(JSON.parse(JSON.stringify(made.dot)), [145.3, -34.9]);
+near(made.dens * run('rrCellKm2(RR.cells.find(c => c.id === "tributary-1"), RR.V)'), .1, 'new area carries the node share');
+run('rrFollowRouting({ nodes: [{ id: "c" }, { id: "b", river: true }] })');
+assert.equal(run('RR.cells.filter(c => c.id === "tributary-1").length'), 1); // not made twice
+
 // Drafts survive a pack and unpack.
 const round = run('rrUnpack(rrPack(RR))');
-assert.equal(round.cells.length, 2);
+assert.equal(round.cells.length, 3);
 assert.throws(() => run('rrUnpack({ V: [], cells: [{ id: "x", rings: [[0, 1, 2]], dot: [0, 0] }], removed: [] })'));
 console.log('Runoff area editor: build, shared corners, fixed borders, split, delete, shares and engine overlay passed.');
