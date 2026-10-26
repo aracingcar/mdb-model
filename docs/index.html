@@ -158,6 +158,7 @@
   #site-menu #tune label { display:block; padding:4px 0; color:var(--head); }
   #site-menu #tune output { float:right; color:var(--dim); }
   #site-menu #tune input { display:block; width:100%; margin:4px 0 0; }
+  #site-menu #tune input[type=checkbox] { display:inline; width:auto; margin:0 6px 0 0; }
   #site-menu a:hover, #site-menu a:focus-visible { background:#f2f4f5; }
   body.car-driving #side { display:none; }  /* driving: the car's own HUD replaces the side panel and the map takes the width */
   body.car-driving #map { left:0; top:0; bottom:0; }
@@ -266,6 +267,8 @@
     <label>Acceleration <output></output><input type="range" id="tune-accel" min="0.2" max="1" step="0.05" value="1"></label>
     <label>Braking <output></output><input type="range" id="tune-brake" min="0.5" max="2" step="0.05" value="1"></label>
     <label>Steering <output></output><input type="range" id="tune-steer" min="0.5" max="2" step="0.05" value="1"></label>
+    <div class="tune-h">TERRAIN</div>
+    <label><input type="checkbox" id="blocky"> Show the 4 km grid (no smoothing)</label>
   </div>
 </details>
 <div id="map"></div>
@@ -576,7 +579,7 @@ $('focus').onchange = e => { setFocus(e.target.value); update(); if (!FULL) load
 function maxQ() { return (!FULL && D.maxQ) || Math.max(...Object.values(D.sdl).map(s => Math.max(...s.flow)), ...Object.values(D.reachFlow).map(a => Math.max(...a))); }
 
 // ---- Method choice: the defaults are precomputed; any other pair is recalculated here (engine.js in a worker) and saved in IndexedDB ----
-const ENGINE_VERSION = 6;  // bump when docs/engine.js changes what it computes, so saved results are not reused and browsers fetch the new engine
+const ENGINE_VERSION = 7;  // bump when docs/engine.js changes what it computes, so saved results are not reused and browsers fetch the new engine
 const DEFAULT_RR = D.runoff.selected, DEFAULT_RT = D.routing.selected;
 const DEFAULT_RESULTS = { reachFlow: D.reachFlow, sdl: D.sdl, riverFlow: { ...BF } };
 function applyResults(r) {
@@ -2055,6 +2058,8 @@ const STORAGE_LABEL_ZOOM = 7.5;
 const LAT0 = T.y0 - NR * T.step / 2, LON0 = T.x0 + NC * T.step / 2, MX = 111320 * Math.cos(LAT0 * Math.PI / 180), MY = 110574;
 const quadOk = (r, c) => r >= 0 && c >= 0 && r < NR - 1 && c < NC - 1 && [0, 1, NC, NC + 1].every(k => !isNaN(GZ[r * NC + c + k]));
 let terrainMesh = null, wallMesh = null;
+let BLOCKY = false;  // Settings: show the 4 km cells as they are (flat facets, hard-edged colour) instead of a smoothed surface
+try { BLOCKY = localStorage.getItem('terrain-blocky') === '1'; } catch (e) {}
 const E = D.evap, EB = E.bbox, EW = EB[2] - EB[0], EH = EB[3] - EB[1];
 // ---- clip every terrain triangle to the valley outline once (grid units u = column, v = -row, north up); heights are applied per relief setting
 // The grid quad (r,c) is split along the fixed diagonal b-d into triangles 0 = [a,d,b] and 1 = [b,d,e], both counter-clockwise.
@@ -2197,6 +2202,16 @@ function buildMeshes() {
     w.idx.push(base, base + 1, base + 2, base + 2, base + 1, base + 3);
   }
   wallMesh = new luma.Geometry({ topology: 'triangle-list', attributes: { positions: { size: 3, value: new Float32Array(w.pos) }, normals: { size: 3, value: new Float32Array(w.nor) }, texCoords: { size: 2, value: new Float32Array(w.uv) } }, indices: { size: 1, value: new Uint32Array(w.idx) } });
+  if (BLOCKY) {  // give every triangle its own vertices and its face normal, so the grid shows
+    const P = [], N = [], U = [], I = [];
+    for (let t = 0; t < idx.length; t += 3) {
+      const [a, b, c] = [idx[t], idx[t + 1], idx[t + 2]], at = i => [pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]];
+      const A = at(a), B = at(b), C = at(c), u = B.map((x, i) => x - A[i]), v = C.map((x, i) => x - A[i]);
+      const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], l = Math.hypot(...n) || 1;
+      for (const i of [a, b, c]) { I.push(P.length / 3); P.push(...at(i)); N.push(n[0] / l, n[1] / l, n[2] / l); U.push(uv[i * 2], uv[i * 2 + 1]); }
+    }
+    pos.length = nor.length = uv.length = idx.length = 0; pos.push(...P); nor.push(...N); uv.push(...U); idx.push(...I);
+  }
   terrainMesh = new luma.Geometry({ topology: 'triangle-list', attributes: { positions: { size: 3, value: new Float32Array(pos) }, normals: { size: 3, value: new Float32Array(nor) }, texCoords: { size: 2, value: new Float32Array(uv) } }, indices: { size: 1, value: new Uint32Array(idx) } });
 }
 
@@ -2223,7 +2238,10 @@ function paintEvap(d) {
   const val = k => EV[a + k] * (1 - f) + EV[b + k] * f;
   for (let p = 0; p < px; p++) {
     const k0 = EI[p * 4]; let v = 0;
-    if (k0 !== 65535) {
+    if (k0 !== 65535 && BLOCKY) {  // the nearest 4 km cell, undiluted
+      const k = EI[p * 4 + (EWT[p * 2 + 1] >= 128 ? 2 : 0) + (EWT[p * 2] >= 128 ? 1 : 0)];
+      v = val(k === 65535 ? k0 : k);
+    } else if (k0 !== 65535) {
       const fx = EWT[p * 2] / 255, fy = EWT[p * 2 + 1] / 255;
       v = (val(k0) * (1 - fx) + val(EI[p * 4 + 1]) * fx) * (1 - fy) + (val(EI[p * 4 + 2]) * (1 - fx) + val(EI[p * 4 + 3]) * fx) * fy;
     }
@@ -2232,7 +2250,7 @@ function paintEvap(d) {
   }
   evCtx.putImageData(evImg, 0, 0);
   const big = evBig[evCanvas === evBig[0] ? 1 : 0], bg = big.getContext('2d');
-  bg.imageSmoothingEnabled = true; bg.imageSmoothingQuality = 'high';
+  bg.imageSmoothingEnabled = !BLOCKY; bg.imageSmoothingQuality = 'high';
   bg.drawImage(evSmall, 0, 0, MW, MH);
   evCanvas = big; return big;  // opaque: the terrain mesh is clipped to the outline, so the wall shares this texture
 }
@@ -2793,6 +2811,11 @@ $('townsIn').onchange = e => { showTowns = e.target.checked; if (overlay) overla
 $('storagesIn').onchange = e => { showStorages = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 $('sdlIn').onchange = e => { showSdl = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 $('riverReliefIn').oninput = e => { riverRelief = +e.target.value; cache = { day: -1 }; update(); };
+$('blocky').checked = BLOCKY;
+$('blocky').onchange = e => {
+  BLOCKY = e.target.checked; try { localStorage.setItem('terrain-blocky', BLOCKY ? '1' : '0'); } catch (err) {}
+  evDay = -1; buildMeshes(); meshGen++; cache = { day: -1 }; update();
+};
 $('reliefIn').oninput = e => { relief = +e.target.value; TERR = TERR0 * relief; buildZ(); buildMeshes(); meshGen++; cache = { day: -1 }; update(); };
 function tick(now) {
   if (!playing || !leading) return;
