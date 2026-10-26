@@ -164,11 +164,15 @@
   body.panel #towns-toggle, body.panel #detail-toggle, body.panel #sdl-toggle, body.panel #storages-toggle { display:none; }
   body.panel #map { left:0; top:0; }
   #panel-info { display:none; }
-  body.panel #panel-info { position:absolute; left:14px; right:14px; top:8px; z-index:6; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; padding:8px 12px 11px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); font-size:11px; }
+  body.panel #panel-info { position:absolute; left:14px; right:14px; top:8px; z-index:6; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:0 14px; padding:8px 12px 11px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); font-size:11px; }
   #panel-info span { display:block; color:var(--dim); font-weight:600; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #panel-info .val { display:flex; align-items:center; gap:6px; margin:3px 0 5px; color:var(--head); font-size:15px; font-weight:600; white-space:nowrap; }
   #panel-info .val i { width:11px; height:11px; border-radius:2px; flex:none; }
   #panel-info .track { position:relative; height:4px; border-radius:2px; }
+  #pi-bp { grid-column:1 / -1; justify-self:end; margin:4px -8px -8px 0; padding:0 4px; border:0; background:none; color:var(--dim); font:inherit; font-size:10px; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; opacity:.8; }
+  #pi-bp:hover { color:var(--head); }
+  #pi-bp:focus-visible { outline:2px solid #2d6aa8; outline-offset:1px; }
+  body.no-bp #panel-info .bp { display:none; }
   #panel-info .bp { position:relative; height:7px; margin-top:10px; }
   #panel-info .bp i { position:absolute; top:0; height:7px; }
   #panel-info .bp .w { top:3px; height:1px; background:var(--dim); opacity:.6; }
@@ -213,6 +217,7 @@
   <div id="pi-pet"><span title="Potential evaporation, basin mean over the last 30 days">PET, 30 days</span><div class="val"><i></i><b></b></div><div class="track"><u></u><i></i></div><div class="bp"><i class="w"></i><i class="q"></i><i class="m"></i></div></div>
   <div id="pi-rain"><span title="Rainfall, basin mean over the last 60 days">Rain, 60 days</span><div class="val"><i></i><b></b></div><div class="track"><u></u><i></i></div><div class="bp"><i class="w"></i><i class="q"></i><i class="m"></i></div></div>
   <div id="pi-sa"><span title="The Murray where it leaves for South Australia">Flow to SA</span><div class="val"><i></i><b></b></div><div class="track"><u></u><i></i></div><div class="bp"><i class="w"></i><i class="q"></i><i class="m"></i></div></div>
+  <button type="button" id="pi-bp" aria-pressed="true" title="Hide the box plots in every panel">&minus;</button>
 </div>
 <div id="side">
   <div id="kicker"><span id="kicker-title">Murrumbidgee, ACT, Lachlan, Lower Darling, NSW Murray, Victorian Murray, Kiewa, Ovens, Goulburn and Broken</span> / <select id="climate-start" aria-label="Start year" title="Start year"><option>2027</option></select>&ndash;<select id="climate-end" aria-label="End year" title="End year"><option>2036</option></select></div>
@@ -342,7 +347,7 @@ if (ASK.get('case') === 'all') {
     col.append(h, f, ecoNA()); grid.append(col);
   }
   addEventListener('message', e => {
-    if (e.origin !== location.origin || !(e.data?.mdbDay || e.data?.mdbCam || e.data?.mdbPlay)) return;
+    if (e.origin !== location.origin || !(e.data?.mdbDay || e.data?.mdbCam || e.data?.mdbPlay || e.data?.mdbBox)) return;
     for (const f of frames) if (f.contentWindow !== e.source) f.contentWindow.postMessage(e.data, location.origin);
   });
   document.body.className = 'all'; document.body.replaceChildren(head, grid);
@@ -2343,12 +2348,23 @@ function rowSeries(id, get, src) {
 }
 const SA_REACH = PANEL ? Object.keys(D.reachFlow).reduce((a, k) => { const s = D.reachFlow[k].reduce((x, y) => x + y, 0); return s > a[1] ? [k, s] : a; }, ['', -1])[0] : null;
 if (PANEL) for (const [id, , , lo, hi] of PI_ROWS) $(id).querySelector('.track').style.background = `linear-gradient(90deg, rgb(${lo}), rgb(${hi}))`;
+// The box plots fold away together: the button in any panel hides or shows them in all.
+let showBox = true;
+function setBox(on) {
+  showBox = on; document.body.classList.toggle('no-bp', !on);
+  const b = $('pi-bp'); b.setAttribute('aria-pressed', on); b.innerHTML = on ? '&minus;' : 'Box plots +';
+  b.title = `${on ? 'Hide' : 'Show'} the box plots in every panel`;
+  if (on) update();
+}
+$('pi-bp').onclick = () => { setBox(!showBox); parent.postMessage({ mdbBox: { on: showBox } }, location.origin); };
+if (PANEL) addEventListener('message', e => { if (e.origin === location.origin && e.data?.mdbBox) setBox(e.data.mdbBox.on); });
 function panelInfo(d) {
   for (const [id, get, pos, lo, hi, text, src] of PI_ROWS) {
     const v = get(d), t = Math.max(0, Math.min(1, pos(v))), col = `rgb(${lerp(lo, hi, t)})`, el = $(id);
     const { vals, sum } = rowSeries(id, get, src()), from = Math.min(W0, d), avg = (sum[d + 1] - sum[from]) / (d + 1 - from);
     const at = x => Math.max(0, Math.min(1, pos(x))) * 100;
     el.querySelector('.track u').style.left = `${at(avg)}%`;
+    if (!showBox) continue;
     const so = vals.slice(from, d + 1).sort(), qt = f => so[Math.round(f * (so.length - 1))], [q1, md, q3] = [qt(.25), qt(.5), qt(.75)];
     Object.assign(el.querySelector('.bp .w').style, { left: `${at(so[0])}%`, width: `${at(so[so.length - 1]) - at(so[0])}%` });
     Object.assign(el.querySelector('.bp .q').style, { left: `${at(q1)}%`, width: `${Math.max(1, at(q3) - at(q1))}%` });
