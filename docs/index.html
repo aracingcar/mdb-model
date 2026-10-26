@@ -170,7 +170,7 @@
   /* ?case=all: the climate cases side by side, each panel the page on one case with only its map and timeline (?panel=1) */
   body.panel #side, body.panel #model-panels, body.panel #relief, body.panel #site-menu, body.panel #map-tools,
   body.panel #towns-toggle, body.panel #detail-toggle, body.panel #sdl-toggle, body.panel #storages-toggle { display:none; }
-  body.panel #map { left:0; top:0; }
+  body.panel #map { left:0; top:0; bottom:0; }
   body.panel #bar { display:none; }  /* the side-by-side page carries the one timeline */
   #panel-info { display:none; }
   body.panel #panel-info { position:absolute; left:14px; right:14px; top:8px; z-index:6; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:0 14px; padding:8px 12px 11px; border:1px solid var(--rule); border-radius:6px; background:rgba(255,255,255,.94); font-size:11px; }
@@ -230,7 +230,8 @@
   #panel-info .track u { position:absolute; top:7px; width:1px; height:5px; background:var(--dim); opacity:.6; }
   #panel-info .track i { position:absolute; top:-4px; width:12px; height:12px; margin-left:-6px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px var(--head); }
   body.all { display:flex; flex-direction:column; }
-  body.all #bar { position:static; flex:none; border-top:1px solid var(--rule); }
+  body.all #bar { position:static; flex:none; height:56px; border-top:1px solid var(--rule); }
+  body.all #timeline { height:38px; }
   #all-head { display:flex; gap:18px; align-items:baseline; padding:12px 18px; border-bottom:1px solid var(--rule); font-size:12px; }
   #all-head b { min-width:0; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--head); }
   #all-head a { color:var(--dim); white-space:nowrap; }
