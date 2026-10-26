@@ -174,16 +174,25 @@
   body.panel #side, body.panel #model-panels, body.panel #relief, body.panel #site-menu, body.panel #map-tools,
   body.panel #towns-toggle, body.panel #detail-toggle, body.panel #sdl-toggle, body.panel #storages-toggle, body.panel #gauges-toggle, body.panel #gauge-diag { display:none; }
   /* driving: the EWR tool's results at the gauge nearest the car, bottom left (data/gauges_<case>.json, 5_outputs/gauge_ewr.py) */
-  #gauge-diag { position:absolute; left:22px; bottom:22px; z-index:7; width:min(400px,calc(100vw - 44px)); max-height:calc(100vh - 220px); overflow:hidden; display:none; padding:11px 13px 12px; border-radius:6px; background:rgba(255,255,255,.95); box-shadow:0 2px 10px rgba(0,0,0,.14); color:#3e4248; font:12px/1.4 var(--sans,Arial,sans-serif); }
+  #gauge-diag { position:absolute; left:22px; bottom:22px; z-index:7; width:min(400px,calc(100vw - 44px)); max-height:calc(100vh - 150px); overflow-y:auto; overscroll-behavior:contain; display:none; padding:11px 13px 12px; border-radius:6px; background:rgba(255,255,255,.95); box-shadow:0 2px 10px rgba(0,0,0,.14); color:#3e4248; font:12px/1.4 var(--sans,Arial,sans-serif); }
   body.car-driving #gauge-diag.ready { display:block; }
   #gauge-diag b { display:block; font-size:14px; color:#24272b; }
   #gauge-diag small { display:block; color:#7a7f86; font-size:11px; }
   #gauge-diag h4 { margin:9px 0 3px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#656b72; font-weight:700; }
-  #gd-chart { display:block; width:100%; height:150px; }
+  #gd-nav { display:flex; align-items:center; justify-content:space-between; margin-top:7px; }
+  #gd-nav h4 { margin:0; text-align:center; }
+  #gd-nav span { width:30px; height:24px; line-height:20px; text-align:center; font-size:34px; font-weight:300; color:#3e4248; border-radius:4px; cursor:pointer; user-select:none; pointer-events:auto; }
+  #gd-nav span:hover { background:#e8eff6; }
+  #gd-sub { margin:2px 0 3px; }
+  #gd-opts { display:flex; gap:6px; margin:2px 0 4px; }
+  #gd-opts span { padding:2px 8px; border:1px solid #c9ced3; border-radius:11px; font-size:11px; color:#3e4248; cursor:pointer; user-select:none; pointer-events:auto; }
+  #gd-opts span:hover { background:#e8eff6; }
+  #gd-opts span[hidden] { display:none; }
+  #gd-chart { display:block; width:100%; height:190px; }
   #gd-sum { margin:3px 0 0; font-size:11px; color:#4a4f56; }
   #gd-key { display:flex; gap:12px; margin-top:3px; font-size:10px; color:#656b72; }
   #gd-key i { display:inline-block; width:9px; height:9px; margin-right:4px; vertical-align:-1px; border-radius:2px; }
-  #gd-list { max-height:116px; overflow-y:auto; pointer-events:auto; }
+  #gd-list { max-height:96px; overflow-y:auto; pointer-events:auto; }
   #gd-list div { display:grid; grid-template-columns:62px 1fr 38px; align-items:center; gap:7px; padding:1.5px 3px; border-radius:3px; cursor:pointer; font-size:11px; font-variant-numeric:tabular-nums; }
   #gd-list div.on { background:#e8eff6; font-weight:700; }
   #gd-list span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -384,7 +393,7 @@
   <details><summary>Hydrology settings (unchanged)</summary><div id="rt-foot"></div></details>
 </div>
 <div id="tip"></div>
-<div id="gauge-diag" aria-label="EWR results at the nearest gauge"><b id="gd-name"></b><small id="gd-where"></small><h4 id="gd-title">Achieved each year</h4><canvas id="gd-chart"></canvas><div id="gd-key"><span><i style="background:#2d6aa8"></i>achieved</span><span><i style="background:#c0504d"></i>not achieved</span><span><i style="background:#d3d7db"></i>part year</span><span>&#9474; now</span></div><p id="gd-sum"></p><h4>Every EWR here: share of years achieved vs target</h4><div id="gd-list"></div></div>
+<div id="gauge-diag" aria-label="EWR results at the nearest gauge"><b id="gd-name"></b><small id="gd-where"></small><div id="gd-nav"><span id="gd-prev" role="button" aria-label="Previous chart" title="Previous chart">&lsaquo;</span><h4 id="gd-title">Achieved each year</h4><span id="gd-next" role="button" aria-label="Next chart" title="Next chart">&rsaquo;</span></div><small id="gd-sub"></small><div id="gd-opts"><span id="gd-vs" role="button" title="Set another climate case against this one">Compare: off</span><span id="gd-opt" role="button" hidden></span></div><canvas id="gd-chart"></canvas><div id="gd-key"><span><i style="background:#2d6aa8"></i>achieved</span><span><i style="background:#c0504d"></i>not achieved</span><span><i style="background:#d3d7db"></i>part year</span><span>&#9474; now</span></div><p id="gd-sum"></p><h4>Every EWR here: share of years achieved vs target</h4><div id="gd-list"></div></div>
 <div id="err">The map libraries could not load. Open this page with an internet connection.</div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/deck.gl@9.0.38/dist.min.js"></script>
@@ -2840,14 +2849,19 @@ $('detailIn').onchange = async e => {
 $('townsIn').onchange = e => { showTowns = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 $('storagesIn').onchange = e => { showStorages = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 // ---- EWR gauges: the EWR tool's results at the gauges on the modelled rivers (5_outputs/gauge_ewr.py), fetched on first use.
-// Driving, the panel at the bottom left charts the gauge nearest the car.
-const GAUGE_URL = META.gauges?.[CASE || META.defaultCase];
-let GAUGES = null, gaugesLoad = null, gdNear = null, gdKey = '', gdPick = '', gdKm = 0;
+// Driving, the panel at the bottom left charts the gauge nearest the car; its arrows step through the dashboard's EWR charts, and
+// "Compare" sets another climate case against this one (the dashboard's Differential mode).
+const GCASES = META.cases.filter(k => k.built && META.gauges?.[k.id]).map(k => k.id), GHOME = CASE || META.defaultCase;
+const GAUGE_URL = META.gauges?.[GHOME], gcaseName = id => META.cases.find(k => k.id === id)?.label || id;
+let GAUGES = null, gaugesLoad = null, gdNear = null, gdKey = '', gdPick = '', gdKm = 0, gdView = 0, gdVs = '', gdMode = 0, gdSpell = 0, gdCalC = null;
+const gdJ = {}, gdF = {}, gdFetched = new Map(), gdHeatC = new Map();  // gauge results and daily flow by case id; fetches and heat-map grids by key
 $('gauges-toggle').hidden = !GAUGE_URL;
+const gdGet = url => { if (!gdFetched.has(url)) gdFetched.set(url, fetch(url).then(r => { if (!r.ok) throw new Error(url); return r.json(); })); return gdFetched.get(url); };
+const gdLoad = (ids, flow) => Promise.all(ids.flatMap(id => [gdGet(META.gauges[id]).then(j => { j.by ||= new Map(j.gauges.map(g => [g.id, g])); gdJ[id] = j; }),
+  ...(flow ? [gdGet(META.gaugeFlows[id]).then(f => gdF[id] = f)] : [])]));
 function loadGauges() {
   if (!GAUGE_URL || gaugesLoad) return gaugesLoad;
-  return gaugesLoad = fetch(GAUGE_URL).then(r => { if (!r.ok) throw new Error(GAUGE_URL); return r.json(); })
-    .then(g => { GAUGES = g; if (overlay) overlay.setProps({layers:layers()}); }).catch(() => {});  // not retried: the switch just shows nothing
+  return gaugesLoad = gdLoad([GHOME]).then(() => { GAUGES = gdJ[GHOME]; if (overlay) overlay.setProps({layers:layers()}); }).catch(() => {});  // not retried: the switch just shows nothing
 }
 const gaugePosition = g => [g.lon, g.lat, groundZ(g.lon, g.lat) * TERR + 300];
 const ewrKey = e => `${e.code}|${e.pu}`;
@@ -2859,48 +2873,284 @@ function gaugeDrive(lon, lat) {
   if (best !== gdNear) { gdNear = best; if (overlay && showGauges) overlay.setProps({layers:layers()}); }
   gdKm = nearest; gaugePanel(nearest);
 }
+const GD_BLUE = '#2d6aa8', GD_RED = '#c0504d', GD_GREY = '#d3d7db', GD_ORG = '#d9822b';
+const gdSwatch = (c, t) => `<span><i style="background:${c}"></i>${t}</span>`, gdRamp = (a, b) => `<span><i style="width:34px;background:linear-gradient(90deg,${a},${b})"></i></span>`;
+const gdLerp = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t)).join();
+const gdSeq = t => `rgb(${gdLerp([240,244,249], [24,70,130], Math.max(0, Math.min(1, t)))})`;  // 0..1, white to deep blue
+const gdDiv = t => t >= 0 ? `rgb(${gdLerp([247,247,247], [45,106,168], Math.min(1, t))})` : `rgb(${gdLerp([247,247,247], [192,80,77], Math.min(1, -t))})`;  // -1..1, red - white - blue
+const gdNice = v => { const p = 10 ** Math.floor(Math.log10(Math.max(v, 1e-9))), m = v / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; };
+const gdK = v => v >= 10000 ? `${Math.round(v / 1000)}k` : v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(Math.round(v));  // compact axis labels
+const gdCount = s => [...s].filter(ch => ch !== '-').length;
+const gdNames = () => [gcaseName(GHOME), gdVs && gcaseName(gdVs)];
+const gdSeries2 = (e, ec) => [[e, GD_BLUE], ...(ec ? [[ec, GD_ORG]] : [])];
+function gdDecode(e) {  // event and gap start days from the file's steps, once per EWR; span is the record's length in days
+  if (e._d) return e._d;
+  let t = 0; const st = e.es.map(d => t += d); t = 0;
+  const base = Date.parse(GAUGES.t0), span = (Date.parse(`${GAUGES.years[GAUGES.years.length - 1]}-12-31`) - base) / 864e5;
+  return e._d = { st, gs: e.gs.map(d => t += d), span, base };
+}
+function gdSeries(id, gid) {  // a gauge's daily flow (ML/d) from the file's uint16 codes, decoded once
+  const f = gdF[id]; f.dec ||= new Map();
+  if (!f.dec.has(gid)) {
+    const s = atob(f.flow[gid]), n = s.length >> 1, out = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const code = s.charCodeAt(2 * i) | (s.charCodeAt(2 * i + 1) << 8); out[i] = code <= 10000 ? code / 10 : 1000 + (code - 10000) * 3; }
+    f.dec.set(gid, out);
+  }
+  return f.dec.get(gid);
+}
+function gdCal() {  // the record's calendar: each day's month and water year (named by the year it starts in), and the complete water years
+  if (gdCalC) return gdCalC;
+  const n = gdF[GHOME].n, t0 = Date.parse(GAUGES.t0), month = new Uint8Array(n), wy = new Int16Array(n), range = {};
+  for (let i = 0; i < n; i++) { const d = new Date(t0 + i * 864e5), m = d.getUTCMonth() + 1, w = d.getUTCFullYear() - (m < 7 ? 1 : 0); month[i] = m; wy[i] = w; (range[w] ||= [i, i])[1] = i; }
+  const years = Object.keys(range).map(Number).sort((a, b) => a - b), days = w => (Date.UTC(w + 1, 6, 1) - Date.UTC(w, 6, 1)) / 864e5;
+  return gdCalC = { month, wy, range, years, t0, days, complete: years.filter(w => range[w][1] - range[w][0] + 1 === days(w)) };
+}
+const gdInWin = (m, sm, em) => sm <= em ? m >= sm && m <= em : m >= sm || m <= em;
+function gdHeat(id, gid, sm, em, dmax, xlim, consec) {  // % of years with a threshold met for d days inside the timing window (the dashboard's heat map grid)
+  const key = `${id}|${gid}|${sm}|${em}|${dmax}|${xlim}|${consec}`;
+  if (gdHeatC.has(key)) return gdHeatC.get(key);
+  const cal = gdCal(), s = gdSeries(id, gid), COLS = 48, ROWS = Math.min(dmax, 56);
+  const durs = Array.from({length: ROWS}, (_, k) => ROWS === 1 ? 1 : Math.round(1 + k * (dmax - 1) / (ROWS - 1))), annual = [];
+  for (const y of cal.years) {
+    const [a, b] = cal.range[y], vals = [];
+    for (let i = a; i <= b; i++) if (gdInWin(cal.month[i], sm, em)) vals.push(s[i]);
+    let expected = 0;  // window days in the whole water year; a year the record cuts short is not counted
+    for (let t = Date.UTC(y, 6, 1); t < Date.UTC(y + 1, 6, 1); t += 864e5) if (gdInWin(new Date(t).getUTCMonth() + 1, sm, em)) expected++;
+    if (!vals.length || vals.length !== expected) continue;
+    const top = new Float32Array(ROWS).fill(-Infinity);
+    if (consec) {  // the best (largest) minimum over windows of d consecutive days, grown one day at a time
+      let run = Float32Array.from(vals), w = 1;
+      durs.forEach((d, k) => {
+        while (w < d && run.length > 1) { const next = new Float32Array(run.length - 1); for (let j = 0; j < next.length; j++) next[j] = Math.min(run[j], vals[j + w]); run = next; w++; }
+        if (d <= vals.length && w === d && run.length) { let mx = -Infinity; for (const v of run) if (v > mx) mx = v; top[k] = mx; }
+      });
+    } else { const desc = Float32Array.from(vals).sort().reverse(); durs.forEach((d, k) => { if (d <= desc.length) top[k] = desc[d - 1]; }); }
+    annual.push(top);
+  }
+  const grid = new Float32Array(ROWS * COLS);
+  for (let k = 0; k < ROWS; k++) for (let j = 0; j < COLS; j++) { const thr = j * xlim / COLS; let ok = 0; for (const top of annual) if (top[k] >= thr) ok++; grid[k * COLS + j] = annual.length ? 100 * ok / annual.length : NaN; }
+  const out = { grid, COLS, ROWS, n: annual.length };
+  gdHeatC.set(key, out); return out;
+}
+function gdYearStats(id, gid, fn) {  // fn(values of a complete water year, its length) per complete water year: {year: result}
+  const cal = gdCal(), s = gdSeries(id, gid), out = {};
+  for (const y of cal.complete) out[y] = fn(s.subarray(cal.range[y][0], cal.range[y][1] + 1));
+  return out;
+}
+const gdSpellOpts = g => [1, ...[...new Set(g.ewrs.filter(x => /^(CF|VF|BF)/i.test(x.code) && x.thr > 0).map(x => x.thr))].sort((a, b) => a - b).slice(0, 5)];
+const pctGE = (sorted, x) => { let lo = 0, hi = sorted.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (sorted[mid] < x) lo = mid + 1; else hi = mid; } return 100 * (sorted.length - lo) / sorted.length; };
+const median = a => { if (!a.length) return null; const s = [...a].sort((p, q) => p - q), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+
+// The chart views, in the order of the dashboard's: EWR performance, flow, flow regime. Each draws on the canvas and returns [legend html, summary].
+const GD_VIEWS = [
+  { name: 'Achieved each year', draw(e, ec, c) {
+    const ys = GAUGES.years, [bn, cn] = gdNames(), g = c.g;
+    if (!ec) {
+      const n = gdCount(e.ach), a = [...e.ach].filter(ch => ch === '1').length, mx = Math.max(e.dur * 1.6, ...e.max), y = c.y(mx), cw = (c.W - c.L - c.R) / ys.length, col = ch => ch === '1' ? GD_BLUE : ch === '0' ? GD_RED : GD_GREY;
+      ys.forEach((_, i) => { g.fillStyle = col(e.ach[i]); g.fillRect(c.L + i * cw, 4, Math.max(1, cw - .6), 16);
+        if (e.ach[i] !== '-' && e.max[i] > 0) g.fillRect(c.L + i * cw, y(e.max[i]), Math.max(1, cw - .6), c.base - y(e.max[i])); });
+      c.hline(y(e.dur), `${e.dur} d`); c.axis(mx); c.years(c.L, cw, ys.length, i => ys[i]);
+      const hasDR = e.dr.some(v => v != null);
+      if (hasDR) {  // the duration ratio of each complete year on its own 0-2 scale: the longest event over the days required, 1 = long enough
+        const yr = v => c.base - (c.base - c.top) * v / 2; g.strokeStyle = '#111'; g.lineWidth = 1.2; g.beginPath(); let pen = false;
+        ys.forEach((_, i) => { const v = e.ach[i] === '-' ? null : e.dr[i]; if (v == null) { pen = false; return; } g[pen ? 'lineTo' : 'moveTo'](c.L + (i + .5) * cw, yr(v)); pen = true; });
+        g.stroke(); g.lineWidth = 1; g.strokeStyle = '#6b7280'; g.setLineDash([1, 3]); g.beginPath(); g.moveTo(c.L, yr(1)); g.lineTo(c.W - c.R, yr(1)); g.stroke(); g.setLineDash([]);
+      }
+      const now = ys.indexOf(c.wy); if (now >= 0) c.now(c.L + (now + .5) * cw);
+      return [gdSwatch(GD_BLUE, 'achieved') + gdSwatch(GD_RED, 'not achieved') + gdSwatch(GD_GREY, 'part year') + (hasDR ? '<span>&mdash; duration ratio</span>' : '') + '<span>&#9474; now</span>',
+        `Achieved in ${a} of ${n} complete years (${n ? Math.round(100 * a / n) : 0}%); target ${e.target}%. Bars: longest event each year, dashed line the days required${hasDR ? '; the line is each year’s duration ratio (longest event ÷ days required, capped at 2; dotted = 1)' : ''}.`];
+    }
+    const cw = (c.W - c.L - c.R) / ys.length, rows = [[e, 4], [ec, 15]], top = 46, mid = (top + c.base) / 2, both = i => e.ach[i] !== '-' && ec.ach[i] !== '-';
+    rows.forEach(([x, y0]) => ys.forEach((_, i) => { g.fillStyle = x.ach[i] === '1' ? GD_BLUE : x.ach[i] === '0' ? GD_RED : GD_GREY; g.fillRect(c.L + i * cw, y0, Math.max(1, cw - .6), 9); }));
+    let gain = 0, loss = 0, nb = 0, ab = 0, ac = 0, delta = [];
+    ys.forEach((_, i) => { const x = c.L + i * cw;
+      if (!both(i)) { g.fillStyle = GD_GREY; g.fillRect(x, 26, Math.max(1, cw - .6), 9); delta.push(0); return; }
+      nb++; ab += e.ach[i] === '1'; ac += ec.ach[i] === '1';
+      const ch = (ec.ach[i] === '1') - (e.ach[i] === '1'); gain += ch > 0; loss += ch < 0; g.fillStyle = ch > 0 ? GD_BLUE : ch < 0 ? GD_RED : '#f0f1f3'; g.fillRect(x, 26, Math.max(1, cw - .6), 9); delta.push(ec.max[i] - e.max[i]); });
+    const m = Math.max(1, ...delta.map(Math.abs)), h = (c.base - top) / 2;
+    delta.forEach((d, i) => { g.fillStyle = d > 0 ? GD_BLUE : GD_RED; g.fillRect(c.L + i * cw, d > 0 ? mid - h * d / m : mid, Math.max(1, cw - .6), Math.abs(h * d / m)); });
+    g.strokeStyle = '#9aa3b0'; g.beginPath(); g.moveTo(c.L, mid); g.lineTo(c.W - c.R, mid); g.stroke();
+    g.fillStyle = '#656b72'; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(`+${m}`, c.L - 4, top + 4); g.fillText('0', c.L - 4, mid); g.fillText(`−${m}`, c.L - 4, c.base - 4);
+    ['A', 'B', 'Δ'].forEach((t, k) => g.fillText(t, c.L - 4, [8.5, 19.5, 30.5][k]));
+    c.years(c.L, cw, ys.length, i => ys[i]); const now = ys.indexOf(c.wy); if (now >= 0) c.now(c.L + (now + .5) * cw);
+    return [gdSwatch(GD_BLUE, 'achieved / gain') + gdSwatch(GD_RED, 'not achieved / loss') + gdSwatch(GD_GREY, 'part year') + '<span>&#9474; now</span>',
+      `Rows: A ${bn}, B ${cn}, Δ the change. Over the ${nb} years complete in both: achieved in ${ab} (${bn}) → ${ac} (${cn}); ${gain} gained, ${loss} lost. Bars: change in the longest event (days).`];
+  } },
+  { name: 'Events', draw(e, ec, c) {  // every event: when it started and how long it ran
+    const set = gdSeries2(e, ec), mx = Math.max(e.minSpell || 1, ...set.flatMap(([x]) => x.el), 1), y = c.y(mx), dd = gdDecode(e), x = d => c.L + (c.W - c.L - c.R) * d / dd.span, g = c.g;
+    c.hline(y(e.minSpell || 1), `min ${e.minSpell || 1} d`); c.axis(mx); c.calendar(x);
+    set.forEach(([s, col]) => gdDecode(s).st.forEach((d, i) => { g.beginPath(); g.arc(x(d), y(s.el[i]), 2.3, 0, 7); g.globalAlpha = .75;
+      if (s.eo[i] === '1') { g.fillStyle = col; g.fill(); } else { g.strokeStyle = col; g.lineWidth = 1; g.stroke(); } g.globalAlpha = 1; }));
+    c.now(x(c.nowDay));
+    const [bn, cn] = gdNames(), cnt = s => [...s.eo].filter(ch => ch === '1').length, per = s => (10 * cnt(s) / Math.max(1, gdCount(s.ach))).toFixed(1);
+    return [(ec ? gdSwatch(GD_BLUE, bn) + gdSwatch(GD_ORG, cn) : gdSwatch(GD_BLUE, 'successful')) + `<span><i style="border:1.5px solid ${GD_RED}"></i>too short (hollow)</span>` + '<span>&#9474; now</span>',
+      ec ? `Successful events: ${cnt(e)} (${per(e)} per 10 years) in ${bn}, ${cnt(ec)} (${per(ec)}) in ${cn}. Each dot is an event: start date across, length up.`
+         : `${cnt(e)} successful events of ${e.eo.length} found (${per(e)} per 10 years). Each dot is an event: start date across, length up; dashed line the minimum length.`];
+  } },
+  { name: 'Event timing', draw(e, ec, c) {  // the month the successful events start, per 10 years
+    const set = gdSeries2(e, ec), order = Array.from({length: 12}, (_, i) => (6 + i) % 12), per = set.map(([s]) => order.map(m => 10 * s.tm[m] / (gdCount(s.ach) || 1)));
+    const mx = Math.max(...per.flat(), .1), y = c.y(mx), bw = (c.W - c.L - c.R) / 12, g = c.g, inWin = m => gdInWin(m + 1, e.sm, e.em), w = (bw - 4) / set.length;
+    order.forEach((m, i) => { if (inWin(m)) { g.fillStyle = 'rgba(45,106,168,.09)'; g.fillRect(c.L + i * bw, 4, bw, c.base - 4); }
+      set.forEach(([, col], k) => { g.fillStyle = col; g.fillRect(c.L + i * bw + 2 + k * w, y(per[k][i]), w - 1, c.base - y(per[k][i])); });
+      g.fillStyle = '#656b72'; g.textAlign = 'center'; g.textBaseline = 'top'; g.fillText('JFMAMJJASOND'[m], c.L + (i + .5) * bw, c.base + 3); });
+    c.axis(mx, 1);
+    const [bn, cn] = gdNames(), tot = s => (10 * s.tm.reduce((p, v) => p + v, 0) / (gdCount(s.ach) || 1)).toFixed(1);
+    return [(ec ? gdSwatch(GD_BLUE, bn) + gdSwatch(GD_ORG, cn) : gdSwatch(GD_BLUE, 'successful events starting')) + gdSwatch('rgba(45,106,168,.25)', 'EWR timing window'),
+      `Successful events by start month, per 10 years, from July (${tot(e)} in all${ec ? ` in ${bn}, ${tot(ec)} in ${cn}` : ''}).`];
+  } },
+  { name: 'Gaps between events', draw(e, ec, c) {  // gaps between successful events against the maximum inter-event period
+    const set = gdSeries2(e, ec), mrip = e.mrip || 0, mx = Math.max(mrip * 1.3, ...set.flatMap(([s]) => s.gl.map(v => v / 365)), .5), y = c.y(mx), dd = gdDecode(e), x = d => c.L + (c.W - c.L - c.R) * d / dd.span, g = c.g;
+    if (mrip) c.hline(y(mrip), `max ${+mrip.toFixed(2)} y`); c.axis(mx, 1); c.calendar(x);
+    const stats = set.map(([s, col]) => { let over = 0, longest = 0; const D = gdDecode(s);
+      D.gs.forEach((d, i) => { const yrs = s.gl[i] / 365, bad = mrip && yrs > mrip; over += bad ? 1 : 0; longest = Math.max(longest, yrs);
+        g.strokeStyle = ec ? col : bad ? GD_RED : '#9ca3af'; g.lineWidth = 2.5; g.globalAlpha = .85; g.beginPath(); g.moveTo(x(d), y(yrs)); g.lineTo(Math.max(x(d) + 1, x(d + s.gl[i])), y(yrs)); g.stroke(); });
+      g.globalAlpha = 1; return [s.gl.length, over, longest]; });
+    g.lineWidth = 1; c.now(x(c.nowDay));
+    const [bn, cn] = gdNames(), f = ([n, o, l]) => `${n} gaps, ${o} over the maximum, longest ${l.toFixed(1)} y`;
+    return [(ec ? gdSwatch(GD_BLUE, bn) + gdSwatch(GD_ORG, cn) : gdSwatch('#9ca3af', 'within the maximum') + gdSwatch(GD_RED, 'longer than the maximum')) + '<span>&#9474; now</span>',
+      ec ? `${bn}: ${f(stats[0])}. ${cn}: ${f(stats[1])}. Each line runs from one successful event’s end to the next one’s start.` : `${f(stats[0])}. Each line runs from one successful event’s end to the next one’s start.`];
+  } },
+  { name: 'Threshold × duration', flow: true, opt: 'heat', draw(e, ec, c) {  // the dashboard's heat map: how often each flow is held for each number of days inside the EWR's window
+    const s = gdSeries(GHOME, c.gid), s2 = ec && gdSeries(gdVs, c.gid), all = Float32Array.from(s2 ? [...s, ...s2] : s).sort(), xlim = gdNice(Math.max(all[Math.floor(all.length * .995)] || 1, e.thr * 1.25, 10)), dmax = Math.min(366, Math.max(30, Math.round(gdNice(e.dur * 1.5))));
+    const A = gdHeat(GHOME, c.gid, e.sm, e.em, dmax, xlim, gdMode), B = ec && gdHeat(gdVs, c.gid, e.sm, e.em, dmax, xlim, gdMode), top = 6, g = c.g;
+    const cw = (c.W - c.L - c.R) / A.COLS, ch = (c.base - top) / A.ROWS;
+    for (let k = 0; k < A.ROWS; k++) for (let j = 0; j < A.COLS; j++) { const v = B ? (B.grid[k * A.COLS + j] - A.grid[k * A.COLS + j]) / 100 : A.grid[k * A.COLS + j] / 100;
+      g.fillStyle = Number.isNaN(v) ? '#fff' : B ? gdDiv(v * 2) : gdSeq(v); g.fillRect(c.L + j * cw, c.base - (k + 1) * ch, cw + .5, ch + .5); }
+    const px = c.L + (c.W - c.L - c.R) * Math.min(1, e.thr / xlim), py = c.base - (c.base - top) * Math.min(1, (e.dur - 1) / Math.max(1, dmax - 1));
+    g.beginPath(); g.arc(px, py, 4.5, 0, 7); g.lineWidth = 2.5; g.strokeStyle = '#fff'; g.stroke(); g.lineWidth = 1.2; g.strokeStyle = '#111'; g.stroke(); g.lineWidth = 1;
+    g.strokeStyle = '#9aa3b0'; g.strokeRect(c.L + .5, top + .5, c.W - c.L - c.R - 1, c.base - top - 1);
+    g.fillStyle = '#656b72'; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText('0', c.L, c.base + 3); g.textAlign = 'right'; g.fillText(`${fmt(xlim)} ML/d`, c.W - c.R, c.base + 3);
+    g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText('1 d', c.L - 4, c.base - 5); g.fillText(`${dmax} d`, c.L - 4, top + 5);
+    const [bn, cn] = gdNames();
+    return [ec ? gdRamp(GD_RED, GD_BLUE) + `<span>change in % of years, ${cn} − ${bn}</span>` : gdRamp('#f0f4f9', '#184682') + '<span>0 → 100% of years</span>', `Share of years with the flow across held for the days up, ${gdMode ? 'on consecutive days' : 'on any days'}, inside the EWR’s window (${MONTHS[e.sm - 1].slice(0, 3)}–${MONTHS[e.em - 1].slice(0, 3)}), over ${A.n} complete years${ec ? '; shown as the change between the two cases' : ''}. Ring: this EWR.`];
+  } },
+  { name: 'Hydrograph', flow: true, draw(e, ec, c) {  // daily flow, with the volume of each complete water year below it
+    const cal = gdCal(), set = [[gdSeries(GHOME, c.gid), GD_BLUE], ...(ec ? [[gdSeries(gdVs, c.gid), GD_ORG]] : [])], g = c.g, plotW = c.W - c.L - c.R, hb = 112, vt = 126;
+    const mx = Math.max(...set.map(([s]) => { let m = 0; for (const v of s) if (v > m) m = v; return m; }), e.thr * 1.1, 1), yy = v => hb - (hb - 6) * v / mx;
+    set.forEach(([s, col], k) => { const n = s.length; g.fillStyle = col; g.globalAlpha = k ? .5 : .65; g.beginPath(); g.moveTo(c.L, hb);
+      const hi = [], lo = [];
+      for (let px = 0; px < plotW; px++) { const a = Math.floor(px * n / plotW), b = Math.max(a + 1, Math.floor((px + 1) * n / plotW)); let mn = Infinity, mxv = 0; for (let i = a; i < b; i++) { if (s[i] < mn) mn = s[i]; if (s[i] > mxv) mxv = s[i]; } hi.push(yy(mxv)); lo.push(yy(mn)); }
+      hi.forEach((v, px) => g.lineTo(c.L + px, v)); for (let px = plotW - 1; px >= 0; px--) g.lineTo(c.L + px, lo[px]); g.closePath(); g.fill(); g.globalAlpha = 1; });
+    g.strokeStyle = '#111'; g.setLineDash([4, 3]); g.beginPath(); g.moveTo(c.L, yy(e.thr)); g.lineTo(c.W - c.R, yy(e.thr)); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#656b72'; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(gdK(e.thr), c.W - c.R, yy(e.thr) - 6); g.fillText('0', c.L - 4, hb); g.fillText(gdK(mx), c.L - 4, 8);
+    g.strokeStyle = '#9aa3b0'; g.beginPath(); g.moveTo(c.L, hb + .5); g.lineTo(c.W - c.R, hb + .5); g.stroke();
+    const vol = set.map(([s]) => cal.complete.map(y => { let sum = 0; for (let i = cal.range[y][0]; i <= cal.range[y][1]; i++) sum += s[i]; return sum / 1000; }));  // GL
+    const dv = ec ? vol[1].map((v, i) => v - vol[0][i]) : null, vm = Math.max(...(dv ? dv.map(Math.abs) : vol[0]), 1), bw = plotW / cal.complete.length, vb = c.base, vh = vb - vt;
+    cal.complete.forEach((_, i) => { if (dv) { g.fillStyle = dv[i] > 0 ? GD_BLUE : GD_RED; const h = Math.abs(dv[i]) / vm * vh / 2; g.fillRect(c.L + i * bw, dv[i] > 0 ? vt + vh / 2 - h : vt + vh / 2, Math.max(1, bw - .6), h); }
+      else { g.fillStyle = GD_BLUE; const h = vol[0][i] / vm * vh; g.fillRect(c.L + i * bw, vb - h, Math.max(1, bw - .6), h); } });
+    g.fillStyle = '#656b72'; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(dv ? `+${gdK(vm)}` : gdK(vm), c.L - 4, vt + 4); g.fillText(dv ? `−${gdK(vm)}` : '0', c.L - 4, vb - 3);
+    const total = set[0][0].length; c.calendar(d => c.L + plotW * d / total); c.now(c.L + plotW * c.nowDay / total);
+    const [bn, cn] = gdNames();
+    return [(ec ? gdSwatch(GD_BLUE, bn) + gdSwatch(GD_ORG, cn) : gdSwatch(GD_BLUE, 'daily flow')) + '<span>- - EWR threshold</span><span>&#9474; now</span>',
+      `Top: daily flow over the record (the envelope of each pixel’s days). Bottom: ${ec ? `change in each complete water year’s volume, ${cn} − ${bn} (GL)` : 'volume of each complete water year (GL)'}.`];
+  } },
+  { name: 'Duration curve change', flow: true, only: 'diff', draw(e, ec, c) {  // the change in the % of time the flow is at or above each flow
+    const a = Float32Array.from(gdSeries(GHOME, c.gid)).sort(), b = Float32Array.from(gdSeries(gdVs, c.gid)).sort(), g = c.g, top = 14, plotW = c.W - c.L - c.R;
+    const hi = Math.max(a[a.length - 1], b[b.length - 1], 2), lo = 1, xs = Array.from({length: 120}, (_, i) => lo * (hi / lo) ** (i / 119)), d = xs.map(x => pctGE(b, x) - pctGE(a, x)), m = Math.max(5, ...d.map(Math.abs)), mid = (top + c.base) / 2, X = x => c.L + plotW * Math.log(x / lo) / Math.log(hi / lo), Y = v => mid - (c.base - top) / 2 * v / m;
+    g.fillStyle = 'rgba(45,106,168,.12)'; g.beginPath(); g.moveTo(X(xs[0]), mid); xs.forEach((x, i) => g.lineTo(X(x), Y(d[i]))); g.lineTo(X(xs[119]), mid); g.fill();
+    g.strokeStyle = GD_BLUE; g.lineWidth = 2; g.beginPath(); xs.forEach((x, i) => g[i ? 'lineTo' : 'moveTo'](X(x), Y(d[i]))); g.stroke(); g.lineWidth = 1;
+    g.strokeStyle = '#9aa3b0'; g.beginPath(); g.moveTo(c.L, mid); g.lineTo(c.W - c.R, mid); g.stroke();
+    g.strokeStyle = '#111'; g.setLineDash([4, 3]); g.beginPath(); g.moveTo(X(Math.max(lo, e.thr)), top); g.lineTo(X(Math.max(lo, e.thr)), c.base); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#656b72'; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(`+${m.toFixed(0)}`, c.L - 4, top); g.fillText('0', c.L - 4, mid); g.fillText(`−${m.toFixed(0)}`, c.L - 4, c.base);
+    g.textAlign = 'center'; g.textBaseline = 'top'; for (let p = 0; 10 ** p <= hi; p++) if (10 ** p >= lo) g.fillText(gdK(10 ** p), Math.min(c.W - 14, Math.max(c.L + 8, X(10 ** p))), c.base + 3);
+    const [bn, cn] = gdNames();
+    return [gdSwatch(GD_BLUE, `${cn} − ${bn}`) + '<span>- - EWR threshold</span>', `Change in the % of days with the flow at or above each flow (ML/d, log scale), ${cn} minus ${bn}, over the whole record. Above zero: that flow is reached more often in ${cn}.`];
+  } },
+  { name: 'Monthly duration change', flow: true, only: 'diff', draw(e, ec, c) {  // the same change, month by month
+    const cal = gdCal(), order = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6], A = gdSeries(GHOME, c.gid), B = gdSeries(gdVs, c.gid), g = c.g, ROWS = 36, top = 6;
+    const by = s => order.map(m => { const v = []; for (let i = 0; i < s.length; i++) if (cal.month[i] === m) v.push(s[i]); return Float32Array.from(v).sort(); });
+    const ba = by(A), bb = by(B), tops = [...ba, ...bb].map(v => v[Math.floor(v.length * .99)] || 0), ymax = gdNice(Math.max(...tops, 10)), cw = (c.W - c.L - c.R) / 12, ch = (c.base - top) / ROWS;
+    const D = Array.from({length: ROWS}, (_, k) => order.map((_, j) => pctGE(bb[j], (k + 1) * ymax / ROWS) - pctGE(ba[j], (k + 1) * ymax / ROWS))), m = Math.max(5, ...D.flat().map(Math.abs));
+    D.forEach((row, k) => row.forEach((v, j) => { g.fillStyle = gdDiv(v / m); g.fillRect(c.L + j * cw, c.base - (k + 1) * ch, cw + .5, ch + .5); }));
+    g.strokeStyle = '#9aa3b0'; g.strokeRect(c.L + .5, top + .5, c.W - c.L - c.R - 1, c.base - top - 1);
+    g.fillStyle = '#656b72'; g.textAlign = 'center'; g.textBaseline = 'top'; order.forEach((mo, j) => g.fillText('JFMAMJJASOND'[mo - 1], c.L + (j + .5) * cw, c.base + 3));
+    g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText('0', c.L - 4, c.base - 4); g.fillText(gdK(ymax), c.L - 4, top + 5);
+    const [bn, cn] = gdNames();
+    return [gdRamp(GD_RED, GD_BLUE) + `<span>±${m.toFixed(0)} points of days</span>`, `Change in the % of each month’s days with the flow at or above each flow (0–${fmt(ymax)} ML/d up), ${cn} minus ${bn}. Blue: reached more often in ${cn}.`];
+  } },
+  { name: 'Flow regimes', draw(e, ec, c) {  // each regime's threshold is the lowest of the gauge's EWRs in it; counted over whole water years
+    const A = c.gauge.regimes, B = ec && c.gaugeC?.regimes, g = c.g, [bn, cn] = gdNames();
+    if (!A.length) return ['', 'None of this gauge’s flow EWRs maps to a flow regime.'];
+    const keep = A[0].d.map((d, i) => d >= 0 && (!B || (B[0]?.d[i] ?? -1) >= 0)), n = keep.filter(Boolean).length || 1;
+    const stat = R => ({ any: 100 * R.d.filter((d, i) => keep[i] && d > 0).length / n, days: R.d.reduce((s, d, i) => s + (keep[i] ? d : 0), 0) / n, ev: R.n.reduce((s, v, i) => s + (keep[i] ? v : 0), 0) / n });
+    const sa = A.map(stat), sb = B && A.map((r, i) => { const m = B.find(x => x.regime === r.regime); return m ? stat(m) : { any: 0, days: 0, ev: 0 }; });
+    const LW = 96, pw = (c.W - LW - 6) / 3, rh = Math.min(19, (c.base - 18) / A.length), cols = [['years with a day (%)', 'any', 100], ['days a year', 'days', null], ['events a year', 'ev', null]];
+    g.fillStyle = '#656b72'; g.textBaseline = 'top'; g.textAlign = 'center'; cols.forEach(([t], j) => g.fillText(t, LW + (j + .5) * pw, 2));
+    cols.forEach(([, f, fixed], j) => { const mx = fixed || Math.max(...sa.map(s => s[f]), ...(sb ? sb.map(s => s[f]) : []), .1);
+      A.forEach((r, i) => { const y0 = 16 + i * rh, bh = (rh - 3) / (sb ? 2 : 1);
+        g.fillStyle = GD_BLUE; g.fillRect(LW + j * pw + 2, y0, Math.max(1, (pw - 34) * sa[i][f] / mx), bh);
+        if (sb) { g.fillStyle = GD_ORG; g.fillRect(LW + j * pw + 2, y0 + bh, Math.max(1, (pw - 34) * sb[i][f] / mx), bh); }
+        g.fillStyle = '#3e4248'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(sa[i][f] >= 10 ? Math.round(sa[i][f]) : sa[i][f].toFixed(1), LW + j * pw + 4 + (pw - 34) * sa[i][f] / mx, y0 + bh / 2 + 1); }); });
+    g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillStyle = '#3e4248'; A.forEach((r, i) => { const tail = ` ≥${gdK(r.thr)}`; let name = r.regime; const text = n => (n === r.regime ? n : n + '…') + tail; while (name.length > 3 && g.measureText(text(name)).width > LW - 6) name = name.slice(0, -1).trimEnd(); g.fillText(text(name), LW - 3, 16 + i * rh + (rh - 3) / 2); });
+    return [ec ? gdSwatch(GD_BLUE, bn) + gdSwatch(GD_ORG, cn) : gdSwatch(GD_BLUE, 'this gauge'), `Days at or above each regime’s threshold (the lowest of this gauge’s EWRs in it), counted over whole water years: ${n} complete years${ec ? ' in both cases' : ''}. An event is a run of consecutive days at or above it.`];
+  } },
+  { name: 'Low-flow spells', flow: true, opt: 'spell', draw(e, ec, c) {  // runs of consecutive days below a low flow; the longest in each water year
+    const thr = gdSpellOpts(c.gauge)[gdSpell % gdSpellOpts(c.gauge).length], cal = gdCal(), g = c.g, [bn, cn] = gdNames();
+    const stat = id => gdYearStats(id, c.gid, s => { let below = 0, cur = 0, longest = 0; for (const v of s) { if (v < thr) { below++; cur++; if (cur > longest) longest = cur; } else cur = 0; } return { below, longest }; });
+    const A = stat(GHOME), B = ec && stat(gdVs), ys = cal.complete, cw = (c.W - c.L - c.R) / ys.length, vals = ys.map(y => B ? B[y].longest - A[y].longest : A[y].longest), m = Math.max(1, ...vals.map(Math.abs));
+    const top = 12, mid = B ? (top + c.base) / 2 : c.base, h = B ? (c.base - top) / 2 : c.base - top;
+    vals.forEach((v, i) => { g.fillStyle = B ? (v > 0 ? GD_RED : GD_BLUE) : GD_BLUE; const hh = Math.abs(v) / m * h; g.fillRect(c.L + i * cw, v >= 0 ? mid - hh : mid, Math.max(1, cw - .6), hh); });
+    g.strokeStyle = '#9aa3b0'; g.beginPath(); g.moveTo(c.L, mid + .5); g.lineTo(c.W - c.R, mid + .5); g.stroke();
+    g.fillStyle = '#656b72'; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(B ? `+${m}` : String(m), c.L - 4, top); g.fillText('0', c.L - 4, mid); if (B) g.fillText(`−${m}`, c.L - 4, c.base);
+    c.years(c.L, cw, ys.length, i => ys[i]); const now = ys.indexOf(c.wy); if (now >= 0) c.now(c.L + (now + .5) * cw);
+    const med = S => median(ys.map(y => S[y].longest)), any = S => ys.filter(y => S[y].below > 0).length;
+    return [B ? gdSwatch(GD_RED, `longer spell in ${cn}`) + gdSwatch(GD_BLUE, 'shorter') : gdSwatch(GD_BLUE, 'longest spell in the year'),
+      `A spell is a run of days with flow below ${fmt(thr)} ML/d. ${B ? `Bars: change in each year’s longest spell, ${cn} − ${bn}.` : 'Bars: the longest in each complete water year.'} Median longest spell ${med(A)} d${B ? ` (${bn}) vs ${med(B)} d (${cn})` : ''}; ${any(A)} of ${ys.length} years have a day below${B ? ` (${bn}), ${any(B)} (${cn})` : ''}.`];
+  } },
+];
+const gdAvail = () => GD_VIEWS.filter(v => !v.only || !!gdVs);
 function gaugePanel(km) {
-  const g = gdNear, panel = $('gauge-diag'), date = D.days[Math.min(N - 1, Math.floor(day))].split('-'), wy = +date[0] - (+date[1] < 7 ? 1 : 0);
-  const e = g.ewrs.find(x => ewrKey(x) === gdPick) || g.ewrs.find(x => x.fr > 0) || g.ewrs[0];
-  const key = `${g.id}|${ewrKey(e)}|${wy}|${km.toFixed(1)}`;
+  const g = gdNear, panel = $('gauge-diag'), today = D.days[Math.min(N - 1, Math.floor(day))], date = today.split('-'), wy = +date[0] - (+date[1] < 7 ? 1 : 0);
+  const e = g.ewrs.find(x => ewrKey(x) === gdPick) || g.ewrs.find(x => x.fr > 0) || g.ewrs[0], views = gdAvail();
+  if (gdView >= views.length) gdView = 0;
+  const view = views[gdView], key = `${g.id}|${ewrKey(e)}|${wy}|${gdView}|${gdVs}|${gdMode}|${gdSpell}|${km.toFixed(1)}`;
   panel.classList.add('ready');
   if (key === gdKey) return;
   gdKey = key;
-  const years = GAUGES.years, n = [...e.ach].filter(c => c !== '-').length, a = [...e.ach].filter(c => c === '1').length, pct = n ? Math.round(100 * a / n) : 0;
-  const month = m => MONTHS[m - 1].slice(0, 3), unit = e.thrMax && e.thrMax < 1e6 ? `${fmt(e.thr)}\u2013${fmt(e.thrMax)}` : `\u2265 ${fmt(e.thr)}`;
   $('gd-name').textContent = g.name;
-  $('gd-where').textContent = `Gauge ${g.id} \u00b7 ${km < 0.1 ? 'at the car' : km.toFixed(km < 10 ? 1 : 0) + ' km away'} \u00b7 model river ${g.river}`;
-  $('gd-title').textContent = `Achieved each year \u00b7 ${e.code} \u00b7 ${e.pu}`;
-  $('gd-sum').textContent = `${unit} ML/d for ${e.dur} d, ${month(e.sm)}\u2013${month(e.em)}. Achieved in ${a} of ${n} complete years (${pct}%); target ${e.target}%. Bars: longest event each year, dashed line the days required.`;
-  gaugeChart($('gd-chart'), e, years, wy);
+  $('gd-where').textContent = `Gauge ${g.id} · ${km < 0.1 ? 'at the car' : km.toFixed(km < 10 ? 1 : 0) + ' km away'} · model river ${g.river}`;
+  const month = m => MONTHS[m - 1].slice(0, 3), unit = e.thrMax && e.thrMax < 1e6 ? `${fmt(e.thr)}–${fmt(e.thrMax)}` : `≥ ${fmt(e.thr)}`;
+  $('gd-sub').textContent = `${e.code} · ${e.pu} · ${unit} ML/d for ${e.dur} d, ${month(e.sm)}–${month(e.em)}`;
+  $('gd-title').textContent = `${gdView + 1}/${views.length} · ${view.name}`;
+  $('gd-vs').textContent = gdVs ? `vs ${gcaseName(gdVs)}` : 'Compare: off';
+  const opt = $('gd-opt'), spells = gdSpellOpts(g); opt.hidden = !view.opt;
+  opt.textContent = view.opt === 'heat' ? (gdMode ? 'Consecutive days' : 'Any days') : `below ${fmt(spells[gdSpell % spells.length])} ML/d`;
   const dup = new Set(g.ewrs.filter((x, i) => g.ewrs.findIndex(y => y.code === x.code) !== i).map(x => x.code));
   $('gd-list').replaceChildren(...g.ewrs.map(x => {
     const row = document.createElement('div'), bar = document.createElement('u'), fill = document.createElement('i'), name = document.createElement('span'), val = document.createElement('em');
     row.dataset.k = ewrKey(x); row.title = x.pu; row.className = x === e ? 'on' : '';
-    name.textContent = dup.has(x.code) ? `${x.code} \u00b7 ${x.pu.slice(0, 12)}` : x.code; fill.style.width = `${Math.round(100 * (x.fr || 0))}%`; bar.append(fill);
-    val.textContent = x.fr == null ? '\u2013' : `${Math.round(100 * x.fr)}%`; row.append(name, bar, val); return row;
+    name.textContent = dup.has(x.code) ? `${x.code} · ${x.pu.slice(0, 12)}` : x.code; fill.style.width = `${Math.round(100 * (x.fr || 0))}%`; bar.append(fill);
+    val.textContent = x.fr == null ? '–' : `${Math.round(100 * x.fr)}%`; row.append(name, bar, val); return row;
   }));
+  const ids = [GHOME, ...(gdVs ? [gdVs] : [])], cv = $('gd-chart'), dpr = devicePixelRatio || 1, W = cv.clientWidth || 374, H = 190, L = 34, R = 4, top = 30, base = H - 16, gc = cv.getContext('2d');
+  cv.width = W * dpr; cv.height = H * dpr; gc.setTransform(dpr, 0, 0, dpr, 0, 0); gc.clearRect(0, 0, W, H); gc.font = '10px Arial, sans-serif';
+  if (!ids.every(id => gdJ[id] && (!view.flow || gdF[id]))) {  // this view's data is still to fetch: ask for it, then draw
+    $('gd-key').innerHTML = ''; $('gd-sum').textContent = 'Loading…';
+    gdLoad(ids, view.flow).then(() => { gdKey = ''; if (gdNear) gaugePanel(gdKm); }).catch(() => { gdVs = ''; gdView = 0; gdKey = ''; $('gd-sum').textContent = 'These results could not be loaded.'; });
+    return;
+  }
+  const gcomp = gdVs ? gdJ[gdVs].by.get(g.id) : null, ec = gcomp ? gcomp.ewrs.find(x => ewrKey(x) === ewrKey(e)) : null, dd = gdDecode(e);
+  const c = { g: gc, W, H, L, R, top, base, wy, gid: g.id, gauge: g, gaugeC: gcomp, nowDay: (Date.UTC(+date[0], +date[1] - 1, +date[2]) - dd.base) / 864e5,
+    y: mx => v => base - (base - top) * Math.min(1, v / mx),
+    hline(yy, label) { gc.strokeStyle = '#111'; gc.setLineDash([4, 3]); gc.beginPath(); gc.moveTo(L, yy); gc.lineTo(W - R, yy); gc.stroke(); gc.setLineDash([]);
+      gc.fillStyle = '#656b72'; gc.textAlign = 'right'; gc.textBaseline = 'middle'; gc.fillText(label, W - R, yy - 6); },
+    axis(mx, dp = 0) { gc.strokeStyle = '#9aa3b0'; gc.beginPath(); gc.moveTo(L, base + .5); gc.lineTo(W - R, base + .5); gc.stroke();
+      gc.fillStyle = '#656b72'; gc.textAlign = 'right'; gc.textBaseline = 'middle'; gc.fillText('0', L - 4, base); gc.fillText(dp ? mx.toFixed(1) : gdK(mx), L - 4, top); },
+    years(x0, cw, n, label) { gc.fillStyle = '#656b72'; gc.textAlign = 'center'; gc.textBaseline = 'top';
+      [0, Math.floor(n / 2), n - 1].forEach(i => gc.fillText(label(i), Math.min(W - 14, Math.max(L + 10, x0 + (i + .5) * cw)), base + 3)); },
+    calendar(x) { gc.fillStyle = '#656b72'; gc.textAlign = 'center'; gc.textBaseline = 'top';
+      for (let yr = Math.ceil(+GAUGES.t0.slice(0, 4) / 20) * 20; yr <= GAUGES.years[GAUGES.years.length - 1]; yr += 20) gc.fillText(yr, x((Date.UTC(yr, 0, 1) - dd.base) / 864e5), base + 3); },
+    now(xx) { gc.strokeStyle = '#e55735'; gc.lineWidth = 1.5; gc.beginPath(); gc.moveTo(xx, 2); gc.lineTo(xx, base); gc.stroke(); gc.lineWidth = 1; } };
+  const [legend, sum] = view.draw(e, ec, c);
+  $('gd-key').innerHTML = legend;  // swatches built above from fixed colours and case names
+  $('gd-sum').textContent = sum;
 }
 $('gd-list').onclick = ev => { const row = ev.target.closest('div[data-k]'); if (row) { gdPick = row.dataset.k; gdKey = ''; gaugePanel(gdKm); } };
-function gaugeChart(cv, e, years, wy) {  // a strip of achieved / not achieved years over bars of each year's longest event, as the dashboard's EWR performance chart
-  const dpr = devicePixelRatio || 1, W = cv.clientWidth || 374, H = 150, L = 34, R = 4, top = 30, base = H - 16, cw = (W - L - R) / years.length;
-  cv.width = W * dpr; cv.height = H * dpr;
-  const c = cv.getContext('2d'), col = ch => ch === '1' ? '#2d6aa8' : ch === '0' ? '#c0504d' : '#d3d7db';
-  c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
-  const need = e.dur || 1, mx = Math.max(need * 1.6, ...e.max), y = v => base - (base - top) * Math.min(1, v / mx);
-  years.forEach((_, i) => {
-    c.fillStyle = col(e.ach[i]); c.fillRect(L + i * cw, 4, Math.max(1, cw - 0.6), 16);
-    if (e.ach[i] !== '-' && e.max[i] > 0) c.fillRect(L + i * cw, y(e.max[i]), Math.max(1, cw - 0.6), base - y(e.max[i]));
-  });
-  c.strokeStyle = '#111'; c.setLineDash([4, 3]); c.beginPath(); c.moveTo(L, y(need)); c.lineTo(W - R, y(need)); c.stroke(); c.setLineDash([]);
-  c.strokeStyle = '#9aa3b0'; c.beginPath(); c.moveTo(L, base + .5); c.lineTo(W - R, base + .5); c.stroke();
-  c.fillStyle = '#656b72'; c.font = '10px Arial, sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'right';
-  c.fillText(`${need} d`, L - 4, y(need)); c.fillText('0', L - 4, base); c.fillText(fmt(mx), L - 4, top);
-  c.textAlign = 'center'; c.textBaseline = 'top';
-  [0, Math.floor(years.length / 2), years.length - 1].forEach(i => c.fillText(years[i], Math.min(W - 14, Math.max(L + 10, L + (i + .5) * cw)), base + 3));
-  const now = years.indexOf(wy);
-  if (now >= 0) { c.strokeStyle = '#e55735'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(L + (now + .5) * cw, 2); c.lineTo(L + (now + .5) * cw, base); c.stroke(); c.lineWidth = 1; }
-}
+const gdRedraw = () => { gdKey = ''; if (gdNear) gaugePanel(gdKm); };
+for (const [id, step] of [['gd-prev', -1], ['gd-next', 1]]) $(id).onclick = () => { const n = gdAvail().length; gdView = (gdView + step + n) % n; gdRedraw(); };
+$('gd-vs').onclick = () => { const options = ['', ...GCASES.filter(id => id !== GHOME)]; gdVs = options[(options.indexOf(gdVs) + 1) % options.length]; gdRedraw(); };
+$('gd-opt').onclick = () => { const v = gdAvail()[gdView]; if (v.opt === 'heat') gdMode ^= 1; else gdSpell++; gdRedraw(); };
+for (const id of ['gd-prev', 'gd-next', 'gd-vs', 'gd-opt']) $(id).onmousedown = ev => ev.preventDefault();  // spans, not buttons: a focused button would take the car's Space (jump) as a click
 $('gaugesIn').onchange = async e => {
   showGauges = e.target.checked;
   if (showGauges) await loadGauges();
