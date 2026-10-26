@@ -173,6 +173,20 @@
   #pi-bp:hover { color:var(--head); }
   #pi-bp:focus-visible { outline:2px solid #2d6aa8; outline-offset:1px; }
   body.no-bp #panel-info .bp { display:none; }
+  #panel-info .st { display:none; }
+  /* the diagnostics view: the readings fill the panel in large rows, lined up across the panels; the map is a faint strip */
+  body.panel.diag #panel-info { left:0; right:0; top:0; bottom:calc(74px + 22%); display:flex; flex-direction:column; gap:16px; padding:14px 22px; border:0; border-radius:0; background:var(--bg); font-size:12px; overflow-y:auto; }
+  body.diag #panel-info .val { margin:2px 0 8px; font-size:24px; font-weight:300; }
+  body.diag #panel-info .val i { width:14px; height:14px; }
+  body.diag #panel-info .track { height:6px; border-radius:3px; }
+  body.diag #panel-info .track i { top:-5px; width:16px; height:16px; margin-left:-8px; }
+  body.diag #panel-info .track u { top:10px; height:7px; }
+  body.diag #panel-info .bp { height:10px; margin-top:16px; }
+  body.diag #panel-info .bp i { height:10px; }
+  body.diag #panel-info .bp .w { top:4.5px; height:1px; }
+  body.diag #panel-info .st { display:block; margin-top:8px; color:var(--dim); font-weight:400; letter-spacing:0; text-transform:none; white-space:normal; }
+  body.diag #pi-bp { align-self:flex-end; margin:-12px -10px 0 0; }
+  body.panel.diag #map { top:auto; height:22%; bottom:74px; opacity:.55; border-top:1px solid var(--rule); }
   #panel-info .bp { position:relative; height:7px; margin-top:10px; }
   #panel-info .bp i { position:absolute; top:0; height:7px; }
   #panel-info .bp .w { top:3px; height:1px; background:var(--dim); opacity:.6; }
@@ -183,7 +197,12 @@
   body.all { display:flex; flex-direction:column; }
   #all-head { display:flex; gap:18px; align-items:baseline; padding:12px 18px; border-bottom:1px solid var(--rule); font-size:12px; }
   #all-head b { font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--head); }
-  #all-head a { color:var(--dim); }
+  #all-head a { color:var(--dim); white-space:nowrap; }
+  #all-view { margin-left:auto; display:flex; border:1px solid var(--rule); border-radius:4px; overflow:hidden; }
+  #all-view button { padding:3px 10px; border:0; background:#fff; color:var(--dim); font:inherit; cursor:pointer; }
+  #all-view button + button { border-left:1px solid var(--rule); }
+  #all-view button[aria-pressed="true"] { background:#f2f4f5; color:var(--head); font-weight:600; }
+  #all-view button:focus-visible { outline:2px solid #2d6aa8; outline-offset:-2px; }
   #all-grid { flex:1; min-height:0; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); }
   #all-grid section { display:flex; flex-direction:column; min-width:0; border-left:1px solid var(--rule); }
   #all-grid section:first-child { border-left:0; }
@@ -214,9 +233,9 @@
 </details>
 <div id="map"></div>
 <div id="panel-info" aria-label="Basin today">
-  <div id="pi-pet"><span title="Potential evaporation, basin mean over the last 30 days">PET, 30 days</span><div class="val"><i></i><b></b></div><div class="track"><u></u><i></i></div><div class="bp"><i class="w"></i><i class="q"></i><i class="m"></i></div></div>
-  <div id="pi-rain"><span title="Rainfall, basin mean over the last 60 days">Rain, 60 days</span><div class="val"><i></i><b></b></div><div class="track"><u></u><i></i></div><div class="bp"><i class="w"></i><i class="q"></i><i class="m"></i></div></div>
-  <div id="pi-sa"><span title="The Murray where it leaves for South Australia">Flow to SA</span><div class="val"><i></i><b></b></div><div class="track"><u></u><i></i></div><div class="bp"><i class="w"></i><i class="q"></i><i class="m"></i></div></div>
+  <div id="pi-pet"><span title="Potential evaporation, basin mean over the last 30 days">PET, 30 days</span><div class="val"><i></i><b></b></div><div class="track"><u></u><i></i></div><div class="bp"><i class="w"></i><i class="q"></i><i class="m"></i></div><span class="st"></span></div>
+  <div id="pi-rain"><span title="Rainfall, basin mean over the last 60 days">Rain, 60 days</span><div class="val"><i></i><b></b></div><div class="track"><u></u><i></i></div><div class="bp"><i class="w"></i><i class="q"></i><i class="m"></i></div><span class="st"></span></div>
+  <div id="pi-sa"><span title="The Murray where it leaves for South Australia">Flow to SA</span><div class="val"><i></i><b></b></div><div class="track"><u></u><i></i></div><div class="bp"><i class="w"></i><i class="q"></i><i class="m"></i></div><span class="st"></span></div>
   <button type="button" id="pi-bp" aria-pressed="true" title="Hide the box plots in every panel">&minus;</button>
 </div>
 <div id="side">
@@ -326,7 +345,19 @@ if (ASK.get('case') === 'all') {
   const frames = [], head = document.createElement('div'), grid = document.createElement('div'), back = document.createElement('a'), title = document.createElement('b');
   head.id = 'all-head'; grid.id = 'all-grid';
   title.textContent = `${META.title} · all climate cases`; back.href = '?' + q; back.textContent = 'Back to one case';
-  head.append(title, back);
+  // Maps or Diagnostics: the same panels, the second with the readings large and the maps faint (?view=diag)
+  const views = document.createElement('div'); views.id = 'all-view'; views.setAttribute('role', 'group'); views.setAttribute('aria-label', 'View');
+  const setView = v => {
+    for (const b of views.children) b.setAttribute('aria-pressed', b.dataset.v === v);
+    const u = new URLSearchParams(location.search); if (v === 'diag') u.set('view', v); else u.delete('view');
+    history.replaceState(null, '', '?' + u);
+    for (const f of frames) f.contentWindow?.postMessage({ mdbView: v }, location.origin);
+  };
+  for (const [v, label] of [['maps', 'Maps'], ['diag', 'Diagnostics']]) {
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.v = v; b.textContent = label;
+    b.setAttribute('aria-pressed', (ASK.get('view') === 'diag' ? 'diag' : 'maps') === v); b.onclick = () => setView(v); views.append(b);
+  }
+  head.append(title, back, views);
   // ecological outcomes are not modelled for these runs yet: each panel keeps a place for them
   const ecoNA = () => {
     const e = document.createElement('div'); e.className = 'eco-na';
@@ -2348,6 +2379,15 @@ function rowSeries(id, get, src) {
 }
 const SA_REACH = PANEL ? Object.keys(D.reachFlow).reduce((a, k) => { const s = D.reachFlow[k].reduce((x, y) => x + y, 0); return s > a[1] ? [k, s] : a; }, ['', -1])[0] : null;
 if (PANEL) for (const [id, , , lo, hi] of PI_ROWS) $(id).querySelector('.track').style.background = `linear-gradient(90deg, rgb(${lo}), rgb(${hi}))`;
+// Side by side, the parent's view switch reaches every panel; the map is resized to its new strip or back.
+let diag = PANEL && ASK.get('view') === 'diag';
+if (diag) document.body.classList.add('diag');
+if (PANEL) addEventListener('message', e => {
+  if (e.origin !== location.origin || e.source !== parent || !e.data?.mdbView) return;
+  diag = e.data.mdbView === 'diag'; document.body.classList.toggle('diag', diag);
+  if (map) { map.resize(); repaint(); }
+  update();
+});
 // The box plots fold away together: the button in any panel hides or shows them in all.
 let showBox = true;
 function setBox(on) {
@@ -2364,8 +2404,10 @@ function panelInfo(d) {
     const { vals, sum } = rowSeries(id, get, src()), from = Math.min(W0, d), avg = (sum[d + 1] - sum[from]) / (d + 1 - from);
     const at = x => Math.max(0, Math.min(1, pos(x))) * 100;
     el.querySelector('.track u').style.left = `${at(avg)}%`;
-    if (!showBox) continue;
+    if (!showBox && !diag) continue;
     const so = vals.slice(from, d + 1).sort(), qt = f => so[Math.round(f * (so.length - 1))], [q1, md, q3] = [qt(.25), qt(.5), qt(.75)];
+    if (diag) el.querySelector('.st').textContent = `Average to date ${text(avg)} \u00b7 median ${text(md)} \u00b7 range ${fmt(so[0])}\u2013${text(so[so.length - 1])}`;
+    if (!showBox) continue;
     Object.assign(el.querySelector('.bp .w').style, { left: `${at(so[0])}%`, width: `${at(so[so.length - 1]) - at(so[0])}%` });
     Object.assign(el.querySelector('.bp .q').style, { left: `${at(q1)}%`, width: `${Math.max(1, at(q3) - at(q1))}%` });
     el.querySelector('.bp .m').style.left = `${at(md)}%`;
