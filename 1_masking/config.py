@@ -86,7 +86,10 @@ SYSTEMS = {
     "lower_darling": {
         "units": ("SS18",), "n_subcatchments": 11, "mainstem": "Darling River", "other_rivers": ("Murray River",),
         "routing": {"loss_regions": None, "target_outlet_m3s": None},  # no calibration gauge chosen yet
-        "splits": {},
+        # The Great Darling Anabranch leaves the Darling just below Menindee and runs south to the Murray near Wentworth, inside this
+        # system's reach but outside what is routed: an indicative ~5% of the flow there leaves the river (not a measured allocation)
+        "splits": {"B5080575770": {"": 0.05}},
+        "split_rivers": {"B5080575770": "Great Darling Anabranch"},
     },
     # The Murray with its Victorian tributaries the Kiewa and Ovens, routed into it through HydroBASINS' downstream links, from
     # Hume to the South Australian border (the corridor below Tooleybuc is moved into SS14, see MURRAY_CORRIDOR). Local runoff

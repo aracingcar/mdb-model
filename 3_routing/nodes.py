@@ -199,7 +199,7 @@ def _along_river(nodes, watersheds, system):
         while pieces:  # chain the mapped pieces from the one nearest the offtake, each next one by its nearest end
             gap = lambda c: np.hypot(c[0] - (coords[-1] if coords else here)[0], c[1] - (coords[-1] if coords else here)[1])
             k, flip = min(((k, f) for k in range(len(pieces)) for f in (0, 1)), key=lambda t: gap(pieces[t[0]][-1 if t[1] else 0]))
-            if gap(pieces[k][-1 if flip else 0]) > 0.1:
+            if gap(pieces[k][-1 if flip else 0]) > 0.2:
                 break
             piece = pieces.pop(k)
             coords += piece[::-1] if flip else piece
