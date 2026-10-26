@@ -1,6 +1,6 @@
 /* MDB Model's drivable vehicles: a terrain car and a river boat. This file is copied into docs/car for GitHub Pages. */
 window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief, refresh, pickTerrain, isWet, playWhileDriving, getRivers, conditionsAt, waterAt, pickRiver, setReliefs }) {
-  const playerCar = { kind:'playerCar', vehicle:'car', waterTop:0, pos:[0,0], placed:false, heading:0, speed:0, vel:[0,0], yawRate:0, steer:0, spin:false, nitro:1, nitroWait:0, nitroLocked:false, boosting:false, selected:false, jump:0, jumpV:0, pitch:0, roll:0, pitchV:0, rollV:0, accel:0, grade:0, bank:0, stalled:false, wet:0, slip:0, skids:[], offEdge:false, airZ:0, airV:0, falling:false, fallZ:0, fallV:0, fallTime:0, fallGravity:0 };
+  const playerCar = { kind:'playerCar', vehicle:'car', waterTop:0, pos:[0,0], placed:false, heading:0, speed:0, vel:[0,0], yawRate:0, steer:0, spin:false, nitro:1, nitroWait:0, nitroLocked:false, boosting:false, selected:false, jump:0, jumpV:0, groundZ:null, groundV:0, pitch:0, roll:0, pitchV:0, rollV:0, accel:0, grade:0, bank:0, stalled:false, wet:0, slip:0, skids:[], offEdge:false, airZ:0, airV:0, falling:false, fallZ:0, fallV:0, fallTime:0, fallGravity:0 };
   const driveKeys = new Set(), driveCodes = new Set(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','ShiftLeft','ShiftRight']);
   const ARROWS = { ArrowUp:'KeyW', ArrowLeft:'KeyA', ArrowDown:'KeyS', ArrowRight:'KeyD' }; // arrows drive exactly like WASD
   const driveCode = code => ARROWS[code] || code;
@@ -48,7 +48,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function place(pos, kind='car') {
     if (!pos || !validFor(kind)(pos[0],pos[1])) return false;
     exitChase();
-    Object.assign(playerCar,{vehicle:kind,waterTop:0,pos:pos.slice(0,2),placed:true,selected:true,heading:0,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,nitro:1,nitroWait:0,nitroLocked:false,boosting:false,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
+    Object.assign(playerCar,{vehicle:kind,waterTop:0,pos:pos.slice(0,2),placed:true,selected:true,heading:0,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,nitro:1,nitroWait:0,nitroLocked:false,boosting:false,jump:0,jumpV:0,groundZ:null,groundV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
     if (kind==='boat') playerCar.heading = alongRiver(pos);
     driveKeys.clear(); stopChoosing();
     for (const k in docks) docks[k].classList.toggle('placed', k===kind);
@@ -61,7 +61,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   function reset() {
     const noun=V().noun;
     exitChase(true);
-    Object.assign(playerCar,{placed:false,selected:false,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,jump:0,jumpV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
+    Object.assign(playerCar,{placed:false,selected:false,speed:0,vel:[0,0],yawRate:0,steer:0,spin:false,jump:0,jumpV:0,groundZ:null,groundV:0,pitch:0,roll:0,pitchV:0,rollV:0,accel:0,grade:0,bank:0,stalled:false,wet:0,slip:0,skids:[],lastSkid:null,offEdge:false,airZ:0,airV:0,falling:false,fallZ:0,fallV:0,fallTime:0,fallGravity:0}); hintText='';
     driveKeys.clear(); choosing=false; drawRadar(); drawHud();
     for (const k in docks) docks[k].classList.remove('placed','choosing'); hint.classList.remove('active');
     setHint(`Drag the ${noun} onto the map to drive again.`); refresh();
@@ -381,7 +381,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   }
 
   // Jumps are sized in screen terms: peak ~JUMP_PX pixels high, ~JUMP_AIR seconds in the air, at any zoom.
-  const JUMP_PX=60, JUMP_AIR=.7;
+  const JUMP_PX=60, JUMP_AIR=.7, HILL_AIR=1.5, TAKEOFF_PX=1; // HILL_AIR: gravity multiplier for hill flights; TAKEOFF_PX: how far the ground must drop away before the car leaves it
   const jumpGravity=mpp=>8*JUMP_PX*mpp/(JUMP_AIR*JUMP_AIR), jumpSpeed=mpp=>4*JUMP_PX*mpp/JUMP_AIR;
   const CLIMB_DEG=22, SIN_CLIMB=Math.sin(CLIMB_DEG*Math.PI/180); // the normal engine just stalls at this slope; boost climbs steeper
 
@@ -552,10 +552,16 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
       if(c.skids.length>400) c.skids.splice(0,c.skids.length-400);
     } else c.lastSkid=null;
     updateTilt(dt,mpp);
-    if(c.jumpV||c.jump) {
-      c.jumpV-=jumpGravity(mpp)*dt; c.jump=Math.max(0,c.jump+c.jumpV*dt);
-      if(c.jump===0) c.jumpV=0;
-    }
+    // Vertical motion. On the ground the car carries the vertical speed of the slope it is climbing (groundV); where the
+    // ground falls away faster than gravity pulls the car down (a crest), it leaves the surface and flies as a projectile
+    // until it meets the ground again. While airborne jumpV is the car's own vertical speed, not relative to the ground.
+    const ground=terrainHeightAt(c.pos[0],c.pos[1]), g=jumpGravity(mpp)*HILL_AIR;
+    if(c.offEdge||!Number.isFinite(c.groundZ)) { c.groundZ=ground; c.groundV=0; return; }
+    const flying=c.jump>0||c.jumpV!==0, rawV=(ground-c.groundZ)/dt;
+    const z=c.groundZ+c.jump+(flying?c.jumpV:c.groundV)*dt-.5*g*dt*dt, v=(flying?c.jumpV:c.groundV)-g*dt;
+    if(z-ground>(flying?0:TAKEOFF_PX*mpp)) { c.jump=z-ground; c.jumpV=v; }
+    else { c.jump=0; c.jumpV=0; c.groundV=flying ? rawV : c.groundV+(rawV-c.groundV)*(1-Math.exp(-10*dt)); } // landing matches the slope at once
+    c.groundZ=ground;
   }
 
   // GTA-style radar, bottom right while driving: heading-up, centred on the car, over a shaded height map of the whole terrain
@@ -691,7 +697,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     if(!playerCar.selected||playerCar.falling||!driveCodes.has(code)||typing(e.target)) return;
     e.preventDefault();
     if(code==='KeyQ'||code==='KeyE') { if(!e.repeat) setRelief(code==='KeyE'?.1:-.1); }
-    else if(code==='Space') { if(!e.repeat&&playerCar.vehicle==='car'&&playerCar.jump===0&&!playerCar.offEdge) playerCar.jumpV=jumpSpeed(metresPerPixel()); }
+    else if(code==='Space') { if(!e.repeat&&playerCar.vehicle==='car'&&playerCar.jump===0&&!playerCar.offEdge) playerCar.jumpV=playerCar.groundV+jumpSpeed(metresPerPixel()); }
     else driveKeys.add(code);
   }
   function keyup(e) {
