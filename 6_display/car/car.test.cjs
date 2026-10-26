@@ -80,7 +80,7 @@ function spinTest(wet) {
     getRelief:()=>1,setRelief(){},refresh(){},pickTerrain:()=>picked,isWet:()=>wet});
   c.place([1.5,1.5]); c.state.wet=wet;
   for(const k of ['KeyW','ShiftLeft','KeyD']) c.driveKeys.add(k);
-  const carMetres=55*78271.5*Math.cos(1.5*Math.PI/180)/Math.pow(2,10.5)/4/111320; // degrees per simulated car metre
+  const carMetres=4*55*78271.5*Math.cos(1.5*Math.PI/180)/Math.pow(2,10.5)/4/111320; // degrees per simulated car metre (the car crosses the map SPEED_SCALE=4 times faster)
   let turned=0, far=0, h=c.state.heading;
   for(let i=0;i<120;i++) { c.tick(.05); turned+=((c.state.heading-h+3*Math.PI)%(2*Math.PI))-Math.PI; h=c.state.heading;
     far=Math.max(far,Math.hypot(c.state.pos[0]-1.5,c.state.pos[1]-1.5)/carMetres); }
@@ -92,7 +92,7 @@ assert(wetSpin.far<12,`and stays on the spot (${wetSpin.far.toFixed(1)} m)`);
 assert(drySpin.turns<.75&&drySpin.far>50,`dry tyres grip and carve a wide arc (${drySpin.turns.toFixed(2)} turns, ${drySpin.far.toFixed(0)} m)`);
 // Nitro: Shift burns the tank in about 4 s, locks when empty (no boost), and refills after you let go.
 {
-  const flat={x0:0,y0:3,step:1,NR:4,NC:4,GZ:new Float32Array(16).fill(10),outline:[[[.1,.1],[2.9,.1],[2.9,2.9],[.1,2.9],[.1,.1]]],getExaggeration:()=>1};
+  const flat={x0:0,y0:12,step:1,NR:13,NC:13,GZ:new Float32Array(169).fill(10),outline:[[[.1,.1],[11.9,.1],[11.9,11.9],[.1,11.9],[.1,.1]]],getExaggeration:()=>1}; // big enough not to drive off
   const c=context.window.createCarMechanics({deck:{SimpleMeshLayer:class{constructor(props){Object.assign(this,props);}}},map,terrain:flat,
     getRelief:()=>1,setRelief(){},refresh(){},pickTerrain:()=>picked,isWet:()=>0});
   c.place([1.5,1.5]); c.driveKeys.add('KeyW'); c.driveKeys.add('ShiftLeft');
