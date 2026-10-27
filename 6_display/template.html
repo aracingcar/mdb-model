@@ -176,6 +176,7 @@
   #site-menu a:hover, #site-menu a:focus-visible { background:#f2f4f5; }
   body.car-driving #side { display:none; }  /* driving: the car's own HUD replaces the side panel and the map takes the width */
   body.car-driving #map { left:0; top:0; bottom:0; }
+  body.src-flow #key, body.src-flow #eco-panel, body.src-flow #bars, body.src-flow #chartT, body.src-flow #focus-row { display:none; }
   body.car-driving #model-panels details, body.car-driving #source-panel, body.car-driving #model-section { display:none; }
   body.car-driving #model-panels { background:none; border-color:transparent; box-shadow:none; }  /* model choices wait until you stop driving */
   body.car-driving #bar { left:50%; right:auto; bottom:14px; height:auto; transform:translateX(-50%); gap:10px; padding:4px 12px 4px 6px;
@@ -598,7 +599,8 @@ try {
 if (typeof maplibregl === 'undefined' || typeof deck === 'undefined') document.getElementById('err').style.display = 'grid';
 const BF = {};
 for (const id in D.riverFlow) { const bin = atob(D.riverFlow[id]), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); BF[id] = new Uint16Array(u8.buffer); }
-const N = D.days.length, $ = id => document.getElementById(id);
+let N = D.days.length;
+const $ = id => document.getElementById(id);
 const pick = (id, text) => { $(id).textContent = text; };
 // Climate cases, best to worst: a slider and a button per stop; the selected stop's SSP, global and regional model are listed.
 // Choosing a built case reloads the page on its data (?case=<id>, kept with the other choices); the other stops describe
@@ -1934,6 +1936,7 @@ const nice = s => { const [y,m,d] = s.split('-'); return `${+d} ${MONTHS[+m-1]} 
 const wyOf = s => +s.slice(0,4) + (+s.slice(5,7) >= 7 ? 1 : 0);
 const totalArea = D.units.reduce((a,u) => a + u.area, 0);
 const lerp = (a,b,t) => a.map((v,i) => Math.round(v + (b[i]-v)*t));
+let SRC = 'model', SV = null;  // the flow source, and for observed or uploaded flow its view of the map (svApply)
 let day = 0, playing = false, speeds = [7,10,30,90,365], si = 2, relief = 1, riverRelief = 1, last = performance.now(), acc = 0;
 let MAXQ = maxQ();
 const flowCol = q => [...lerp([28,111,176],[140,225,250],Math.min(1,Math.sqrt(q / MAXQ))), 245];
@@ -1990,7 +1993,7 @@ const mistCol = t => lerp([214,224,238], [58,70,96], Math.pow(Math.max(0, (Math.
 
 const polys = D.units.flatMap(u => u.rings.map(r => ({ r, u, id: u.id })));
 const rivers = D.reaches.flatMap(x => x.rings.map(r => ({ r, id: x.unit, name: x.name, kind: x.kind })));
-const flowOf = d => BF[d.id][day];
+const flowOf = d => SV ? svFlow(d.id) : BF[d.id][day];
 const boxOf = d => { let a = 1e9, b = 1e9, c = -1e9, e = -1e9; for (const p of d.r) { a = Math.min(a, p[0]); c = Math.max(c, p[0]); b = Math.min(b, p[1]); e = Math.max(e, p[1]); } return [a, b, c, e]; };
 const riverBox = rivers.map(boxOf);  // rivers and riverBox grow when a system's detail arrives
 function inRing(r, lon, lat) {
@@ -2462,22 +2465,22 @@ function placesNow() {
 function layers() {
   const blend = { depthWriteEnabled:false, depthCompare:'always' };
   if (cache.day !== day) {
-    const wet = D.units.filter(u => RP[u.id][day] >= WET_MIN);
+    const wet = SV ? [] : D.units.filter(u => RP[u.id][day] >= WET_MIN);
     cache = { day, wet, discs: wet.flatMap(u => cloudDiscs(u, Math.sqrt(Math.min(1, RP[u.id][day] / RAIN_MAX)))) };
   }
   const discs = cache.discs;
   const places = placesNow();
   const placePosition = p => [p.lon,p.lat,p.z * TERR + 300];
   const labelStorages = showStorages && map && map.getZoom() >= STORAGE_LABEL_ZOOM;
-  if (tintDay !== day) { tintDay = day; D.units.forEach(u => tint[u.id] = evapShade(ANOM[u.id][day])); }
+  if (!SV && tintDay !== day) { tintDay = day; D.units.forEach(u => tint[u.id] = evapShade(ANOM[u.id][day])); }
   const mist = [
     new deck.SolidPolygonLayer({ id:'cloud', visible:rtShows('terrain'), data:discs, getPolygon:d => d.ring.map(p => [p[0], p[1], d.z]), extruded:false, filled:true,
       getFillColor:d => [...lerp(mistCol(d.t), [168,184,210], 0.55 * d.hi), 24 + 36 * d.t * (1 - 0.5 * d.f)], pickable:false, parameters:blend, updateTriggers:{getPolygon:day, getFillColor:day} }),
   ];
   return [
-    new deck.SimpleMeshLayer({ id:'terrain-' + meshGen, visible:rtShows('terrain'), data:[{ pos:[LON0, LAT0, 0] }], mesh:terrainMesh, texture:paintEvap(day), getPosition:d => d.pos, getColor:[255,255,255,255], sizeScale:1,
+    new deck.SimpleMeshLayer({ id:'terrain-' + meshGen, visible:rtShows('terrain'), data:[{ pos:[LON0, LAT0, 0] }], mesh:terrainMesh, texture:SV ? PLAIN : paintEvap(day), getPosition:d => d.pos, getColor:[255,255,255,255], sizeScale:1,
       material:{ ambient:.6, diffuse:.7, shininess:4, specularColor:[30,30,30] }, pickable:carMechanics.isPlacing(), updateTriggers:{ getColor:day } }),
-    new deck.SimpleMeshLayer({ id:'wall-' + meshGen, visible:rtShows('terrain'), data:[{ pos:[LON0, LAT0, 0] }], mesh:wallMesh, texture:evCanvas, getPosition:d => d.pos, getColor:[238,238,238,255], sizeScale:1,
+    new deck.SimpleMeshLayer({ id:'wall-' + meshGen, visible:rtShows('terrain'), data:[{ pos:[LON0, LAT0, 0] }], mesh:wallMesh, texture:SV ? PLAIN : evCanvas, getPosition:d => d.pos, getColor:[238,238,238,255], sizeScale:1,
       material:{ ambient:.55, diffuse:.6, shininess:2, specularColor:[0,0,0] }, pickable:false, updateTriggers:{ getColor:day } }),
     ...(showDetail ? [new deck.SolidPolygonLayer({ id:'roads', data:roadsNow(), getPolygon:d => d.r.map(p => [p[0], p[1], p[2] * TERR]), extruded:true, getElevation:ROAD_RAISE * relief,
       getFillColor:d => [...ROAD_FILL[d.cls], 245], material:{ambient:.8,diffuse:.45,shininess:10,specularColor:[40,40,40]}, pickable:false, updateTriggers:{getPolygon:relief, getElevation:relief} })] : []),
@@ -2692,6 +2695,7 @@ function carConditions(lon, lat) {
   const r = Math.round((T.y0 - lat) / T.step), c = Math.round((lon - T.x0) / T.step);
   const u = r >= 0 && c >= 0 && r < NR && c < NC ? D.units[GO[r * NC + c]] : null;
   if (!u) return null;
+  if (SV) return { place: u.name, region: `${UNIT_NAME[u.sdl]} SDL unit (${u.sdl})`, date: nice(D.days[Math.min(N - 1, Math.floor(day))]), rows: [['Ground elevation', `${fmt(GZ[r * NC + c])} m`]] };
   const d = Math.min(N - 1, Math.floor(day)), id = u.id, one = v => v.toFixed(1), a = ANOM[id][d];
   return { place: u.name, region: `${UNIT_NAME[u.sdl]} SDL unit (${u.sdl})`, date: `${WD[new Date(...D.days[d].split('-').map((v, i) => +v - (i === 1))).getDay()]} ${nice(D.days[d])}`, rows: [
     ['Rain today', `${one(D.P[id][d])} mm`], ['Rain, last 60 days', `${fmt(RP[id][d])} mm`],
@@ -2717,6 +2721,7 @@ function hover(info) {
     return;
   }
   const id = info.object.id || info.object.u.id, u = D.units.find(x => x.id === id);
+  if (SV) { tip.innerHTML = `<b>${u.name}</b>${UNIT_NAME[u.sdl]} SDL unit (${u.sdl}) · ${u.area.toLocaleString('en-AU')} km²`; tip.style.display = 'block'; tip.style.left = Math.min(info.x + 14, innerWidth - 230) + 'px'; tip.style.top = (info.y + 14) + 'px'; return; }
   tip.innerHTML = `<b>${u.name}</b>${UNIT_NAME[u.sdl]} SDL unit (${u.sdl}) · ${u.area.toLocaleString('en-AU')} km²<br>Reach flow ${fmt(D.reachFlow[id][day])} ML/d<br>Rain ${fmt(RP[id][day])} mm in 60 d<br>Evaporation ${fmt(RE[id][day])} mm in 30 d (${ANOM[id][day] >= 0 ? '+' : ''}${fmt(ANOM[id][day])} mm vs normal)<br>Elevation ${fmt(u.elev.mean)} m mean (${fmt(u.elev.min)}–${fmt(u.elev.max)} m)`;
   tip.style.display = 'block'; tip.style.left = Math.min(info.x + 14, innerWidth - 230) + 'px'; tip.style.top = (info.y + 14) + 'px';
 }
@@ -2769,10 +2774,10 @@ function update() {
   const d = Math.min(N - 1, Math.floor(day)), [y, m, dd] = D.days[d].split('-'), dt = new Date(+y, +m - 1, +dd);
   $('wd').textContent = WD[dt.getDay()];
   $('date').textContent = `${+dd} ${MONTHS[+m - 1]}`;
-  $('yr').textContent = `${y} \u00b7 ${UNIT_NAME[focus]} outlet ${fmt(D.flow[d])} ML/d`;
-  $('chartT').textContent = `Daily mean ${ANOMV[d] >= 0 ? '+' : '\u2212'}${Math.abs(ANOMV[d]).toFixed(0)} mm`;
+  $('yr').textContent = SV ? `${y} \u00b7 ${SV.mainName ? `${SV.mainName} ${fmt(D.flow[d])} ML/d` : 'no flow loaded'}` : `${y} \u00b7 ${UNIT_NAME[focus]} outlet ${fmt(D.flow[d])} ML/d`;
   $('clock').textContent = nice(D.days[d]);
-  eco(); drawBars(d); drawTimeline();
+  if (!SV) { $('chartT').textContent = `Daily mean ${ANOMV[d] >= 0 ? '+' : '\u2212'}${Math.abs(ANOMV[d]).toFixed(0)} mm`; eco(); drawBars(d); }
+  drawTimeline();
   if (overlay) overlay.setProps({ layers: layers() });
   if (PANEL) panelInfo(d);
   if (PANEL && D.days[d] !== sharedDay) { sharedDay = D.days[d]; parent.postMessage({ mdbDay: sharedDay }, location.origin); }
@@ -3251,19 +3256,82 @@ matched = pd.DataFrame({"name": [known[g]["name"] for g in gauges], "lon": [know
 out, flow = ewr_export.build("yours", flows, matched, *results)
 json.dumps({"out": out, "flow": flow, "ignored": sorted({c[:-5] for c in cols} - set(gauges)), "from": str(start.date()), "to": str(end.date())}, default=lambda o: o.item(), allow_nan=False)
 `;
-let SRC = 'model', yoursWorker;
+let yoursWorker;
+// The map on observed or uploaded flow: no weather, the source's own calendar, and every river's flow interpolated from the gauges.
+// A river takes the log-flow of its nearest gauges (up to three with a reading that day, within 150 km), weighted by 1 / (distance + 10 km)²
+// and six times as much for a gauge on a river of the same name. Weather layers are hidden and the timeline runs over the record.
+const PLAIN = Object.assign(document.createElement('canvas'), { width: 1, height: 1 });
+{ const g = PLAIN.getContext('2d'); g.fillStyle = '#e4e1d8'; g.fillRect(0, 0, 1, 1); }
+const SV_KM = 150, SV_MODEL = { days: D.days, flow: null, fq: 1, maxQ: 0, period: null, desc: $('desc').textContent };
+const svKm = (lon, lat, pts) => { let best = Infinity; const k = Math.cos(lat * Math.PI / 180);
+  for (let i = 0; i < pts.length; i += 2) { const d = Math.hypot((pts[i] - lon) * k, pts[i + 1] - lat) * 111; if (d < best) best = d; } return best; };
+function svRivers() {  // per river id, its name and a sample of its outline points, for the rivers drawn so far
+  const R = SV.rivers;
+  for (; SV.seen < rivers.length; SV.seen++) {
+    const x = rivers[SV.seen], e = R.get(x.id) || R.set(x.id, { name: x.name, pts: [], near: null }).get(x.id);
+    for (const p of x.r) e.pts.push(p[0], p[1]);
+  }
+  return R;
+}
+function svNear(id) {  // this river's gauges, best weighted first, once its outline is known
+  const e = svRivers().get(id);
+  if (!e) return [];
+  if (!e.near || e.n !== e.pts.length) {
+    e.n = e.pts.length;
+    e.near = SV.gauges.map(g => { const km = Math.min(svKm(g.lon, g.lat, e.pts), 1e9); return km <= SV_KM ? { g, w: (g.rname === e.name ? 6 : 1) / (km + 10) ** 2 } : null; }).filter(Boolean).sort((a, b) => b.w - a.w);
+  }
+  return e.near;
+}
+function svFlow(id) {  // ML/d at river `id` today
+  if (SV.q.day !== day) SV.q = { day, v: new Map() };
+  if (SV.q.v.has(id)) return SV.q.v.get(id);
+  let sw = 0, sl = 0, n = 0;
+  for (const { g, w } of svNear(id)) { const v = g.s[Math.min(day, g.s.length - 1) | 0]; if (Number.isNaN(v)) continue; sw += w; sl += w * Math.log1p(v); if (++n === 3) break; }
+  const q = n ? Math.expm1(sl / sw) : 0;
+  SV.q.v.set(id, q); return q;
+}
+function svApply(id) {  // install flow source `id`'s view, or put the model's back
+  if (id === 'model' || !gdJ[id] && id !== 'yours') {
+    if (!SV) return;
+    SV = null; document.body.classList.remove('src-flow');
+    D.days = SV_MODEL.days; N = D.days.length; $('desc').textContent = SV_MODEL.desc;
+    const [a, b] = SV_MODEL.period;
+    for (const [sel, y] of [['climate-start', a], ['climate-end', b]]) { $(sel).disabled = false; $(sel).replaceChildren(new Option(y, y)); $(sel).value = y; }
+    MAXQ = SV_MODEL.maxQ; setFocus(focus); setPeriod();
+    return;
+  }
+  if (!SV) { SV_MODEL.period = [$('climate-start').value, $('climate-end').value]; SV_MODEL.maxQ = MAXQ; }
+  const j = gdJ[id], f = gdF[id], gauges = [];
+  let days = SV_MODEL.days, main = null;
+  if (j && f) {
+    const t0 = Date.parse(j.t0); days = Array.from({ length: f.n }, (_, i) => new Date(t0 + i * 864e5).toISOString().slice(0, 10));
+    for (const g of j.gauges) { const s = gdSeries(id, g.id); let sum = 0, m = 0, top = 0; for (const v of s) if (!Number.isNaN(v)) { sum += v; m++; if (v > top) top = v; } gauges.push({ id: g.id, name: g.name, lon: g.lon, lat: g.lat, s, mean: sum, top })  /* mean: total flow, so a long record outweighs a short one */; }
+    main = gauges.reduce((a, g) => !a || g.mean > a.mean ? g : a, null);
+  }
+  SV = { gauges, rivers: new Map(), seen: 0, q: { day: -1, v: new Map() }, mainName: main && main.name };
+  for (const g of gauges) { let best = Infinity; for (const e of svRivers().values()) { const km = svKm(g.lon, g.lat, e.pts); if (km < best) { best = km; g.rname = e.name; } } }  // the river it sits on, by name
+  document.body.classList.add('src-flow');
+  D.days = days; N = days.length; W0 = 0; W1 = N - 1; day = 0;
+  D.flow = main ? Float64Array.from(main.s, v => Number.isNaN(v) ? 0 : v) : new Float64Array(N);
+  FQ = Math.max(1, ...D.flow); MAXQ = Math.max(1, ...gauges.map(g => g.top));
+  $('desc').textContent = `${gcaseName(id)}: daily flow at the EWR gauges, with every river’s flow interpolated from the gauges around it. No rainfall or evaporation.`;
+  const y0 = days[0].slice(0, 4), y1 = days[N - 1].slice(0, 4);
+  for (const [sel, y] of [['climate-start', y0], ['climate-end', y1]]) { $(sel).replaceChildren(new Option(y, y)); $(sel).value = y; $(sel).disabled = true; }
+  cache = { day: -1 }; update();
+}
 function useGauges(id) {
   GHOME = id; GAUGES = null; gaugesLoad = null; gdCalC = null; gdNear = null; gdKey = ''; gdView = 0; gdPick = ''; gdVs = '';
   $('gauge-diag').classList.remove('ready');
   loadGauges();
+  if (SRC === 'model') svApply('model'); else gdLoad([id], true).then(() => id === GHOME && svApply(id)).catch(() => {});
   if (overlay) overlay.setProps({layers:layers()});
 }
 function setSource(s) {
   SRC = s;
   for (const b of $('source-stops').children) b.setAttribute('aria-pressed', b.dataset.s === s);
   $('model-section').hidden = s !== 'model'; $('yours-fields').hidden = s !== 'yours';
-  $('source-note').textContent = { model: '', observed: 'Daily flow from Bureau of Meteorology gauge records, 2012 onwards, at the EWR gauges that have one. The EWR tool works out the results; the map and ecology still show the climate model.',
-    yours: 'A CSV of daily flow in ML/d: a Date column and one column per gauge, named like 404216_flow (the EWR tool’s standard time-series format). Gauges not on the map are ignored.' }[s];
+  $('source-note').textContent = { model: '', observed: 'Daily flow from Bureau of Meteorology gauge records, 2012 onwards, at the EWR gauges that have one. The map shows it with every river’s flow interpolated from the gauges; the EWR tool works out the gauge panel’s results. No rainfall, evaporation or ecology.',
+    yours: 'A CSV of daily flow in ML/d (the map’s rivers are interpolated from your gauges): a Date column and one column per gauge, named like 404216_flow (the EWR tool’s standard time-series format). Gauges not on the map are ignored.' }[s];
   useGauges(s === 'model' ? MODEL_HOME : s);
 }
 $('source-stops').onclick = e => { const b = e.target.closest('button[data-s]'); if (b && b.dataset.s !== SRC) setSource(b.dataset.s); };
