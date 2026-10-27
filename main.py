@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parent
-for folder in ("1_masking", "2_rainfall_runoff", "3_routing", "4_ecology", "5_outputs", "6_display"):
+for folder in ("1_masking", "2a_rainfall_runoff", "3a_routing", "4_ecology", "5_outputs", "6_display"):
     sys.path.insert(0, str(ROOT / folder))
 
 from config import CLIMATE_CASES, LINKS, RUN_KEY, RUN_ORDER, SDL_UNITS, SYSTEM_ID, UNITS

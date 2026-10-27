@@ -5,7 +5,7 @@ for good quality. A gauge belongs to a system if it lies in, or within OUTLINE_B
 basins (as stored in results.db, so run main.py first); it is tagged with the nearest basin. Writes, per system, to
 data/input/routing/: <system>_observed_flow_daily.csv (wide, m3/s, blank days kept) and its _metadata.json.
 
-Run from the repository root with ``python 3_routing/load_observed_flow.py [path/to/river.db]``.
+Run from the repository root with ``python 3b_calibration/load_observed_flow.py [path/to/river.db]``.
 """
 import json
 import sqlite3

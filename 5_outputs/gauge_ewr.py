@@ -31,7 +31,7 @@ from results_db import load_geometry, load_results
 GAUGES_FILE = ROOT / "data" / "input" / "routing" / "ewr_gauges.csv"
 OUT_DIR = ROOT / "data" / "output" / "gauge_ewr"
 EXPORT_DIR = ROOT / "data" / "gauge_ewr"
-MAX_OFF_RIVER_KM = 1.5  # as in 3_routing/calibrate_routing.py
+MAX_OFF_RIVER_KM = 1.5  # as in 3a_routing/calibrate_routing.py
 KM_PER_DEGREE = 111
 EXCLUDED = {"425020", "425022"}  # lake EWRs that need a level series, which the model does not produce: py_ewr stops on them
 METHODS = ("gr4j", "muskingum")

@@ -36,7 +36,7 @@ The goal is all 29 units. Steps 1 and 2 (the small demo bundle and per-system de
      - It computes, per unit, `areal_average` (the unit mean) and `unit_averages` for reaches and basins, plus
        `evap_anomaly_grids` (the display's 4 km evaporation anomaly), then `save_climate(unit, ...)`.
      - It refuses to store all-NaN series, then deletes the raw files.
-- `3_routing/muskingum.py: route()` routes the whole system network (`routing.route_network`, which supports splits)
+- `3a_routing/muskingum.py: route()` routes the whole system network (`routing.route_network`, which supports splits)
   and calibrates one loss over the last `loss_regions` main-stem reaches to `target_outlet_m3s`. It returns
   `unit_flow` (`{unit: flow at the unit's outlet basin}`), `reach_flow`, `basin_flow`, `rivers` and `river_flow`.
 - `docs/engine.js` is the browser twin of rainfall-runoff, routing and ecology, run per system from

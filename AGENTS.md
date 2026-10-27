@@ -3,10 +3,10 @@
 - Prefer flat, early-return logic over deep nesting.
 - Do not add speculative interfaces or premature abstractions.
 - After every file modification, run both existing test suites from the repository root:
-  - Python: `.venv/bin/python -m unittest discover -s 3_routing -p 'test_*.py'`
+  - Python: `.venv/bin/python -m unittest discover -s 3a_routing -p 'test_*.py'`
   - JavaScript: `node --test 6_display/network-editor.test.cjs 6_display/runoff-editor.test.cjs 6_display/car/car.test.cjs`
 - Report failed or unavailable checks explicitly; do not treat a partial test run as a pass. The repository currently has no `package.json`, and its Python tests use `unittest`; do not substitute `npm test` or `pytest` unless those runners are configured.
-- `docs/engine.js` re-implements the Python model. When you change the model (`1_masking/`, `2_rainfall_runoff/`, `3_routing/`, `4_ecology/`, `5_outputs/`, `6_display/run_display.py`), make the matching change in `docs/engine.js` (and `docs/data/engine_*.json` if the data is affected) in the same change, and vice versa.
+- `docs/engine.js` re-implements the Python model. When you change the model (`1_masking/`, `2a_rainfall_runoff/`, `3a_routing/`, `4_ecology/`, `5_outputs/`, `6_display/run_display.py`), make the matching change in `docs/engine.js` (and `docs/data/engine_*.json` if the data is affected) in the same change, and vice versa.
 ## Model robustness
 - Check physical correctness independently of Python/browser parity: both implementations can agree on the same mistake. Changes to runoff, routing, splits or storage must add or update small regression tests accounting for inflows, outflows, losses and changes in storage, including any modelled exchanges and explicit numerical tolerances.
 - State units at model boundaries and conversions (especially mm/day, km², m³/s and ML/day). Validate aligned daily dates, finite values and parameter bounds. Reject missing days, duplicate dates and invalid inputs; any filling, clipping or fallback must have a documented modelling reason and a test.
@@ -17,7 +17,7 @@
 - You may commit and push without being asked.
 - Before committing or pushing, run `git status` and `git diff` to check for changes made outside this chat (by the user or another session). Only stage the files you changed in this session; never include those other changes, and never use `git add -A` or `git add .`.
 ## Before pushing: browser-engine parity (quick version only)
-`docs/engine.js` re-implements the Python model, and `6_display/engine_parity.py` checks the two agree. The full run takes ~16 minutes, so do not run it on a push. If you changed anything that can affect the engine in this session (files in `1_masking/`, `2_rainfall_runoff/`, `3_routing/`, `4_ecology/`, `5_outputs/`, `6_display/run_display.py`, `docs/engine.js`, or the engine data in `docs/data/engine_*.json`), run only the quick check from `6_display/` before you push, and fix any MISMATCH it reports:
+`docs/engine.js` re-implements the Python model, and `6_display/engine_parity.py` checks the two agree. The full run takes ~16 minutes, so do not run it on a push. If you changed anything that can affect the engine in this session (files in `1_masking/`, `2a_rainfall_runoff/`, `3a_routing/`, `4_ecology/`, `5_outputs/`, `6_display/run_display.py`, `docs/engine.js`, or the engine data in `docs/data/engine_*.json`), run only the quick check from `6_display/` before you push, and fix any MISMATCH it reports:
 
     python engine_parity.py --changed --years 2027-2036
 

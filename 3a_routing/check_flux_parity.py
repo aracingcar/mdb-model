@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-for folder in ('1_masking', '2_rainfall_runoff', '3_routing'):
+for folder in ('1_masking', '2a_rainfall_runoff', '3a_routing'):
     sys.path.insert(0, str(ROOT / folder))
 from config import DISPLAY_SYSTEMS, RUN_KEY, SYSTEM_ID
 from run_rainfall_runoff import model_specs as rr_specs, run_rainfall_runoff

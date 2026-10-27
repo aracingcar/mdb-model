@@ -63,7 +63,7 @@ SDL_UNITS = {
 #   basins outside the system (or another system's stub) to a basin of this system. Applied after the reaches are grouped,
 #   so reaches and the stored climate keyed by them do not change.
 # keep_links (optional): basins whose outlet node keeps its straight-line link to the next river node even over the
-#   MAX_GAP_KM (3_routing/nodes.py) where the mapped channel cannot be followed; for main-stem links the cut would strand.
+#   MAX_GAP_KM (3a_routing/nodes.py) where the mapped channel cannot be followed; for main-stem links the cut would strand.
 SYSTEMS = {
     "murrumbidgee": {
         "units": ("SS15", "SS1"), "n_subcatchments": 11, "mainstem": "Murrumbidgee River",
@@ -137,7 +137,7 @@ DISPLAY_SYSTEMS = ("murrumbidgee", "lachlan", "lower_darling", "murray", "goulbu
 
 # Cross-system links, from HydroBASINS' downstream links where a system's river leaves it. Each system routes in its own
 # process; a link adds the routed outflow of its basin ``basin`` in system ``from`` to the outlet node of basin ``into`` in
-# system ``to`` (in 3_routing/muskingum.py, and in docs/engine.js for the browser), so the systems run in RUN_ORDER. Basins
+# system ``to`` (in 3a_routing/muskingum.py, and in docs/engine.js for the browser), so the systems run in RUN_ORDER. Basins
 # are HydroBASINS level-8 IDs. spill_above_ML_d (optional): only the flow above this goes on; the rest stays in the terminal
 # wetland. The value is an indicative placeholder, not a measured spill threshold. A link may skip basins outside every system.
 # fraction (optional): only this share of the basin's routed outflow goes, a return of water a split of the basin sends out of

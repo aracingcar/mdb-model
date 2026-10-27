@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
-for folder in ("1_masking", "2_rainfall_runoff", "3_routing", "4_ecology", "5_outputs"):
+for folder in ("1_masking", "2a_rainfall_runoff", "3a_routing", "4_ecology", "5_outputs"):
     sys.path.insert(0, str(ROOT / folder))
 
 from config import DISPLAY_SYSTEMS, LINKS, RUN_KEY, SDL_UNITS, SYSTEM_ID, UNITS
@@ -113,9 +113,9 @@ def check_system():
 
 
 # files whose change touches only some systems or methods; any other model file touches everything
-ALL_SYSTEMS_DIRS = ("1_masking/", "2_rainfall_runoff/", "3_routing/", "4_ecology/", "5_outputs/")
-METHOD_FILES = {"2_rainfall_runoff/gr4j_2.py": ["gr4j_2"], "2_rainfall_runoff/gr4j.py": ["gr4j", "gr4j_2"], "3_routing/muskingum_2.py": ["muskingum_2"]}
-NO_EFFECT = ("3_routing/download", "1_masking/download", "3_routing/check_flux", "3_routing/test_", "1_masking/run_masking")
+ALL_SYSTEMS_DIRS = ("1_masking/", "2a_rainfall_runoff/", "3a_routing/", "4_ecology/", "5_outputs/")
+METHOD_FILES = {"2a_rainfall_runoff/gr4j_2.py": ["gr4j_2"], "2a_rainfall_runoff/gr4j.py": ["gr4j", "gr4j_2"], "3a_routing/muskingum_2.py": ["muskingum_2"]}
+NO_EFFECT = ("2b_calibration/", "3b_calibration/", "3a_routing/download", "1_masking/download", "3a_routing/check_flux", "3a_routing/test_", "1_masking/run_masking")
 
 
 def _git(*args):

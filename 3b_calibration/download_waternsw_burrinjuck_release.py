@@ -6,7 +6,7 @@ with a quality code per day. This is kept as a separate comparison series:
 the quality codes are preserved and the daily volume is not presented as a
 quality-screened discharge observation.
 
-Run from the repository root with ``python 3_routing/download_waternsw_burrinjuck_release.py``.
+Run from the repository root with ``python 3b_calibration/download_waternsw_burrinjuck_release.py``.
 """
 
 from __future__ import annotations

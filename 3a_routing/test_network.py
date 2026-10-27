@@ -1,4 +1,4 @@
-"""Run with python -m unittest discover -s 3_routing -p 'test_*.py'."""
+"""Run with python -m unittest discover -s 3a_routing -p 'test_*.py'."""
 import json
 import subprocess
 import sys

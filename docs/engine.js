@@ -1,6 +1,6 @@
 // Browser twin of the Python hydrology: rainfall-runoff (GR4J), routing (Muskingum), river flows and the ecology scores.
 // Runs in a Web Worker (see the bottom) and in Node for the parity test, one river system at a time. Methods are chosen
-// by `algorithm`; their parameters come from the Python modules (2_rainfall_runoff, 3_routing) through the page's META,
+// by `algorithm`; their parameters come from the Python modules (2a_rainfall_runoff, 3a_routing) through the page's META,
 // and the system's own calibration and splits from its engine data file.
 'use strict';
 
@@ -8,7 +8,7 @@ const ML_PER_M3S_DAY = 86.4;
 
 // ---------- rainfall-runoff ----------
 const RAINFALL_RUNOFF = {
-  // GR4J (Perrin, Michel & Andreassian 2003), as in 2_rainfall_runoff/gr4j.py. Returns runoff depth in mm/day.
+  // GR4J (Perrin, Michel & Andreassian 2003), as in 2a_rainfall_runoff/gr4j.py. Returns runoff depth in mm/day.
   gr4j(precip, pet, [x1, x2, x3, x4]) {
     const n1 = Math.ceil(x4), n2 = Math.ceil(2 * x4);
     const sh1 = t => t <= 0 ? 0 : t < x4 ? (t / x4) ** 2.5 : 1;
@@ -45,7 +45,7 @@ const RAINFALL_RUNOFF = {
 // ---------- routing ----------
 const ROUTING = {
   // Muskingum down the node network (the finer watersheds inside each basin) with explicit channel fluxes, residual miscellaneous loss, optional flow
-  // splits and storages, as in 3_routing/muskingum.py. A node takes its share of its basin's delivered runoff; its K is
+  // splits and storages, as in 3a_routing/muskingum.py. A node takes its share of its basin's delivered runoff; its K is
   // channel length / wave speed, and a reach shorter than MIN_K days is a fractional-day lag instead of a Muskingum reach; one longer than
   // MAX_K days runs as ceil(K / MAX_K) equal Muskingum sub-reaches in series (routing.py, route_network).
   muskingum(runoffM3s, basins, p, nodes, climate, recordBudget = false, inflows = {}) {

@@ -1,12 +1,12 @@
 """Download BoM Hydrologic Reference Station (HRS) daily flow for the HRS gauges in each river system.
 
 HRS gauges are unregulated catchments chosen by the Bureau for long-term streamflow study, each with a published catchment
-area, so they are the gauges GR4J is calibrated against (2_rainfall_runoff/calibrate_gr4j.py). A gauge belongs to a system
+area, so they are the gauges GR4J is calibrated against (2b_calibration/calibrate_gr4j.py). A gauge belongs to a system
 if it lies in, or within OUTLINE_BUFFER_KM of, one of the system's model basins (results.db). Needs
-data/input/routing/hrs_station_details.csv (python 3_routing/download_public_data.py). Writes, per system, to
+data/input/routing/hrs_station_details.csv (python 2b_calibration/download_public_data.py). Writes, per system, to
 data/input/routing/: <system>_hrs_flow_daily.csv (long: date, station, flow_ML, qcode) and its _metadata.json.
 
-Run from the repository root with ``python 3_routing/download_hrs_flow.py``.
+Run from the repository root with ``python 2b_calibration/download_hrs_flow.py``.
 """
 import io
 import json
@@ -17,7 +17,7 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "3b_calibration"))
 
 from load_observed_flow import DEST, ROOT, system_gauges
 from config import DISPLAY_SYSTEMS

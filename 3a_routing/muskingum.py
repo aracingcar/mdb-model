@@ -162,7 +162,7 @@ def route(runoff, basins, subcatchments, p=PARAMS, *, basin_forcing=None):
     inflow = _inflows(nodes, runoff.index)
     channel = ({n: q + inflow[n] if n in inflow else q for n, q in local.items()}, fluxes)  # local runoff plus what other systems send
     loss = _calibrate_loss(runoff, nodes, basins, outlet, p, channel)
-    print(f"3_routing: {SYSTEM_ID}, {len(basins)} basins as {len(nodes)} nodes routed, " + (f"calibrated misc loss /km over the last {p['loss_regions']} reaches = {loss:.6f}"
+    print(f"3a_routing: {SYSTEM_ID}, {len(basins)} basins as {len(nodes)} nodes routed, " + (f"calibrated misc loss /km over the last {p['loss_regions']} reaches = {loss:.6f}"
                                                                                            if p["target_outlet_m3s"] is not None else "no outlet calibration"))
     routed = _route(runoff, nodes, loss, p, channel, record_budget="totals")
     none = pd.Series(0.0, index=routed.index)  # a basin whose every node ends off the river system
@@ -172,17 +172,17 @@ def route(runoff, basins, subcatchments, p=PARAMS, *, basin_forcing=None):
     basin_flow.attrs['misc_loss_per_km'] = loss
     basin_flow.attrs['stranded_ML'] = stranded
     totals = basin_flow.attrs['channel_budget_ML'][['rain_ML', 'evap_ML', 'seepage_ML', 'misc_ML']].sum()
-    print('3_routing: channel totals ML: ' + ', '.join(f'{k}={v:,.0f}' for k, v in totals.items()))
+    print('3a_routing: channel totals ML: ' + ', '.join(f'{k}={v:,.0f}' for k, v in totals.items()))
     delivered = sum(runoff[b].sum() * delivery(p, b) for b in runoff.columns) * M3S_TO_ML_DAY
     if stranded.sum() >= 1:
-        print(f"3_routing:   runoff ending off the river system (streams that stop on the plains, terminal lakes): {stranded.sum():,.0f} ML "
+        print(f"3a_routing:   runoff ending off the river system (streams that stop on the plains, terminal lakes): {stranded.sum():,.0f} ML "
               f"from {(stranded >= 1).sum()} basins, {stranded.sum() / delivered:.1%} of delivered runoff")
     names = dict(zip(nodes["id"], nodes["storage"]))
     basin_flow.attrs["storages"] = {names[n]: (df * M3S_TO_ML_DAY).rename(columns={"release_m3s": "release_ML_d", "stored_m3s_days": "stored_ML"})
                                     for n, df in routed.attrs["storages"].items()}
     for name, df in basin_flow.attrs["storages"].items():
         cap = SYSTEM["storages"][name]["max_release_ML_d"]
-        print(f"3_routing:   storage {name}: releases up to {cap:,.0f} ML/d, holds {df['stored_ML'].iloc[-1]:,.0f} ML at the end, at the cap {(df['release_ML_d'] >= cap - 1e-6).mean():.0%} of days")
+        print(f"3a_routing:   storage {name}: releases up to {cap:,.0f} ML/d, holds {df['stored_ML'].iloc[-1]:,.0f} ML at the end, at the cap {(df['release_ML_d'] >= cap - 1e-6).mean():.0%} of days")
     reach_flow = pd.DataFrame({r.subcatchment: basin_flow[r.outlet_basin] for r in subcatchments.itertuples()})
     unit_flow = {r.sdl_unit: basin_flow[r.unit_outlet].rename("flow_ML_d") for r in subcatchments.itertuples()}
     lateral = pd.DataFrame({b: sum(local[n.id] for n in nodes.itertuples() if n.basin == b)

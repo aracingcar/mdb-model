@@ -1,5 +1,5 @@
-"""Basin climate zones from observed aridity: the parameter zones of rainfall-runoff (2_rainfall_runoff/gr4j.py) and routing
-(3_routing/muskingum.py).
+"""Basin climate zones from observed aridity: the parameter zones of rainfall-runoff (2a_rainfall_runoff/gr4j.py) and routing
+(3a_routing/muskingum.py).
 
 A basin's aridity index is its mean BoM AWO daily rainfall over its mean AWO PET, 2012-2026 (1_masking/download_awo_climate.py),
 so a basin keeps its zone under every climate run. Basins at or above PLAINS_BELOW_AI are highland (the tablelands and the

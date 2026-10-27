@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent
-for folder in ('1_masking', '2_rainfall_runoff', '3_routing', '4_ecology', '5_outputs'):
+for folder in ('1_masking', '2a_rainfall_runoff', '3a_routing', '4_ecology', '5_outputs'):
     sys.path.insert(0, str(ROOT / folder))
 
 from catchment import load_units

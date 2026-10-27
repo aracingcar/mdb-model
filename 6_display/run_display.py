@@ -17,7 +17,7 @@ import pandas as pd
 import shapely
 from scipy.ndimage import binary_dilation
 
-for folder in ("1_masking", "2_rainfall_runoff", "3_routing", "5_outputs"):  # also runs on its own: python 6_display/run_display.py
+for folder in ("1_masking", "2a_rainfall_runoff", "3a_routing", "5_outputs"):  # also runs on its own: python 6_display/run_display.py
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / folder))
 
 from aridity import basin_zones

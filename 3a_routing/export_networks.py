@@ -1,7 +1,7 @@
 """Write each river system's current network to river_systems/<system>-network.json (the format the routing editor exports).
 
 A system that already has a network file keeps it unless --force is given. Run from the repository root:
-python 3_routing/export_networks.py [--force] [system ...]
+python 3a_routing/export_networks.py [--force] [system ...]
 """
 import json
 import os
@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-for folder in ("1_masking", "2_rainfall_runoff", "3_routing", "5_outputs"):
+for folder in ("1_masking", "2a_rainfall_runoff", "3a_routing", "5_outputs"):
     sys.path.insert(0, str(ROOT / folder))
 
 

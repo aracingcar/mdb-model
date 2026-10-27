@@ -13,7 +13,7 @@ calibration and validation.
   The wide CSV preserves missing days as blank cells. Metadata lists station
   names, spans and valid-day counts. This is the preferred observed-flow set
   for calibration because the user confirmed its quality filter.
-  `3_routing/load_observed_flow.py` rebuilds it and the same set for every
+  `3b_calibration/load_observed_flow.py` rebuilds it and the same set for every
   river system (`<system>_observed_flow_daily.csv`), taking the gauges in or
   within 3 km of the system's model basins; each gauge's metadata names its
   SDL unit and nearest model basin. Balranald (410130), the Murrumbidgee's
@@ -77,7 +77,7 @@ be cross-checked against Water Data Online before joining timeseries.
 
 The current GR4J input is a single area-weighted daily series over the whole
 Murrumbidgee valley. It cannot supply lateral inflows to separate river
-reaches. `3_routing/routing.py` therefore offers a generic reach router and
+reaches. `3a_routing/routing.py` therefore offers a generic reach router and
 does not hard-code gauge-to-gauge topology or uncalibrated Muskingum values.
 Use network nodes/links from Geofabric and observed records at gauges to build
 and calibrate that topology. The Murrumbidgee is regulated, so gauge flows can

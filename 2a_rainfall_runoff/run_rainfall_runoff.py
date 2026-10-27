@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "3_routing"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "3a_routing"))
 
 from aridity import basin_zones
 from config import SYSTEM_ID

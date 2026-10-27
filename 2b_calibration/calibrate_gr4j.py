@@ -1,6 +1,6 @@
 """Calibrate GR4J against unregulated headwater gauges (BoM Hydrologic Reference Stations) on observed climate.
 
-Each HRS gauge (3_routing/download_hrs_flow.py) is fitted on its own: GR4J runs on the BoM AWO daily rainfall and PET of
+Each HRS gauge (2b_calibration/download_hrs_flow.py) is fitted on its own: GR4J runs on the BoM AWO daily rainfall and PET of
 the model basins above it (1_masking/download_awo_climate.py), and differential evolution finds the x1-x4 that maximise
 the Kling-Gupta efficiency (KGE) of daily runoff depth over CAL. The fitted set is then scored, unchanged, over VAL, years
 it never saw. Runoff is compared as depth (mm/day = ML/day / km2 over the HRS catchment area), so the gauge's catchment
@@ -17,7 +17,7 @@ index is under aridity.PLAINS_BELOW_AI, the fitted set with the best median vali
 scores the choice leave-one-out (each gauge with the set picked over the others) against each system's set and adds it to
 gr4j_systems.json as "zones".
 
-Run from the repository root with ``python 2_rainfall_runoff/calibrate_gr4j.py [--zones]``.
+Run from the repository root with ``python 2b_calibration/calibrate_gr4j.py [--zones]``.
 """
 import json
 import sys
@@ -29,7 +29,7 @@ import pandas as pd
 from scipy.optimize import differential_evolution
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path[:0] = [str(ROOT / "1_masking"), str(ROOT / "5_outputs")]
+sys.path[:0] = [str(ROOT / "1_masking"), str(ROOT / "2a_rainfall_runoff"), str(ROOT / "5_outputs")]
 
 from aridity import PLAINS_BELOW_AI
 from config import DISPLAY_SYSTEMS, SYSTEMS
