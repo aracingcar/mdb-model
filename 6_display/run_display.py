@@ -20,6 +20,7 @@ from scipy.ndimage import binary_dilation
 for folder in ("1_masking", "2_rainfall_runoff", "3_routing", "5_outputs"):  # also runs on its own: python 6_display/run_display.py
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / folder))
 
+from aridity import basin_zones
 from catchment import buffer_outline
 from config import CLIMATE_CASES, DEFAULT_RUN, DISPLAY_SYSTEMS, LINKS, SDL_UNITS, SYSTEMS, waterways_file
 from evap_grid import PIXEL_DEG
@@ -212,10 +213,11 @@ def _engine(system, basins, basin_forcing, regions, rivers, nodes):
     splits = SYSTEMS[system]["splits"]
     storages = SYSTEMS[system].get("storages", {})
     outlet = basin_outlets(nodes)
+    zones = basin_zones(system, basins)  # rainfall-runoff and routing parameter zone
     return {
         "system": system,
         "scale": 100,
-        "basins": [{"id": b.subcatchment, "area": float(b.area_km2), "next": b.next_id, "lossRank": int(b.from_outlet),
+        "basins": [{"id": b.subcatchment, "area": float(b.area_km2), "next": b.next_id, "lossRank": int(b.from_outlet), "zone": zones[b.subcatchment],
                     "lon": round(b.geometry.representative_point().x, 4), "lat": round(b.geometry.representative_point().y, 4)}
                    for b in basins.itertuples()],
         # routing nodes: where each basin's runoff (its area share) joins the river. River nodes (river: true) are linked along the river by ``path``; the others join the river node below them directly
@@ -229,7 +231,8 @@ def _engine(system, basins, basin_forcing, regions, rivers, nodes):
                   for n in nodes.itertuples()],
         "calibration": SYSTEMS[system]["routing"],
         # water other river systems send in (config.LINKS): their routed outflow of `basin` enters node `node`; and the basins of this system others take from
-        "inflows": [{"node": outlet[l["into"]], "from": l["from"], "basin": l["basin"], **({"above": l["spill_above_ML_d"]} if "spill_above_ML_d" in l else {})}
+        "inflows": [{"node": outlet[l["into"]], "from": l["from"], "basin": l["basin"], **({"above": l["spill_above_ML_d"]} if "spill_above_ML_d" in l else {}),
+                     **({"fraction": l["fraction"]} if "fraction" in l else {}), **({"lag": l["lag_days"]} if "lag_days" in l else {})}
                     for l in LINKS if l["to"] == system],
         "exports": sorted({l["basin"] for l in LINKS if l["from"] == system}),
         "P": _quantised(basin_forcing, names, "P"),

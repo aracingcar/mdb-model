@@ -74,7 +74,8 @@ const ROUTING = {
     const feeds = nodes.map(() => []);
     nodes.forEach((n, i) => { if (n.next) feeds[idx[n.next]].push([i, 1 - Object.values(n.splits || {}).reduce((a, v) => a + v, 0)]); });
     nodes.forEach((n, i) => { for (const [to, share] of Object.entries(n.splits || {})) if (to) feeds[idx[to]].push([i, share]); });
-    const k = nodes.map((n, i) => lengths[i] / p.velocity_km_day);
+    const plains = n => basins[bidx[n.basin]].zone === 'plains';  // a basin of the plains zone (1_masking/aridity.py) has a slower wave
+    const k = nodes.map((n, i) => lengths[i] / (plains(n) ? p.plains_velocity_km_day : p.velocity_km_day));
     if (k.some(v => !Number.isFinite(v) || v < 0)) throw new Error('K must be finite and non-negative');
     // upstream before downstream
     const order = [], state = new Array(nodes.length).fill(0);
@@ -259,15 +260,17 @@ function run(engine, days, rr, routing, upstream = {}) {
   const runoff = engine.basins.map((b, i) => {
     const p = Float64Array.from(P.subarray(i * n, (i + 1) * n), v => v / sc), e = Float64Array.from(PET.subarray(i * n, (i + 1) * n), v => v / sc);
     climate[b.id] = {P: p, PET: e};
-    const depth = simulate(p, e, Array.isArray(rr.params) ? rr.params : rr.params[engine.system]);  // one set, or one per system
+    const set = Array.isArray(rr.params) ? rr.params : rr.params[engine.system];  // one set, one per system, or one per system and zone
+    const depth = simulate(p, e, Array.isArray(set) ? set : set[b.zone || 'highland']);
     return depth.map(v => v * b.area * 1000 / 86400);  // mm/day over km2 -> m3/s
   });
   const inflows = {};
-  for (const { node, from, basin, above = 0 } of engine.inflows || []) {  // a spill link only passes the flow above its threshold
+  // a spill link only passes the flow above its threshold, a return (fraction) that share of it, lag days later (muskingum.link_inflow)
+  for (const { node, from, basin, above = 0, fraction = 1, lag = 0 } of engine.inflows || []) {
     const series = upstream[from]?.[basin];
     if (!series || series.length !== n) throw new Error(`No flow from ${from} ${basin}`);
     const q = inflows[node] ||= new Float64Array(n);
-    for (let t = 0; t < n; t++) q[t] += Math.max(series[t] - above, 0) / ML_PER_M3S_DAY;
+    for (let t = 0; t < n; t++) q[t] += Math.max(series[Math.max(t - lag, 0)] - above, 0) * fraction / ML_PER_M3S_DAY;
   }
   const { basinFlow, lateralMLd } = route(runoff, engine.basins, { ...routing.params, ...engine.calibration }, engine.nodes, climate, false, inflows);
   const at = Object.fromEntries(engine.basins.map((b, i) => [b.id, i]));

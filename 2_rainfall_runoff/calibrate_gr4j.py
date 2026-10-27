@@ -12,7 +12,12 @@ Per system, the gauge set with the best median validation KGE across all the sys
 set. Days with HRS quality code E (unreliable) or G (gap filled) are left out. Writes data/calibration/gr4j_headwater.csv
 (one row per gauge) and gr4j_systems.json. The fitted parameters are not used by the model until set in gr4j.py.
 
-Run from the repository root with ``python 2_rainfall_runoff/calibrate_gr4j.py``.
+``--zones`` (after a calibration) picks the plains set from the saved fits: of the gauges whose catchment's observed aridity
+index is under aridity.PLAINS_BELOW_AI, the fitted set with the best median validation KGE over them, from every system. It
+scores the choice leave-one-out (each gauge with the set picked over the others) against each system's set and adds it to
+gr4j_systems.json as "zones".
+
+Run from the repository root with ``python 2_rainfall_runoff/calibrate_gr4j.py [--zones]``.
 """
 import json
 import sys
@@ -26,6 +31,7 @@ from scipy.optimize import differential_evolution
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "1_masking"), str(ROOT / "5_outputs")]
 
+from aridity import PLAINS_BELOW_AI
 from config import DISPLAY_SYSTEMS, SYSTEMS
 from gr4j import DEFAULT_PARAMS, gr4j
 from results_db import load_geometry
@@ -162,5 +168,35 @@ def main():
     print(f"Saved {OUT.relative_to(ROOT)}/gr4j_headwater.csv and gr4j_systems.json")
 
 
+def zones():
+    """Pick the plains set from the saved fits and record it, with its leave-one-out scores, in gr4j_systems.json."""
+    fits = pd.read_csv(OUT / "gr4j_headwater.csv", dtype={"station": str}).drop_duplicates("station").set_index("station")
+    pool, ai = {}, {}
+    for system in DISPLAY_SYSTEMS:
+        for station, (forcing, obs, val) in system_jobs(system)[1].items():
+            if station in fits.index and station not in pool:
+                pool[station] = (forcing, obs, val)
+                ai[station] = sum(w * np.nansum(p) for w, p, _ in forcing) / sum(w * np.nansum(e) for w, _, e in forcing)
+    gauges = list(pool)
+    params = {d: tuple(fits.loc[d, ["x1", "x2", "x3", "x4"]]) for d in gauges}
+    score = pd.DataFrame({d: {g: kge(simulate(params[d], pool[g][0])[pool[g][2]], pool[g][1][pool[g][2]]) for g in gauges} for d in gauges})  # rows scored, columns donor
+    best = lambda peers, donors: max(donors, key=lambda d: score.loc[peers, d].median())
+    plains = [g for g in gauges if ai[g] < PLAINS_BELOW_AI]
+    own = lambda g: [h for h in gauges if fits.at[h, "system"] == fits.at[g, "system"] and h != g]
+    before = {g: score.at[g, best(own(g), [d for d in gauges if d != g])] for g in plains}
+    after = {g: score.at[g, best([h for h in plains if h != g], [d for d in gauges if d != g])] for g in plains}
+    donor = best(plains, gauges)
+    record = {"plains_below_aridity_index": PLAINS_BELOW_AI, "plains_gauges": len(plains), "plains_donor_station": donor,
+              "plains_donor_aridity_index": round(ai[donor], 3), "plains_params": [round(v, 4) for v in params[donor]],
+              "plains_median_kge_val": round(float(score.loc[plains, donor].median()), 3),
+              "loo_median_kge_val_system_set": round(float(np.median(list(before.values()))), 3),
+              "loo_median_kge_val_plains_set": round(float(np.median(list(after.values()))), 3),
+              "loo_plains_gauges_improved": int(sum(after[g] > before[g] for g in plains)),
+              "driest_gauge_aridity_index": round(min(ai.values()), 3)}
+    summary = json.loads((OUT / "gr4j_systems.json").read_text())
+    (OUT / "gr4j_systems.json").write_text(json.dumps({**summary, "zones": record}, indent=2) + "\n")
+    print(json.dumps(record, indent=2))
+
+
 if __name__ == "__main__":
-    main()
+    zones() if "--zones" in sys.argv[1:] else main()

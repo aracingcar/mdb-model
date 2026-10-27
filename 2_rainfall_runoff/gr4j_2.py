@@ -7,6 +7,6 @@ LABEL = "GR4J (alt. parameters)"
 ALGORITHM = "gr4j"
 
 
-def simulate(precip, pet):
-    """Rainfall-runoff model interface: runoff depth (mm/day) with this model's parameters."""
+def simulate(precip, pet, zone=None):
+    """Rainfall-runoff model interface: runoff depth (mm/day) with this model's parameters (one set for every zone)."""
     return gr4j(precip, pet, PARAMS)

@@ -70,7 +70,7 @@ SYSTEMS = {
         # no outlet target: Balranald's recorded mean is regulated flow (Snowy transfers in, irrigation out) that this model does not represent.
         "routing": {"loss_regions": None, "target_outlet_m3s": None},
         # Yanco Creek leaves the river at Narrandera and runs out to the Billabong and Edward systems, outside this system: an
-        # indicative ~8% of the flow there (not a measured allocation)
+        # indicative ~8% of the flow there (not a measured allocation). Part of it reaches the Edward at Moulamein (LINKS).
         "splits": {"B5080595380": {"": 0.08}},
         "split_rivers": {"B5080595380": "Yanco Creek"},
         "storages": {"Burrinjuck Dam": {"lon": 148.58, "lat": -35.00, "max_release_ML_d": 8000},
@@ -88,8 +88,9 @@ SYSTEMS = {
         "units": ("SS18",), "n_subcatchments": 11, "mainstem": "Darling River", "other_rivers": ("Murray River",),
         "routing": {"loss_regions": None, "target_outlet_m3s": None},  # no calibration gauge chosen yet
         # The Great Darling Anabranch leaves the Darling just below Menindee and runs south to the Murray near Wentworth, inside this
-        # system's reach but outside what is routed: an indicative ~5% of the flow there leaves the river (not a measured allocation)
-        "splits": {"B5080575770": {"": 0.05}},
+        # system's reach but outside what is routed. It takes 20.6% of the flow there: the mean of the Anabranch at Wycot (425013) over
+        # the Darling upstream of Weir 32 (425012) plus Wycot, 4,411 days 2012-2026. Part of it returns to the Murray (LINKS).
+        "splits": {"B5080575770": {"": 0.206}},
         "split_rivers": {"B5080575770": "Great Darling Anabranch"},
     },
     # The Murray with its Victorian tributaries the Kiewa and Ovens, routed into it through HydroBASINS' downstream links, from
@@ -102,11 +103,16 @@ SYSTEMS = {
         "other_rivers": ("Murrumbidgee River", "Darling River", "Goulburn River"),
         "routing": {"loss_regions": None, "target_outlet_m3s": None},
         # Offtakes, as indicative shares of the river's flow there. Yarrawonga Weir diverts ~1,900 GL a year, ~17% of the river's flow
-        # (Goulburn-Murray Water), split by offtake capacity: Mulwala Canal (10,000 ML/d) ~13% and Yarrawonga Main Channel (3,100 ML/d)
-        # ~4%. Mulwala Canal supplies Murray Irrigation and drains to the Edward River (Deniliquin, B5080599730); the Main Channel's
-        # irrigation drains by Broken Creek back to the Murray at Barmah (B5080602310). Torrumbarry Weir's National Channel takes
-        # ~500 GL a year (Goulburn-Murray Water), about 6% of the flow there, to the Torrumbarry irrigation area, outside this system.
-        "splits": {"B5080603240": {"B5080599730": 0.13, "B5080602310": 0.04},  # Murray at Lake Mulwala, upstream of Yarrawonga Weir: Ovens already in
+        # (Goulburn-Murray Water): the Mulwala Canal (10,000 ML/d) and Yarrawonga Main Channel (3,100 ML/d). Both are consumptive here:
+        # the canal's escapes to the Edward are in the Edward's measured share below, and the Main Channel's drainage by Broken Creek
+        # back to Barmah has no gauge in the model's records. Torrumbarry Weir's National Channel takes ~500 GL a year (Goulburn-Murray
+        # Water), about 6% of the flow there, to the Torrumbarry irrigation area, outside this system. The Edward River leaves the
+        # Murray in the Barmah-Millewa Forest (the Edward offtake, Gulf Creek and the forest's effluents, with the canal's escapes) and
+        # carries 24.9% of the Murray's flow at Tocumwal: the mean of the Edward at Toonalook (409047) over the Murray at Tocumwal
+        # (409202), 5,139 days 2012-2026, each year between 20% and 29%. It runs from Toonalook (B5080600840) past Deniliquin and
+        # Moulamein to the Wakool and back to the Murray at Tooleybuc.
+        "splits": {"B5080603240": {"": 0.17},  # Murray at Lake Mulwala, upstream of Yarrawonga Weir: Ovens already in
+                   "B5080602310": {"B5080600840": 0.249},  # Murray from Tocumwal to the Edward offtake
                    "B5080603590": {"": 0.06}},  # Murray at Echuca, upstream of Torrumbarry Weir: Goulburn and Campaspe already in
         # Barmah (B5080602660) drains past the Goulburn-Broken system's B5080603740, the Murray stub at the Goulburn mouth, so it
         # joins Echuca's B5080603920 directly (that stub's own runoff arrives through LINKS). The Edward-Wakool tributaries run
@@ -134,6 +140,9 @@ DISPLAY_SYSTEMS = ("murrumbidgee", "lachlan", "lower_darling", "murray", "goulbu
 # system ``to`` (in 3_routing/muskingum.py, and in docs/engine.js for the browser), so the systems run in RUN_ORDER. Basins
 # are HydroBASINS level-8 IDs. spill_above_ML_d (optional): only the flow above this goes on; the rest stays in the terminal
 # wetland. The value is an indicative placeholder, not a measured spill threshold. A link may skip basins outside every system.
+# fraction (optional): only this share of the basin's routed outflow goes, a return of water a split of the basin sends out of
+# its system ('' in its splits, at least as big: what does not arrive is lost on the way); lag_days (optional): it arrives this
+# many days later (the first days take the first day's flow).
 LINKS = (
     # Lachlan River, Great Cumbung Swamp: terminal, dissipating in the swamp; only a flood overtops it into the Murrumbidgee
     # at the Lowbidgee (Murrumbidgee at Oxley / Balranald).
@@ -148,11 +157,22 @@ LINKS = (
     {"from": "lower_darling", "basin": "B5080591010", "to": "murray", "into": "B5080590940"},
     # Murrumbidgee River at Balranald joins the Murray near Boundary Bend, inside the Murray corridor.
     {"from": "murrumbidgee", "basin": "B5080595630", "to": "murray", "into": "B5080595260"},
+    # Great Darling Anabranch: 54% of what it takes at Wycot reaches its lower end (425053 over 425013, 4,248 days 2015-2026),
+    # 68 days later (their best lagged correlation, 0.80), and joins the Murray below Wentworth, where its mapped channel ends.
+    {"from": "lower_darling", "basin": "B5080575770", "to": "murray", "into": "B5080590940", "fraction": round(0.206 * 0.54, 4), "lag_days": 68},
+    # Yanco Creek to Billabong Creek: Billabong Creek gains 3.7% of the Murrumbidgee's flow at Wagga between Walbundrie (410091)
+    # and Darlot (410134), 5,187 days 2012-2026, 37 days later (best lagged correlation, 0.76); it joins the Edward at Moulamein.
+    {"from": "murrumbidgee", "basin": "B5080595380", "to": "murray", "into": "B5080598260", "fraction": 0.037, "lag_days": 37},
 )
 
 
 def run_order():
-    """DISPLAY_SYSTEMS ordered so every system comes after the systems that feed it through LINKS."""
+    """DISPLAY_SYSTEMS ordered so every system comes after the systems that feed it through LINKS. A return (``fraction``) may not
+    take more of its basin's flow than the basin's splits send out of its system."""
+    for l in LINKS:
+        out = SYSTEMS[l["from"]].get("splits", {}).get(l["basin"], {}).get("", 0.0)
+        if "fraction" in l and not 0 < l["fraction"] <= out:
+            raise ValueError(f"LINKS: {l['from']} {l['basin']} returns {l['fraction']} of its flow but its splits send {out} out of the system")
     feeders = {s: {l["from"] for l in LINKS if l["to"] == s} for s in DISPLAY_SYSTEMS}
     order = []
     while len(order) < len(DISPLAY_SYSTEMS):

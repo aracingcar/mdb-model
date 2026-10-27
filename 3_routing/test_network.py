@@ -76,8 +76,13 @@ class StoredNetworkTests(unittest.TestCase):
             if link['from'] not in systems or link['to'] not in systems:
                 continue
             source, target = systems[link['from']], systems[link['to']]
-            self.assertIn(link['basin'], {b['id'] for b in source['basins'] if not b['next']}, f'{link} leaves from a basin that is not a system outlet')
             self.assertIn(link['into'], outlet_nodes(target), f'{link} enters a basin with no node')
+            if 'fraction' in link:  # a return of what a split sends out of its system: the river itself goes on
+                node = next(n for n in source['nodes'] if n['id'] == outlet_nodes(source)[link['basin']])
+                self.assertLessEqual(link['fraction'], node.get('splits', {}).get('', 0.0), f'{link} returns more than its split sends out')
+                self.assertLess(config.RUN_ORDER.index(link['from']), config.RUN_ORDER.index(link['to']))
+                continue
+            self.assertIn(link['basin'], {b['id'] for b in source['basins'] if not b['next']}, f'{link} leaves from a basin that is not a system outlet')
             node = f"{link['from']}:{outlet_nodes(source)[link['basin']]}"
             self.assertEqual(down[node], '', f'{link} leaves from a node that drains on within its system')
             down[node] = f"{link['to']}:{outlet_nodes(target)[link['into']]}"

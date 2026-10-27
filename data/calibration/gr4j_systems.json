@@ -57,5 +57,22 @@
       "median_kge_val": 0.361,
       "default_median_kge_val": -1.072
     }
+  },
+  "zones": {
+    "plains_below_aridity_index": 0.7,
+    "plains_gauges": 16,
+    "plains_donor_station": "410705",
+    "plains_donor_aridity_index": 0.68,
+    "plains_params": [
+      355.7715,
+      -5.0484,
+      7.2274,
+      1.4473
+    ],
+    "plains_median_kge_val": 0.353,
+    "loo_median_kge_val_system_set": 0.129,
+    "loo_median_kge_val_plains_set": 0.294,
+    "loo_plains_gauges_improved": 13,
+    "driest_gauge_aridity_index": 0.37
   }
 }

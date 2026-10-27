@@ -20,9 +20,16 @@ CALIBRATED = {
     "murray": (2499.9984, -2.4784, 4.9333, 1.288),  # from 401210 Snowy Creek below Granite Flat
     "goulburn_broken": (1401.8726, -1.4118, 1.8823, 2.0),  # from 405228 Hughes Creek at Tarcombe Road
 }
+# The plains (basins with an observed aridity index under 0.7, 1_masking/aridity.py) of every system take one set instead:
+# the gauge set with the best median validation KGE over the 16 HRS gauges under that aridity (calibrate_gr4j.py --zones).
+# Scored leave-one-out, those gauges' median validation KGE rises from 0.13 with their system's set to 0.29 (13 of 16 better);
+# the highland gauges keep their system's set. The plains basins are drier than every gauge (the Riverine Plain, Mallee and
+# Lower Darling reach an aridity index of 0.13, the driest gauge 0.37), so the set is extrapolated there.
+PLAINS = (355.7715, -5.0484, 7.2274, 1.4473)  # from 410705 Molonglo River at Burbong (aridity index 0.68)
 LABEL = "GR4J"
 ALGORITHM = "gr4j"  # the browser engine (docs/engine.js) implements this algorithm and takes PARAMS from here
-PARAMS = {s: CALIBRATED.get(s, DEFAULT_PARAMS) for s in DISPLAY_SYSTEMS}  # per system: the engine picks its own
+# per system and zone: the engine picks its own
+PARAMS = {s: {"highland": CALIBRATED.get(s, DEFAULT_PARAMS), "plains": PLAINS} for s in DISPLAY_SYSTEMS}
 
 
 def _unit_hydrographs(x4):
@@ -77,6 +84,6 @@ def gr4j(precip, pet, params=DEFAULT_PARAMS):
     return out
 
 
-def simulate(precip, pet):
-    """Rainfall-runoff model interface: runoff depth (mm/day) with this model's parameters."""
-    return gr4j(precip, pet, PARAMS[SYSTEM_ID])
+def simulate(precip, pet, zone="highland"):
+    """Rainfall-runoff model interface: runoff depth (mm/day) with this model's parameters for the basin's ``zone``."""
+    return gr4j(precip, pet, PARAMS[SYSTEM_ID][zone])
