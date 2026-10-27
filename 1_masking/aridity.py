@@ -1,7 +1,7 @@
 """Basin climate zones from observed aridity: the parameter zones of rainfall-runoff (2a_rainfall_runoff/gr4j.py) and routing
 (3a_routing/muskingum.py).
 
-A basin's aridity index is its mean BoM AWO daily rainfall over its mean AWO PET, 2012-2026 (1_masking/download_awo_climate.py),
+A basin's aridity index is its mean BoM AWO daily rainfall over its mean AWO PET, 2012-2026 (downloads/download_awo_climate.py),
 so a basin keeps its zone under every climate run. Basins at or above PLAINS_BELOW_AI are highland (the tablelands and the
 alps the headwater gauges are in), the rest plains. The threshold is where one parameter set fitted to the drier gauges
 best improves on each system's single regional set (calibrate_gr4j.py --zones, data/calibration/gr4j_systems.json).

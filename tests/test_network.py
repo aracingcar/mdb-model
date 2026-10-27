@@ -1,4 +1,4 @@
-"""Run with python -m unittest discover -s 3a_routing -p 'test_*.py'."""
+"""Run with python -m unittest discover -s tests -p 'test_*.py'."""
 import json
 import subprocess
 import sys
@@ -10,6 +10,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / '1_masking'))
+sys.path.insert(0, str(ROOT / '3a_routing'))
 import config
 from nodes import check_network
 from routing import MAX_K_DAYS, route_network

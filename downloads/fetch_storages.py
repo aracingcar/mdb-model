@@ -2,7 +2,7 @@
 
 Each storage is [name, lon, lat]. Only gauges that report Storage Volume are kept (that drops ponds and pool-level gauges); gauges within MERGE_KM of each other
 belong to the same storage and are shown once, under the first of them in name priority (a gauge named "dam" first).
-Usage: python3 fetch_storages.py   (BoM Water Data Online SOS 2.0, no key needed)
+Usage: python downloads/fetch_storages.py   (BoM Water Data Online SOS 2.0, no key needed)
 """
 import json
 import math
@@ -12,7 +12,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-HERE = Path(__file__).parent
+HERE = Path(__file__).resolve().parents[1] / "6_display"  # storages.json is written beside the display build
 SERVICE = "https://www.bom.gov.au/waterdata/services"
 PROPERTY = "http://bom.gov.au/waterdata/services/parameters/Storage%20Volume"
 GML = {"gml": "http://www.opengis.net/gml/3.2"}

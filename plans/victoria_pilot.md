@@ -24,7 +24,7 @@ All new outputs are uncalibrated local-runoff experiments. State-specific gauge 
 
 ## Reproduction
 
-Use the project Python environment. Fetch waterways with `SYSTEM=vic_murray python 3a_routing/download_osm_waterways.py` and `SYSTEM=goulburn_broken python 3a_routing/download_osm_waterways.py`.
+Use the project Python environment. Fetch waterways with `SYSTEM=vic_murray python downloads/download_osm_waterways.py` and `SYSTEM=goulburn_broken python downloads/download_osm_waterways.py`.
 
 Run each new system using `SYSTEM=vic_murray python main.py` and `SYSTEM=goulburn_broken python main.py`, then build the combined display with `python 6_display/run_display.py`. These system-specific runs do not recompute the existing systems.
 

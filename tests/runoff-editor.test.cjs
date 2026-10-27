@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const html = fs.readFileSync(__dirname + '/template.html', 'utf8');
+const html = fs.readFileSync(__dirname + '/../6_display/template.html', 'utf8');
 const script = html.match(/<script>\s*([\s\S]*?)<\/script>/)[1].replace('const META = __META__;', 'const META = {};');
 new vm.Script(script);
 const saved = new Map();

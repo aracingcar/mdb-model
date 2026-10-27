@@ -1,6 +1,6 @@
 """Fetch the freely downloadable BOM HRS station metadata into data/input/routing.
 
-Run from the repository root with ``python 2b_calibration/download_public_data.py``.
+Run from the repository root with ``python downloads/download_public_data.py``.
 The HRS page also offers observed daily flow series as per-station downloads;
 those are not bulk-published as a simple CSV endpoint. WaterNSW API access
 requires a subscription key, so this script deliberately does not automate it.

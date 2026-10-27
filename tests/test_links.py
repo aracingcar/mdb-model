@@ -1,4 +1,4 @@
-"""Run with python -m unittest discover -s 3a_routing -p 'test_*.py'."""
+"""Run with python -m unittest discover -s tests -p 'test_*.py'."""
 import sys
 import unittest
 from pathlib import Path
@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / '1_masking'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / '3a_routing'))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / '5_outputs'))
 import config
 import muskingum

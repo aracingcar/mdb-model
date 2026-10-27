@@ -1,7 +1,7 @@
 """Calibrate GR4J against unregulated headwater gauges (BoM Hydrologic Reference Stations) on observed climate.
 
-Each HRS gauge (2b_calibration/download_hrs_flow.py) is fitted on its own: GR4J runs on the BoM AWO daily rainfall and PET of
-the model basins above it (1_masking/download_awo_climate.py), and differential evolution finds the x1-x4 that maximise
+Each HRS gauge (downloads/download_hrs_flow.py) is fitted on its own: GR4J runs on the BoM AWO daily rainfall and PET of
+the model basins above it (downloads/download_awo_climate.py), and differential evolution finds the x1-x4 that maximise
 the Kling-Gupta efficiency (KGE) of daily runoff depth over CAL. The fitted set is then scored, unchanged, over VAL, years
 it never saw. Runoff is compared as depth (mm/day = ML/day / km2 over the HRS catchment area), so the gauge's catchment
 need not match the model basins' area. The forcing is the model basins': every basin above the gauge's own basin, plus

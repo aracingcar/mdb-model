@@ -18,7 +18,7 @@ calibration and validation.
   within 3 km of the system's model basins; each gauge's metadata names its
   SDL unit and nearest model basin. Balranald (410130), the Murrumbidgee's
   mean-flow target, is not in the store.
-- **Observed climate for calibration:** `1_masking/download_awo_climate.py`
+- **Observed climate for calibration:** `downloads/download_awo_climate.py`
   writes BoM AWO daily rainfall and FAO56 PET for each model basin,
   2012-01-01 to 2026-10-19, to
   `../climate/<system>_basin_P_PET_2012_2026.csv` (columns `<basin>_P`,

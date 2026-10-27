@@ -7,7 +7,7 @@ first), named and ordered like the model's basin forcing. This is observed clima
 flow, which the NARCliM projections cannot be. The archive service supplies 2012-2025; the current service supplies
 2026 onward.
 
-Run from the repository root with ``SYSTEM=<system> python 1_masking/download_awo_climate.py``.
+Run from the repository root with ``SYSTEM=<system> python downloads/download_awo_climate.py``.
 """
 
 from __future__ import annotations
@@ -29,12 +29,11 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from shapely.geometry import Point
-from config import SYSTEM_ID, UNITS
-
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "5_outputs"))
+sys.path[:0] = [str(ROOT / "1_masking"), str(ROOT / "5_outputs")]
 
+from config import SYSTEM_ID, UNITS
 from results_db import load_geometry
 
 OUT_DIR = ROOT / "data/input/climate"

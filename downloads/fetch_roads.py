@@ -1,7 +1,7 @@
 """Download OpenStreetMap major roads for the display (bbox of the evaporation grid) and write a compact roads.json.
 
 Each road is [class, [lon, lat, lon, lat, ...]] with class 0 = motorway/trunk, 1 = primary, 2 = secondary, 3 = tertiary.
-Usage: python3 fetch_roads.py   (OSM data (c) OpenStreetMap contributors, ODbL)
+Usage: python downloads/fetch_roads.py   (OSM data (c) OpenStreetMap contributors, ODbL)
 """
 import json
 import urllib.parse
@@ -11,7 +11,7 @@ from pathlib import Path
 BBOX = (-36.9, 140.95, -30.8, 150.05)  # south, west, north, east: the Murrumbidgee, ACT, Lachlan, Lower Darling and NSW Murray SDL units
 CLASS = {"motorway": 0, "trunk": 0, "primary": 1, "secondary": 2, "tertiary": 3}
 TOL = {0: 0.0002, 1: 0.0003, 2: 0.0004, 3: 0.0005}  # Douglas-Peucker tolerance in degrees
-OUT = Path(__file__).with_name("roads.json")
+OUT = Path(__file__).resolve().parents[1] / "6_display" / "roads.json"
 
 
 def simplify(pts, tol):

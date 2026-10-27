@@ -1,10 +1,14 @@
 """Download the MDBA surface water SDL resource unit outlines (Basin Plan 2012) into data/input/sdl/.
 
-Source: data.gov.au, "Surface Water SDL Resource Units" (MDBA, CC BY 4.0). Run with python 1_masking/download_sdl_units.py.
+Source: data.gov.au, "Surface Water SDL Resource Units" (MDBA, CC BY 4.0). Run with python downloads/download_sdl_units.py.
 """
 import io
+import sys
 import urllib.request
 import zipfile
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "1_masking"))
 
 from config import SDL_FILE
 

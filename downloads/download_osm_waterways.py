@@ -1,6 +1,6 @@
 """Fetch and clip OpenStreetMap waterways for a river system's SDL units (SYSTEM, default murrumbidgee).
 
-Run from the project root with ``python 3a_routing/download_osm_waterways.py``.
+Run from the project root with ``python downloads/download_osm_waterways.py``.
 The output is a clipped GeoJSON extract; the raw Overpass response is kept in
 memory. An optional ``--source`` path processes an existing Overpass JSON file.
 """

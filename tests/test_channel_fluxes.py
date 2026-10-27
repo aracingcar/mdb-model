@@ -1,4 +1,4 @@
-"""Run with python -m unittest discover -s 3a_routing -p 'test_*.py'."""
+"""Run with python -m unittest discover -s tests -p 'test_*.py'."""
 import json
 import subprocess
 import sys
@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / '1_masking'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / '3a_routing'))
 from channel_fluxes import channel_inputs
 from routing import route_network
 

@@ -3,8 +3,8 @@
 - Prefer flat, early-return logic over deep nesting.
 - Do not add speculative interfaces or premature abstractions.
 - After every file modification, run both existing test suites from the repository root:
-  - Python: `.venv/bin/python -m unittest discover -s 3a_routing -p 'test_*.py'`
-  - JavaScript: `node --test 6_display/network-editor.test.cjs 6_display/runoff-editor.test.cjs 6_display/car/car.test.cjs`
+  - Python: `.venv/bin/python -m unittest discover -s tests -p 'test_*.py'`
+  - JavaScript: `node --test tests/network-editor.test.cjs tests/runoff-editor.test.cjs tests/car.test.cjs`
 - Report failed or unavailable checks explicitly; do not treat a partial test run as a pass. The repository currently has no `package.json`, and its Python tests use `unittest`; do not substitute `npm test` or `pytest` unless those runners are configured.
 - `docs/engine.js` re-implements the Python model. When you change the model (`1_masking/`, `2a_rainfall_runoff/`, `3a_routing/`, `4_ecology/`, `5_outputs/`, `6_display/run_display.py`), make the matching change in `docs/engine.js` (and `docs/data/engine_*.json` if the data is affected) in the same change, and vice versa.
 ## Model robustness

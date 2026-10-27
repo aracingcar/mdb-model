@@ -12,7 +12,7 @@ DB_FILE = DATA / "results.db"  # reduced climate series and model results, one r
 OUTLINE_BUFFER_KM = 3
 OUTLINE_BUFFER_CRS = "EPSG:3577"  # Australian Albers
 
-# Surface water SDL resource units (Basin Plan 2012), outlines from the MDBA layer (1_masking/download_sdl_units.py).
+# Surface water SDL resource units (Basin Plan 2012), outlines from the MDBA layer (downloads/download_sdl_units.py).
 # Everything stored in results.db is keyed by unit. ecology: flow thresholds (ML/d) for the indicators scored at the
 # unit's outlet; leave an indicator out, or set ecology to None, to skip it.
 SDL_FILE = INPUT / "sdl" / "Surface Water SDL Resource Units.shp"

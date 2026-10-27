@@ -1,4 +1,4 @@
-// Run with: node 6_display/car/car.test.cjs
+// Run with: node tests/car.test.cjs
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
@@ -22,7 +22,7 @@ for(const h of ['dragPan','dragRotate','touchZoomRotate','touchPitch','keyboard'
 let picked=[1.5,1.5,20], redraws=0;
 const context=vm.createContext({window:{}, document:{createElement:()=>{const e=element();elements.push(e);return e;},body:element(),getElementById:()=>element()},
   addEventListener:(name,fn)=>events[name]=fn,performance:{now:()=>0},requestAnimationFrame(){},setTimeout(){},innerWidth:1000,devicePixelRatio:1});
-for(const f of ['boat.js','car.js']) vm.runInContext(fs.readFileSync(__dirname+'/'+f,'utf8'),context);
+for(const f of ['boat.js','car.js']) vm.runInContext(fs.readFileSync(__dirname+'/../6_display/car/'+f,'utf8'),context);
 const car=context.window.createCarMechanics({deck:{SimpleMeshLayer:class{constructor(props){Object.assign(this,props);}}},map,
   terrain:{x0:0,y0:3,step:1,NR:4,NC:4,GZ:new Float32Array(16).fill(10),outline:[[[.1,.1],[2.9,.1],[2.9,2.9],[.1,2.9],[.1,.1]]],getExaggeration:()=>1},
   getRelief:()=>1,setRelief(){},refresh:()=>redraws++,pickTerrain:()=>picked});
@@ -192,7 +192,7 @@ assert(soft.scrub>.97,`a plain landing barely slows the car (kept ${(soft.scrub*
 }
 console.log('Car placement, drag cancellation, invalid drops, animated fall, delayed reset, camera restoration, reuse, arrow keys, wet-boost donuts, landings, the nitro tank, the river boat and the town dash passed.');
 // A second element with id car-dock (the gauge panel dock) once let its CSS hide the vehicle button.
-for (const file of ['../template.html', '../../docs/index.html']) {
+for (const file of ['../6_display/template.html', '../docs/index.html']) {
   const html = fs.readFileSync(__dirname + '/' + file, 'utf8');
   assert.equal((html.match(/\sid="car-dock"/g) || []).length, 0, `${file}: car-dock is the button car.js creates; no markup may reuse it`);
 }
