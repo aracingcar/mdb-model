@@ -624,6 +624,7 @@ const pick = (id, text) => { $(id).textContent = text; };
     if (!c.built || c === current) return;
     const q = new URLSearchParams(location.search);
     if (c.id in D.caseData) q.set('case', c.id); else q.delete('case');
+    q.set('source', 'model');  // choosing a climate case keeps the climate model as the source
     location.search = q.toString();
   };
   cases.forEach((c, i) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.i = i; b.textContent = c.label; b.onclick = () => choose(i); $('case-stops').append(b); });
@@ -3064,7 +3065,7 @@ const GD_VIEWS = [
       ec ? `${bn}: ${f(stats[0])}. ${cn}: ${f(stats[1])}. Each line runs from one successful event’s end to the next one’s start.` : `${f(stats[0])}. Each line runs from one successful event’s end to the next one’s start.`];
   } },
   { name: 'Threshold × duration', flow: true, opt: 'heat', draw(e, ec, c) {  // the dashboard's heat map: how often each flow is held for each number of days inside the EWR's window
-    const s = gdSeries(GHOME, c.gid), s2 = ec && gdSeries(gdVs, c.gid), all = Float32Array.from(s2 ? [...s, ...s2] : s).sort(), xlim = gdNice(Math.max(all[Math.floor(all.length * .995)] || 1, e.thr * 1.25, 10)), dmax = Math.min(366, Math.max(30, Math.round(gdNice(e.dur * 1.5))));
+    const s = gdSeries(GHOME, c.gid), s2 = ec && gdSeries(gdVs, c.gid), all = Float32Array.from(s2 ? [...s, ...s2] : s).sort(), p995 = all[Math.floor(all.length * .995)] || 1, xlim = gdNice(Math.max(e.thr > 0 ? Math.min(p995, e.thr * 4) : p995, e.thr * 1.25, 10)), dmax = Math.min(366, Math.max(30, Math.round(gdNice(e.dur * 1.5))));
     const A = gdHeat(GHOME, c.gid, e.sm, e.em, dmax, xlim, gdMode), B = ec && gdHeat(gdVs, c.gid, e.sm, e.em, dmax, xlim, gdMode), top = 6, g = c.g;
     const cw = (c.W - c.L - c.R) / A.COLS, ch = (c.base - top) / A.ROWS;
     for (let k = 0; k < A.ROWS; k++) for (let j = 0; j < A.COLS; j++) { const v = B ? (B.grid[k * A.COLS + j] - A.grid[k * A.COLS + j]) / 100 : A.grid[k * A.COLS + j] / 100;
@@ -3079,13 +3080,13 @@ const GD_VIEWS = [
   } },
   { name: 'Hydrograph', flow: true, draw(e, ec, c) {  // daily flow, with the volume of each complete water year below it
     const cal = gdCal(), set = [[gdSeries(GHOME, c.gid), GD_BLUE], ...(ec ? [[gdSeries(gdVs, c.gid), GD_ORG]] : [])], g = c.g, plotW = c.W - c.L - c.R, hb = 112, vt = 126;
-    const mx = Math.max(...set.map(([s]) => { let m = 0; for (const v of s) if (v > m) m = v; return m; }), e.thr * 1.1, 1), yy = v => hb - (hb - 6) * v / mx;
+    const peak = Math.max(...set.map(([s]) => { let m = 0; for (const v of s) if (v > m) m = v; return m; }), 1), mx = Math.max(e.thr > 0 ? Math.min(peak, e.thr * 10) : peak, e.thr * 1.1, 1), clipped = peak > mx, yy = v => hb - (hb - 6) * Math.min(v, mx) / mx;  // a threshold small against the floods would sit on the axis: peaks above 10x it are clipped
     set.forEach(([s, col], k) => { const n = s.length; g.fillStyle = col; g.globalAlpha = k ? .5 : .65; g.beginPath(); g.moveTo(c.L, hb);
       const hi = [], lo = [];
       for (let px = 0; px < plotW; px++) { const a = Math.floor(px * n / plotW), b = Math.max(a + 1, Math.floor((px + 1) * n / plotW)); let mn = Infinity, mxv = 0; for (let i = a; i < b; i++) { if (s[i] < mn) mn = s[i]; if (s[i] > mxv) mxv = s[i]; } hi.push(yy(mxv)); lo.push(yy(mn === Infinity ? 0 : mn)); }  // a pixel of missing days draws as nothing
       hi.forEach((v, px) => g.lineTo(c.L + px, v)); for (let px = plotW - 1; px >= 0; px--) g.lineTo(c.L + px, lo[px]); g.closePath(); g.fill(); g.globalAlpha = 1; });
     g.strokeStyle = '#111'; g.setLineDash([4, 3]); g.beginPath(); g.moveTo(c.L, yy(e.thr)); g.lineTo(c.W - c.R, yy(e.thr)); g.stroke(); g.setLineDash([]);
-    g.fillStyle = '#656b72'; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(gdK(e.thr), c.W - c.R, yy(e.thr) - 6); g.fillText('0', c.L - 4, hb); g.fillText(gdK(mx), c.L - 4, 8);
+    g.fillStyle = '#656b72'; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(gdK(e.thr), c.W - c.R, yy(e.thr) - 6); g.fillText('0', c.L - 4, hb); g.fillText(gdK(mx) + (clipped ? '+' : ''), c.L - 4, 8);
     g.strokeStyle = '#9aa3b0'; g.beginPath(); g.moveTo(c.L, hb + .5); g.lineTo(c.W - c.R, hb + .5); g.stroke();
     const vol = set.map(([s]) => cal.complete.map(y => { let sum = 0; for (let i = cal.range[y][0]; i <= cal.range[y][1]; i++) sum += s[i]; return Number.isNaN(sum) ? 0 : sum / 1000; }));  // GL; a year with a missing day has no bar
     const dv = ec ? vol[1].map((v, i) => v - vol[0][i]) : null, vm = Math.max(...(dv ? dv.map(Math.abs) : vol[0]), 1), bw = plotW / cal.complete.length, vb = c.base, vh = vb - vt;
@@ -3095,7 +3096,7 @@ const GD_VIEWS = [
     const total = set[0][0].length; c.calendar(d => c.L + plotW * d / total); c.now(c.L + plotW * c.nowDay / total);
     const [bn, cn] = gdNames();
     return [(ec ? gdSwatch(GD_BLUE, bn) + gdSwatch(GD_ORG, cn) : gdSwatch(GD_BLUE, 'daily flow')) + '<span>- - EWR threshold</span><span>&#9474; now</span>',
-      `Top: daily flow over the record (the envelope of each pixel’s days). Bottom: ${ec ? `change in each complete water year’s volume, ${cn} − ${bn} (GL)` : 'volume of each complete water year (GL)'}.`];
+      `Top: daily flow over the record (the envelope of each pixel’s days${clipped ? `; peaks above ${fmt(mx)} ML/d, 10× the threshold, are cut off` : ''}). Bottom: ${ec ? `change in each complete water year’s volume, ${cn} − ${bn} (GL)` : 'volume of each complete water year (GL)'}.`];
   } },
   { name: 'Duration curve change', flow: true, only: 'diff', draw(e, ec, c) {  // the change in the % of time the flow is at or above each flow
     const a = Float32Array.from(gdSeries(GHOME, c.gid)).sort(), b = Float32Array.from(gdSeries(gdVs, c.gid)).sort(), g = c.g, top = 14, plotW = c.W - c.L - c.R;
@@ -3103,7 +3104,7 @@ const GD_VIEWS = [
     g.fillStyle = 'rgba(45,106,168,.12)'; g.beginPath(); g.moveTo(X(xs[0]), mid); xs.forEach((x, i) => g.lineTo(X(x), Y(d[i]))); g.lineTo(X(xs[119]), mid); g.fill();
     g.strokeStyle = GD_BLUE; g.lineWidth = 2; g.beginPath(); xs.forEach((x, i) => g[i ? 'lineTo' : 'moveTo'](X(x), Y(d[i]))); g.stroke(); g.lineWidth = 1;
     g.strokeStyle = '#9aa3b0'; g.beginPath(); g.moveTo(c.L, mid); g.lineTo(c.W - c.R, mid); g.stroke();
-    g.strokeStyle = '#111'; g.setLineDash([4, 3]); g.beginPath(); g.moveTo(X(Math.max(lo, e.thr)), top); g.lineTo(X(Math.max(lo, e.thr)), c.base); g.stroke(); g.setLineDash([]);
+    g.strokeStyle = '#111'; g.setLineDash([4, 3]); g.beginPath(); g.moveTo(X(Math.min(hi, Math.max(lo, e.thr))), top); g.lineTo(X(Math.min(hi, Math.max(lo, e.thr))), c.base); g.stroke(); g.setLineDash([]);
     g.fillStyle = '#656b72'; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(`+${m.toFixed(0)}`, c.L - 4, top); g.fillText('0', c.L - 4, mid); g.fillText(`−${m.toFixed(0)}`, c.L - 4, c.base);
     g.textAlign = 'center'; g.textBaseline = 'top'; for (let p = 0; 10 ** p <= hi; p++) if (10 ** p >= lo) g.fillText(gdK(10 ** p), Math.min(c.W - 14, Math.max(c.L + 8, X(10 ** p))), c.base + 3);
     const [bn, cn] = gdNames();
@@ -3112,14 +3113,15 @@ const GD_VIEWS = [
   { name: 'Monthly duration change', flow: true, only: 'diff', draw(e, ec, c) {  // the same change, month by month
     const cal = gdCal(), order = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6], A = gdSeries(GHOME, c.gid), B = gdSeries(gdVs, c.gid), g = c.g, ROWS = 36, top = 6;
     const by = s => order.map(m => { const v = []; for (let i = 0; i < s.length; i++) if (cal.month[i] === m) v.push(s[i]); return Float32Array.from(v).sort(); });
-    const ba = by(A), bb = by(B), tops = [...ba, ...bb].map(v => v[Math.floor(v.length * .99)] || 0), ymax = gdNice(Math.max(...tops, 10)), cw = (c.W - c.L - c.R) / 12, ch = (c.base - top) / ROWS;
+    const ba = by(A), bb = by(B), tops = [...ba, ...bb].map(v => v[Math.floor(v.length * .99)] || 0), top99 = Math.max(...tops), ymax = gdNice(Math.max(e.thr > 0 ? Math.min(top99, e.thr * 4) : top99, e.thr * 1.25, 10)), cw = (c.W - c.L - c.R) / 12, ch = (c.base - top) / ROWS;
     const D = Array.from({length: ROWS}, (_, k) => order.map((_, j) => pctGE(bb[j], (k + 1) * ymax / ROWS) - pctGE(ba[j], (k + 1) * ymax / ROWS))), m = Math.max(5, ...D.flat().map(Math.abs));
     D.forEach((row, k) => row.forEach((v, j) => { g.fillStyle = gdDiv(v / m); g.fillRect(c.L + j * cw, c.base - (k + 1) * ch, cw + .5, ch + .5); }));
     g.strokeStyle = '#9aa3b0'; g.strokeRect(c.L + .5, top + .5, c.W - c.L - c.R - 1, c.base - top - 1);
+    const ty = c.base - (c.base - top) * e.thr / ymax; g.strokeStyle = '#111'; g.setLineDash([4, 3]); g.beginPath(); g.moveTo(c.L, ty); g.lineTo(c.W - c.R, ty); g.stroke(); g.setLineDash([]);
     g.fillStyle = '#656b72'; g.textAlign = 'center'; g.textBaseline = 'top'; order.forEach((mo, j) => g.fillText('JFMAMJJASOND'[mo - 1], c.L + (j + .5) * cw, c.base + 3));
     g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText('0', c.L - 4, c.base - 4); g.fillText(gdK(ymax), c.L - 4, top + 5);
     const [bn, cn] = gdNames();
-    return [gdRamp(GD_RED, GD_BLUE) + `<span>±${m.toFixed(0)} points of days</span>`, `Change in the % of each month’s days with the flow at or above each flow (0–${fmt(ymax)} ML/d up), ${cn} minus ${bn}. Blue: reached more often in ${cn}.`];
+    return [gdRamp(GD_RED, GD_BLUE) + `<span>±${m.toFixed(0)} points of days</span><span>- - EWR threshold</span>`, `Change in the % of each month’s days with the flow at or above each flow (0–${fmt(ymax)} ML/d up), ${cn} minus ${bn}. Blue: reached more often in ${cn}.`];
   } },
   { name: 'Flow regimes', draw(e, ec, c) {  // each regime's threshold is the lowest of the gauge's EWRs in it; counted over whole water years
     const A = c.gauge.regimes, B = ec && c.gaugeC?.regimes, g = c.g, [bn, cn] = gdNames();
@@ -3154,7 +3156,7 @@ const GD_VIEWS = [
 const gdAvail = () => GD_VIEWS.filter(v => !v.only || !!gdVs);
 function gaugePanel(km) {
   const g = gdNear, panel = $('gauge-diag'), today = D.days[Math.min(N - 1, Math.floor(day))], date = today.split('-'), wy = +date[0] - (+date[1] < 7 ? 1 : 0);
-  const e = g.ewrs.find(x => ewrKey(x) === gdPick) || g.ewrs.find(x => x.fr > 0) || g.ewrs[0], views = gdAvail();
+  const ewrs = [...g.ewrs].sort((x, y) => (x.thr || 0) - (y.thr || 0) || x.code.localeCompare(y.code)), e = ewrs.find(x => ewrKey(x) === gdPick) || ewrs.find(x => x.fr > 0) || ewrs[0], views = gdAvail();  // listed by rising minimum threshold, i.e. flow regime
   if (gdView >= views.length) gdView = 0;
   const view = views[gdView], key = `${GHOME}|${g.id}|${ewrKey(e)}|${wy}|${gdView}|${gdVs}|${gdMode}|${gdSpell}|${km.toFixed(1)}`;
   panel.classList.add('ready');
@@ -3170,7 +3172,7 @@ function gaugePanel(km) {
   const opt = $('gd-opt'), spells = gdSpellOpts(g); opt.hidden = !view.opt;
   opt.textContent = view.opt === 'heat' ? (gdMode ? 'Consecutive days' : 'Any days') : `below ${fmt(spells[gdSpell % spells.length])} ML/d`;
   const dup = new Set(g.ewrs.filter((x, i) => g.ewrs.findIndex(y => y.code === x.code) !== i).map(x => x.code));
-  $('gd-list').replaceChildren(...g.ewrs.map(x => {
+  $('gd-list').replaceChildren(...ewrs.map(x => {
     const row = document.createElement('div'), bar = document.createElement('u'), fill = document.createElement('i'), name = document.createElement('span'), val = document.createElement('em');
     row.dataset.k = ewrKey(x); row.title = x.pu; row.className = x === e ? 'on' : '';
     name.textContent = dup.has(x.code) ? `${x.code} · ${x.pu.slice(0, 12)}` : x.code; fill.style.width = `${Math.round(100 * (x.fr || 0))}%`; bar.append(fill);
@@ -3369,8 +3371,10 @@ function tick(now) {
 }
 addEventListener('resize', () => update());
 { const q = new URLSearchParams(location.search).get('day'), i = q ? D.days.indexOf(q) : -1; if (i >= 0) day = i; }
+// The page opens on the observed flow; ?source=model, or any link that picks a climate case, the full series or an editor, opens the climate model.
+const OPEN_SRC = ASK.get('source') || (['case', 'data', 'network', 'areas', 'panel'].some(k => ASK.has(k)) ? 'model' : 'observed');
 $('climate-start').onchange = setPeriod; $('climate-end').onchange = setPeriod;
-if (typeof maplibregl !== 'undefined' && typeof deck !== 'undefined') { initMap(); legend(); setPeriod(); }
+if (typeof maplibregl !== 'undefined' && typeof deck !== 'undefined') { initMap(); legend(); setPeriod(); if (OPEN_SRC !== 'model' && META.gauges?.[OPEN_SRC]) setSource(OPEN_SRC); }
 if (FULL && ASK.get('network') === '1') {
   if (ASK.get('system') in D.engines) $('rt-system').value = ASK.get('system');
   $('rt-editor').classList.add('open'); await drawRouting(true); await rtRun();
