@@ -117,7 +117,8 @@ def build_nodes(basins, system):
     _place_storages(nodes, fine_deg, ids, storages)
     plains = basins[basins["subcatchment"].str.startswith("LOWLAND")].to_crs("EPSG:4326")
     watersheds = pd.concat([pd.Series(fine_deg.geometry.values, index=[ids[i] for i in fine_deg.index]), pd.Series(plains.geometry.values, index=plains["subcatchment"].values)])
-    result, watersheds = _fold_watersheds(apply_network(_along_river(nodes, watersheds, system), system), watersheds)
+    result, watersheds = _fold_watersheds(_along_river(nodes, watersheds, system), watersheds)
+    result = apply_network(result, system)  # the page's engine data and exported drafts are of the folded network
     result.attrs["watersheds"] = watersheds
     return result
 
@@ -262,6 +263,7 @@ def apply_network(nodes, system):
     missing = [i for i in drafted if not i.startswith(("junction-", "tributary-")) and i not in river]
     if missing:
         raise ValueError(f"{path} edits nodes the network no longer has ({', '.join(missing[:5])}): export the draft again from the current page")
+    covered = {n["model"]["basin"] for n in drafted.values()} | {f["basin"] for f in folded.values()}  # the draft's nodes carry these basins' whole runoff share
     main = {l["a"]: l for l in draft["links"] if l.get("b") and not l.get("split")}
     nodes = nodes.copy()
     totals = nodes.groupby("basin")["share"].sum()
@@ -283,19 +285,23 @@ def apply_network(nodes, system):
     for i in river - set(drafted):
         at = nodes.index[nodes["id"] == i][0]
         if i not in folded:
-            if i in redirects:  # deleted in the editor; a node the draft never had (excluded from the page: ``connected``) stays
+            if i in redirects or nodes.at[at, "basin"] in covered:  # deleted in the editor or earlier (the page's graph starts from the engine data); a node of a basin the draft does not cover (excluded from the page: ``connected``) stays
                 nodes = nodes.drop(at)
             continue
         f = folded[i]
         nodes.loc[at, ["share", "area_km2", "length_km", "next", "outlet", "loss_rank", "river", "straight"]] = [f["share"], f["area"], 0.0, f["next"], False, 0, False, False]
         nodes.at[at, "path"] = None
+    for i, f in folded.items():  # a watershed the page had folded into its basin before this draft, that this build has no node for
+        if i not in set(nodes["id"]) and i not in drafted:
+            rows.append({"id": i, "basin": f["basin"], "share": f["share"], "area_km2": f["area"], "length_km": 0.0, "next": f["next"], "lon": f["lon"], "lat": f["lat"],
+                         "outlet": False, "loss_rank": 0, "storage": "", "river": False, "path": None, "straight": False, "reports": None, "split_path": None})
     nodes = pd.concat([nodes, pd.DataFrame(rows)], ignore_index=True) if rows else nodes.reset_index(drop=True)
     nodes["next"] = [resolve(i) if i else "" for i in nodes["next"]]
     ids = set(nodes["id"])
     if bad := [i for i in nodes["next"] if i and i not in ids]:
         raise ValueError(f"{path}: connections to nodes that do not exist ({', '.join(bad[:5])})")
     after = nodes.groupby("basin")["share"].sum()
-    if not np.allclose(after.reindex(totals.index).fillna(0), totals, atol=1e-9):
+    if not np.allclose(after.reindex(totals.index).fillna(0), totals, atol=1e-5):  # drafts round shares to 6 decimals
         raise ValueError(f"{path}: the draft changes a basin's total runoff share")
     if lost := set(totals.index) - set(basin_outlets(nodes)):
         raise ValueError(f"{path}: basins with no node reporting their flow ({', '.join(sorted(lost)[:5])})")
