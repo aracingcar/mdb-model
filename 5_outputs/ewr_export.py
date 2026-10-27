@@ -1,4 +1,5 @@
-"""The page's gauge results from py_ewr's output: per gauge, each EWR's yearly achievement, events and gaps, the flow regimes and the daily flow.
+"""The page's gauge results from py_ewr's output: per gauge, each EWR's yearly achievement, events, gaps, MRIP exceedance, flow regimes and
+ecological themes, and the daily flow.
 
 Used by gauge_ewr.py (the climate cases and observed flow, built into the page) and run in the browser, under Pyodide, on flow the
 user uploads, so it imports nothing but pandas and numpy, and py_ewr when building.
@@ -42,6 +43,28 @@ def regime_years(values, index, years, hit_level):
     return out
 
 
+THEMES = ["Flows & Connectivity", "Native Fish", "Waterbirds", "Native Vegetation", "Ecosystem Functions", "Other Species", "Unclassified"]  # the dashboard's order
+
+
+def mrip_exceedance(flow, t0, mrip_years, spans):
+    """The share of the record beyond the maximum inter-event period (the dashboard's ETP): days past the MRIP in the gaps between
+    successful events, over the days of record outside gaps that hold a missing day (those have an unknown length and count nowhere).
+    `spans` are (first day, last day) of each gap; None when the EWR has no maximum or nothing is left to count."""
+    mrip = int(round(float(mrip_years) * 365)) if mrip_years and mrip_years > 0 else 0
+    if not mrip:
+        return None
+    missing = np.concatenate([[0], np.cumsum(np.isnan(flow))])  # missing days before each day, to test a gap in one step
+    counted, excess = len(flow), 0
+    for a, b in spans:
+        i, j = (a - t0).days, (b - t0).days
+        days = j - i + 1
+        if missing[j + 1] - missing[i]:
+            counted -= days
+        else:
+            excess += max(0, days - mrip)
+    return round(min(1.0, excess / counted), 4) if counted > 0 else None
+
+
 def build(case_id, flows, matched, summary, yearly, events, successful, gaps):
     """The page's results for one flow series: (results, daily flow), both JSON-ready. `flows` is daily ML/d with a `<gauge>_flow` column
     per gauge from its first day; `matched` has a row per gauge (index gauge: name, lon, lat, river_id, km); the rest are py_ewr's results."""
@@ -78,6 +101,11 @@ def build(case_id, flows, matched, summary, yearly, events, successful, gaps):
         return {"es": deltas(starts), "el": ((ev["endDate"] - ev["startDate"]).dt.days + 1).tolist(), "eo": "".join("1" if o else "0" for o in ok),
                 "tm": [int(months.get(m, 0)) for m in range(1, 13)], "gs": deltas(gs), "gl": gp["interEventLength"].astype(int).tolist()}
 
+    objectives = data_inputs.get_obj_mapping()[["Gauge", "PlanningUnitName", "Code", "EcoObj", "Target"]].drop_duplicates()
+    objectives["Gauge"], objectives["Target"] = objectives["Gauge"].astype(str), objectives["Target"].fillna("Unclassified")
+    themes = THEMES + sorted(set(objectives["Target"]) - set(THEMES))
+    themes_of = {k: [themes.index(t) for t in g["Target"]] for k, g in objectives.groupby(["Gauge", "PlanningUnitName", "Code"])}  # one entry per objective the EWR serves
+    regs = []  # the flow regimes any EWR is in
     handlers = {k: h for h, keys in data_inputs.get_ewr_calc_config(None).items() for k in keys}
     lengths = {k: g.groupby("waterYear")["eventDuration"].apply(lambda v: sorted(v, reverse=True)).to_dict() for k, g in events_by.items()}
 
@@ -99,6 +127,7 @@ def build(case_id, flows, matched, summary, yearly, events, successful, gaps):
         if gauge not in matched.index:
             continue
         ewrs = []
+        series = flows[f"{gauge}_flow"].to_numpy(dtype=float)
         for r in rows.itertuples():
             y = by_ewr[(gauge, r.PlanningUnit, r.Code)]
             ok = full(y)
@@ -107,12 +136,18 @@ def build(case_id, flows, matched, summary, yearly, events, successful, gaps):
             multi = isinstance(p["Multigauge"], str) and bool(p["Multigauge"].strip())
             low = handlers.get(f"{r.Code}-{'multigauge' if multi else 'single'}-{p['FlowLevelVolume']}") in ("lowflow_handle", "lowflow_handle_multi")
             dur, per_year = number(p["Duration"]), number(p["EventsPerYear"])
+            k = (gauge, r.PlanningUnit, r.Code)
+            spans = [(flows.index[0], flows.index[-1])] if k not in started else [(a, b) for a, b in zip(gaps_by[k]["startDate"], gaps_by[k]["endDate"])] if k in gaps_by else []
+            regimes = [x for x in regimes_for(r.Code, p["State"]) if x != "excluded"]
+            regs.extend(x for x in regimes if x not in regs)
             ewrs.append({
                 "code": r.Code, "pu": r.PlanningUnit, "low": low,
                 "dr": ratios(y, (gauge, r.PlanningUnit, r.Code), p, dur, low, per_year),
                 "thr": number(p["FlowThresholdMin"]), "thrMax": number(p["FlowThresholdMax"]), "dur": number(p["Duration"]),
                 "minSpell": number(p["MinSpell"]), "sm": number(p["StartMonth"]), "em": number(p["EndMonth"]), "target": number(p["TargetFrequency"]), "mrip": number(p["MaxInter-event"]),
                 "fr": round(min(1.0, r.Frequency / r.TargetFrequency), 3) if r.TargetFrequency else None,
+                "frr": round(r.Frequency / r.TargetFrequency, 3) if r.TargetFrequency else None,  # uncapped, as the joint chart plots it
+                "etp": mrip_exceedance(series, t0, number(p["MaxInter-event"]), spans), "reg": [regs.index(x) for x in regimes], "th": themes_of.get((gauge, r.PlanningUnit, r.Code), []),
                 "ach": "".join(("1" if a else "0") if o else "-" for a, o in zip(ach, ok)),
                 "max": y.reindex(years)["maxEventDays"].fillna(0).astype(int).tolist(),
                 **event_fields((gauge, r.PlanningUnit, r.Code)),
@@ -133,5 +168,5 @@ def build(case_id, flows, matched, summary, yearly, events, successful, gaps):
         gauges.append({"regimes": regimes, "id": gauge, "name": m["name"], "lon": round(m["lon"], 4), "lat": round(m["lat"], 4), "river": m["river_id"], "km": m["km"],
                        "ewrs": sorted(ewrs, key=lambda e: (e["code"], e["pu"]))})
     flow_out = {"t0": t0.strftime("%Y-%m-%d"), "n": len(flows), "flow": {c[:-5]: encode_flow(flows[c].to_numpy(dtype=float)) for c in flows.columns if c[:-5] in matched.index}}
-    out = {"case": case_id, "t0": t0.strftime("%Y-%m-%d"), "n": len(flows), "years": [int(y) for y in years], "gauges": sorted(gauges, key=lambda g: g["id"])}
+    out = {"case": case_id, "t0": t0.strftime("%Y-%m-%d"), "n": len(flows), "years": [int(y) for y in years], "themes": themes, "regs": regs, "gauges": sorted(gauges, key=lambda g: g["id"])}
     return out, flow_out

@@ -83,12 +83,12 @@
   #source-stops button { flex:1; padding:5px 4px; border:0; border-left:1px solid var(--rule); background:#fff; color:var(--dim); font:inherit; cursor:pointer; }
   #source-stops button:first-child { border-left:0; }
   #source-stops button[aria-pressed="true"] { background:#e8eff6; color:var(--head); font-weight:600; }
-  #source-stops button:focus-visible, #yours-file:focus-visible { outline:2px solid #2d6aa8; outline-offset:-2px; }
+  #source-stops button:focus-visible, #yours-file:focus-visible, #yours-format:focus-visible, #yours-name:focus-visible { outline:2px solid #2d6aa8; outline-offset:-2px; }
   #source-note, #yours-status { margin:0; color:var(--dim); line-height:1.4; }
   #source-note:empty, #yours-status:empty { display:none; }
   #yours-fields { display:grid; gap:6px; }
   #yours-fields[hidden] { display:none; }
-  #yours-file { width:100%; font:inherit; color:var(--ink); }
+  #yours-file, #yours-format, #yours-name { width:100%; font:inherit; color:var(--ink); }
   #calc-status { margin:0; padding:7px 14px; color:var(--dim); }
   #calc-status button { margin-left:6px; padding:0; border:0; background:none; color:#2d6aa8; font:inherit; text-decoration:underline; cursor:pointer; }
   #model-panels details > summary { cursor:pointer; list-style:none; display:flex; align-items:baseline; gap:8px; padding:10px 14px; font-weight:600; color:var(--head); }
@@ -185,26 +185,33 @@
   body.car-driving #map-tools { bottom:20px; }
   /* ?case=all: the climate cases side by side, each panel the page on one case with only its map and timeline (?panel=1) */
   body.panel #side, body.panel #model-panels, body.panel #relief, body.panel #site-menu, body.panel #map-tools,
-  body.panel #towns-toggle, body.panel #detail-toggle, body.panel #sdl-toggle, body.panel #storages-toggle, body.panel #gauges-toggle, body.panel #gauge-diag { display:none; }
+  body.panel #towns-toggle, body.panel #detail-toggle, body.panel #sdl-toggle, body.panel #storages-toggle, body.panel #gauges-toggle, body.panel #car-dock { display:none; }
   /* driving: the EWR tool's results at the gauge nearest the car, bottom left (data/gauges_<case>.json, 5_outputs/gauge_ewr.py) */
-  #gauge-diag { position:absolute; left:22px; bottom:22px; z-index:7; width:min(400px,calc(100vw - 44px)); max-height:calc(100vh - 150px); overflow-y:auto; overscroll-behavior:contain; display:none; padding:11px 13px 12px; border-radius:6px; background:rgba(255,255,255,.95); box-shadow:0 2px 10px rgba(0,0,0,.14); color:#3e4248; font:12px/1.4 var(--sans,Arial,sans-serif); }
-  body.car-driving #gauge-diag.ready { display:block; }
-  #gauge-diag b { display:block; font-size:14px; color:#24272b; }
-  #gauge-diag small { display:block; color:#7a7f86; font-size:11px; }
-  #gauge-diag h4 { margin:9px 0 3px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#656b72; font-weight:700; }
-  #gd-nav { display:flex; align-items:center; justify-content:space-between; margin-top:7px; }
-  #gd-nav h4 { margin:0; text-align:center; }
-  #gd-nav span { width:30px; height:24px; line-height:20px; text-align:center; font-size:34px; font-weight:300; color:#3e4248; border-radius:4px; cursor:pointer; user-select:none; pointer-events:auto; }
-  #gd-nav span:hover { background:#e8eff6; }
-  #gd-sub { margin:2px 0 3px; }
-  #gd-opts { display:flex; gap:6px; margin:2px 0 4px; }
-  #gd-opts span { padding:2px 8px; border:1px solid #c9ced3; border-radius:11px; font-size:11px; color:#3e4248; cursor:pointer; user-select:none; pointer-events:auto; }
-  #gd-opts span:hover { background:#e8eff6; }
-  #gd-opts span[hidden] { display:none; }
-  #gd-chart { display:block; width:100%; height:190px; }
-  #gd-sum { margin:3px 0 0; font-size:11px; color:#4a4f56; }
-  #gd-key { display:flex; gap:12px; margin-top:3px; font-size:10px; color:#656b72; }
-  #gd-key i { display:inline-block; width:9px; height:9px; margin-right:4px; vertical-align:-1px; border-radius:2px; }
+  /* driving: bottom left, a dock of two panels (the SDL unit's results above the nearest gauge's), each collapsing to the left */
+  #car-dock { position:absolute; left:0; bottom:22px; z-index:7; display:none; flex-direction:column; gap:8px; max-height:calc(100vh - 44px); pointer-events:none; }
+  body.car-driving #car-dock { display:flex; }
+  .dock-item { position:relative; display:none; flex-direction:column; flex:0 1 auto; min-height:0; margin-left:22px; width:min(400px,calc(100vw - 44px)); transition:transform .2s; pointer-events:auto; }
+  .dock-item.ready { display:flex; }
+  .dock-item.shut { transform:translateX(calc(-100% - 22px)); }
+  .dock-tab { position:absolute; right:-22px; top:10px; width:22px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:0 6px 6px 0; background:rgba(255,255,255,.95); box-shadow:2px 2px 8px rgba(0,0,0,.14); font-size:22px; color:#3e4248; cursor:pointer; user-select:none; }
+  .dock-tab:hover { background:#e8eff6; }
+  .dpanel { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:11px 13px 12px; border-radius:6px; background:rgba(255,255,255,.95); box-shadow:0 2px 10px rgba(0,0,0,.14); color:#3e4248; font:12px/1.4 var(--sans,Arial,sans-serif); }
+  .dpanel b { display:block; font-size:14px; color:#24272b; }
+  .dpanel small { display:block; color:#7a7f86; font-size:11px; }
+  .dpanel h4 { margin:9px 0 3px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#656b72; font-weight:700; }
+  .diag-nav { display:flex; align-items:center; justify-content:space-between; margin-top:7px; }
+  .diag-nav h4 { margin:0; text-align:center; }
+  .diag-nav span { width:30px; height:24px; line-height:20px; text-align:center; font-size:34px; font-weight:300; color:#3e4248; border-radius:4px; cursor:pointer; user-select:none; pointer-events:auto; }
+  .diag-nav span:hover { background:#e8eff6; }
+  .diag-sub { margin:2px 0 3px; }
+  .diag-opts { display:flex; gap:6px; margin:2px 0 4px; }
+  .diag-opts span { padding:2px 8px; border:1px solid #c9ced3; border-radius:11px; font-size:11px; color:#3e4248; cursor:pointer; user-select:none; pointer-events:auto; }
+  .diag-opts span:hover { background:#e8eff6; }
+  .diag-opts span[hidden] { display:none; }
+  .diag-chart { display:block; width:100%; height:190px; }
+  .diag-sum { margin:3px 0 0; font-size:11px; color:#4a4f56; }
+  .diag-key { display:flex; flex-wrap:wrap; gap:2px 12px; margin-top:3px; font-size:10px; color:#656b72; }
+  .diag-key i { display:inline-block; width:9px; height:9px; margin-right:4px; vertical-align:-1px; border-radius:2px; }
   #gd-list { max-height:96px; overflow-y:auto; pointer-events:auto; }
   #gd-list div { display:grid; grid-template-columns:62px 1fr 38px; align-items:center; gap:7px; padding:1.5px 3px; border-radius:3px; cursor:pointer; font-size:11px; font-variant-numeric:tabular-nums; }
   #gd-list div.on { background:#e8eff6; font-weight:700; }
@@ -355,7 +362,9 @@
   <div id="source-stops" role="group" aria-label="Flow source"><button type="button" data-s="model" aria-pressed="true">Climate model</button><button type="button" data-s="observed" aria-pressed="false">Observed</button><button type="button" data-s="yours" aria-pressed="false">Your data</button></div>
   <p id="source-note"></p>
   <div id="yours-fields" hidden>
-    <input id="yours-file" type="file" accept=".csv,text/csv" aria-label="Daily flow CSV">
+    <select id="yours-format" aria-label="File format"><option value="Standard time-series">Standard time-series</option><option value="Bigmod - MDBA">Bigmod (MDBA)</option><option value="FIRM - MDBA">FIRM (MDBA)</option><option value="res.csv - MDBA">res.csv (MDBA)</option><option value="Source - NSW (res.csv)">Source NSW res.csv</option><option value="IQQM - netcdf">IQQM netCDF</option><option value="ten thousand year">Ten-thousand-year run</option></select>
+    <input id="yours-name" type="text" maxlength="40" placeholder="Scenario name (default: the file name)" aria-label="Scenario name">
+    <input id="yours-file" type="file" accept=".csv,.nc,.txt,text/csv" aria-label="Scenario file">
     <p id="yours-status" role="status" aria-live="polite"></p>
   </div>
 </div>
@@ -417,7 +426,7 @@
   <details><summary>Hydrology settings (unchanged)</summary><div id="rt-foot"></div></details>
 </div>
 <div id="tip"></div>
-<div id="gauge-diag" aria-label="EWR results at the nearest gauge"><b id="gd-name"></b><small id="gd-where"></small><div id="gd-nav"><span id="gd-prev" role="button" aria-label="Previous chart" title="Previous chart">&lsaquo;</span><h4 id="gd-title">Achieved each year</h4><span id="gd-next" role="button" aria-label="Next chart" title="Next chart">&rsaquo;</span></div><small id="gd-sub"></small><div id="gd-opts"><span id="gd-vs" role="button" title="Set another climate case against this one">Compare: off</span><span id="gd-opt" role="button" hidden></span></div><canvas id="gd-chart"></canvas><div id="gd-key"><span><i style="background:#2d6aa8"></i>achieved</span><span><i style="background:#c0504d"></i>not achieved</span><span><i style="background:#d3d7db"></i>part year</span><span>&#9474; now</span></div><p id="gd-sum"></p><h4>Every EWR here: share of years achieved vs target</h4><div id="gd-list"></div></div>
+<div id="car-dock"><div class="dock-item" id="sdl-item"><div class="dpanel" id="sdl-diag" aria-label="EWR results in this SDL unit"><b id="sd-name"></b><small id="sd-where"></small><div class="diag-nav"><span id="sd-prev" role="button" aria-label="Previous chart" title="Previous chart">&lsaquo;</span><h4 id="sd-title"></h4><span id="sd-next" role="button" aria-label="Next chart" title="Next chart">&rsaquo;</span></div><div class="diag-opts"><span id="sd-opt" role="button" hidden></span></div><canvas id="sd-chart" class="diag-chart"></canvas><div id="sd-key" class="diag-key"></div><p id="sd-sum" class="diag-sum"></p></div><span class="dock-tab" id="sd-tab" role="button" aria-label="Hide or show the SDL panel" title="Hide or show">&lsaquo;</span></div><div class="dock-item" id="gauge-item"><div class="dpanel" id="gauge-diag" aria-label="EWR results at the nearest gauge"><b id="gd-name"></b><small id="gd-where"></small><div id="gd-nav" class="diag-nav"><span id="gd-prev" role="button" aria-label="Previous chart" title="Previous chart">&lsaquo;</span><h4 id="gd-title">Achieved each year</h4><span id="gd-next" role="button" aria-label="Next chart" title="Next chart">&rsaquo;</span></div><small id="gd-sub" class="diag-sub"></small><div id="gd-opts" class="diag-opts"><span id="gd-vs" role="button" title="Set another climate case against this one">Compare: off</span><span id="gd-opt" role="button" hidden></span></div><canvas id="gd-chart" class="diag-chart"></canvas><div id="gd-key" class="diag-key"><span><i style="background:#2d6aa8"></i>achieved</span><span><i style="background:#c0504d"></i>not achieved</span><span><i style="background:#d3d7db"></i>part year</span><span>&#9474; now</span></div><p id="gd-sum" class="diag-sum"></p><h4>Every EWR here: share of years achieved vs target</h4><div id="gd-list"></div></div><span class="dock-tab" id="gd-tab" role="button" aria-label="Hide or show the gauge panel" title="Hide or show">&lsaquo;</span></div></div>
 <script type="text/plain" id="yours-worker">
 // "Your data": py_ewr under Pyodide (Python in WebAssembly) on an uploaded CSV, then the same export code as the page's other flow sources (5_outputs/ewr_export.py).
 importScripts('https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js');
@@ -435,7 +444,8 @@ const setup = base => ready ||= (async () => {
 onmessage = async ({ data }) => {
   try {
     const py = await setup(data.base);
-    py.FS.writeFile('/home/pyodide/up.csv', data.csv);
+    py.FS.writeFile('/home/pyodide/' + data.upload, new Uint8Array(data.bytes));
+    py.globals.set('FMT', data.fmt); py.globals.set('UPLOAD', '/home/pyodide/' + data.upload);
     postMessage({ status: 'Calculating EWRs…' });
     postMessage({ result: await py.runPythonAsync(data.code) });
   } catch (e) { postMessage({ error: String(e.message || e).trim().split('\n').pop().replace(/^\w*Error: /, '') }); }
@@ -2905,7 +2915,7 @@ $('storagesIn').onchange = e => { showStorages = e.target.checked; if (overlay) 
 // "Compare" sets another climate case against this one (the dashboard's Differential mode).
 const GCASES = META.cases.filter(k => k.built && META.gauges?.[k.id]).map(k => k.id), MODEL_HOME = CASE || META.defaultCase;
 let GHOME = MODEL_HOME;  // the flow source whose results the panel charts: the page's climate case, 'observed' or 'yours'
-const GAUGE_URL = META.gauges?.[GHOME], gcaseName = id => ({ observed: 'Observed', yours: 'Your data' })[id] || META.cases.find(k => k.id === id)?.label || id;
+const GAUGE_URL = META.gauges?.[GHOME], gcaseName = id => ({ observed: 'Observed', yours: yoursName })[id] || META.cases.find(k => k.id === id)?.label || id;
 let GAUGES = null, gaugesLoad = null, gdNear = null, gdKey = '', gdPick = '', gdKm = 0, gdView = 0, gdVs = '', gdMode = 0, gdSpell = 0, gdCalC = null;
 const gdJ = {}, gdF = {}, gdFetched = new Map(), gdHeatC = new Map();  // gauge results and daily flow by case id; fetches and heat-map grids by key
 $('gauges-toggle').hidden = !GAUGE_URL;
@@ -2925,7 +2935,7 @@ function gaugeDrive(lon, lat) {
   let best = null, nearest = Infinity;
   for (const g of GAUGES.gauges) { const d = Math.hypot((g.lon - lon) * k, g.lat - lat) * 111; if (d < nearest) { nearest = d; best = g; } }
   if (best !== gdNear) { gdNear = best; if (overlay && showGauges) overlay.setProps({layers:layers()}); }
-  gdKm = nearest; gaugePanel(nearest);
+  gdKm = nearest; gaugePanel(nearest); sdlDrive(lon, lat);
 }
 const GD_BLUE = '#2d6aa8', GD_RED = '#c0504d', GD_GREY = '#d3d7db', GD_ORG = '#d9822b';
 const gdSwatch = (c, t) => `<span><i style="background:${c}"></i>${t}</span>`, gdRamp = (a, b) => `<span><i style="width:34px;background:linear-gradient(90deg,${a},${b})"></i></span>`;
@@ -2995,8 +3005,46 @@ const gdSpellOpts = g => [1, ...[...new Set(g.ewrs.filter(x => /^(CF|VF|BF)/i.te
 const pctGE = (sorted, x) => { let lo = 0, hi = sorted.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (sorted[mid] < x) lo = mid + 1; else hi = mid; } return 100 * (sorted.length - lo) / sorted.length; };
 const median = a => { if (!a.length) return null; const s = [...a].sort((p, q) => p - q), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 
+// ---- Joint FR–MRIP: each EWR is a dot, its frequency ratio across and its share of the record beyond the maximum inter-event period up.
+const gdRegName = (x, file = GAUGES) => x.reg.map(i => file.regs[i]).sort().join(' / ') || 'Unmapped';
+function gdRegColours(ewrs) {  // one colour per regime, lowest flow threshold first: gold, green, teal, blue, purple
+  const thr = new Map();
+  for (const x of ewrs) { const n = gdRegName(x); thr.set(n, Math.min(thr.get(n) ?? Infinity, x.thr ?? Infinity)); }
+  const names = [...thr.keys()].sort((a, b) => thr.get(a) - thr.get(b) || a.localeCompare(b)), real = names.filter(n => n !== 'Unmapped'), col = new Map(), stops = [[196,154,0],[77,156,56],[0,150,143],[48,104,190],[112,48,150]];
+  real.forEach((n, i) => { const at = (real.length < 2 ? .5 : i / (real.length - 1)) * 4, lo = Math.min(Math.floor(at), 3), t = at - lo; col.set(n, `rgb(${gdLerp(stops[lo], stops[lo + 1], t)})`); });
+  col.set('Unmapped', '#6b7280');
+  return { names, col };
+}
+function gdScatter(g, b, pts, col) {  // dots at (FR, ETP) inside box b; arrows from a baseline (bx, by); returns the counts of the four joint classes
+  const xmax = Math.max(1.2, ...pts.flatMap(p => [p.x, p.bx ?? 0])), X = v => b.x + b.w * v / xmax, Y = v => b.y + b.h - b.h * Math.min(1, v), counts = [0, 0, 0, 0];
+  g.fillStyle = 'rgba(60,160,80,.12)'; g.fillRect(X(.95), Y(.05), b.x + b.w - X(.95), b.y + b.h - Y(.05));
+  g.strokeStyle = '#111'; g.setLineDash([4, 3]); g.beginPath(); g.moveTo(X(.95), b.y); g.lineTo(X(.95), b.y + b.h); g.moveTo(b.x, Y(.05)); g.lineTo(b.x + b.w, Y(.05)); g.stroke(); g.setLineDash([]);
+  g.strokeStyle = '#9aa3b0'; g.strokeRect(b.x + .5, b.y + .5, b.w - 1, b.h - 1);
+  g.fillStyle = '#656b72'; g.textAlign = 'center'; g.textBaseline = 'top'; [[0, '0'], [1, '1'], [xmax, xmax.toFixed(1)]].forEach(([v, t], i) => g.fillText(t, Math.min(b.x + b.w - 6, Math.max(b.x + 4, X(v))), b.y + b.h + 3));
+  g.textAlign = 'right'; g.textBaseline = 'middle'; [[0, '0'], [.5, '50%'], [1, '100%']].forEach(([v, t]) => g.fillText(t, b.x - 4, Math.min(b.y + b.h - 4, Math.max(b.y + 5, Y(v)))));
+  g.textAlign = 'right'; g.textBaseline = 'top'; g.fillText('frequency ratio →', b.x + b.w, b.y + b.h + 13);
+  for (const p of pts) {
+    if (p.bx != null) { g.strokeStyle = col.get(gdRegName(p.e)); g.lineWidth = 1.2; g.globalAlpha = .6; g.beginPath(); g.moveTo(X(p.bx), Y(p.by)); g.lineTo(X(p.x), Y(p.y)); g.stroke(); g.globalAlpha = 1; g.lineWidth = 1; }
+    counts[(p.x >= 1 - 1e-9 ? 0 : 2) + (p.y <= 1e-9 ? 0 : 1)]++;
+  }
+  for (const p of pts) { g.beginPath(); g.arc(X(p.x), Y(p.y), p.sel ? 4.6 : 3.2, 0, 7); g.fillStyle = col.get(gdRegName(p.e)); g.globalAlpha = .85; g.fill(); g.globalAlpha = 1; g.strokeStyle = p.sel ? '#111' : '#fff'; g.lineWidth = p.sel ? 1.6 : .8; g.stroke(); g.lineWidth = 1; }
+  return counts;
+}
+const gdJointPts = (ewrs, sel, other) => ewrs.flatMap(x => {  // other: the comparison's EWRs by key; the dot is then the comparison and the arrow starts at the base
+  if (x.frr == null || x.etp == null) return [];
+  const o = other?.get(ewrKey(x));
+  if (!other) return [{ e: x, x: x.frr, y: x.etp, sel: x === sel }];
+  return o && o.frr != null && o.etp != null ? [{ e: x, x: o.frr, y: o.etp, bx: x.frr, by: x.etp, sel: x === sel }] : [];
+});
+const gdJointText = (counts, n, omitted) => { const N = counts.reduce((a, v) => a + v, 0), names = ['Meeting both', 'Frequency only', 'MRIP only', 'Failing both']; return `${names.map((t, i) => `${t} ${counts[i]}`).join(' · ')} of ${N} EWRs (${N ? Math.round(100 * counts[0] / N) : 0}% meet both: FR ≥ 1 and no time beyond the MRIP)${omitted ? `; ${omitted} have no maximum inter-event period` : ''}. Further right: the target frequency met more often; lower: less time beyond the MRIP. Green area: FR ≥ 0.95 and at most 5% beyond.`; };
+
 // The chart views, in the order of the dashboard's: EWR performance, flow, flow regime. Each draws on the canvas and returns [legend html, summary].
 const GD_VIEWS = [
+  { name: 'Joint FR\u2013MRIP', draw(e, ec, c) {  // every EWR at this gauge: frequency ratio against time beyond the maximum inter-event period
+    const comp = ec ? new Map(c.gaugeC.ewrs.map(x => [ewrKey(x), x])) : null, sets = gdRegColours(c.gauge.ewrs), pts = gdJointPts(c.gauge.ewrs, e, comp), g = c.g;
+    const counts = gdScatter(g, { x: c.L, y: 8, w: c.W - c.L - c.R, h: c.base - 24 }, pts, sets.col), [bn, cn] = gdNames();
+    return [sets.names.map(n => gdSwatch(sets.col.get(n), n)).join(''), gdJointText(counts, pts.length, c.gauge.ewrs.filter(x => x.etp == null).length) + (ec ? ` Arrows run from ${bn} to ${cn}.` : '') + ' Ring: the EWR chosen below.'];
+  } },
   { name: 'Achieved each year', draw(e, ec, c) {
     const ys = GAUGES.years, [bn, cn] = gdNames(), g = c.g;
     if (!ec) {
@@ -3159,7 +3207,7 @@ function gaugePanel(km) {
   const ewrs = [...g.ewrs].sort((x, y) => (x.thr || 0) - (y.thr || 0) || x.code.localeCompare(y.code)), e = ewrs.find(x => ewrKey(x) === gdPick) || ewrs.find(x => x.fr > 0) || ewrs[0], views = gdAvail();  // listed by rising minimum threshold, i.e. flow regime
   if (gdView >= views.length) gdView = 0;
   const view = views[gdView], key = `${GHOME}|${g.id}|${ewrKey(e)}|${wy}|${gdView}|${gdVs}|${gdMode}|${gdSpell}|${km.toFixed(1)}`;
-  panel.classList.add('ready');
+  panel.classList.add('ready'); $('gauge-item').classList.add('ready');
   if (key === gdKey) return;
   gdKey = key;
   $('gd-name').textContent = g.name;
@@ -3207,6 +3255,106 @@ for (const [id, step] of [['gd-prev', -1], ['gd-next', 1]]) $(id).onclick = () =
 $('gd-vs').onclick = () => { const options = ['', ...GCASES.filter(id => id !== GHOME)]; gdVs = options[(options.indexOf(gdVs) + 1) % options.length]; gdRedraw(); };
 $('gd-opt').onclick = () => { const v = gdAvail()[gdView]; if (v.opt === 'heat') gdMode ^= 1; else gdSpell++; gdRedraw(); };
 for (const id of ['gd-prev', 'gd-next', 'gd-vs', 'gd-opt']) $(id).onmousedown = ev => ev.preventDefault();  // spans, not buttons: a focused button would take the car's Space (jump) as a click
+// ---- The SDL unit panel, above the gauge panel: the results of the EWRs at the modelled gauges in the SDL unit the car is in. Three views:
+// the objective matrices (EWR-objective links by ecological theme, per planning unit or flow regime), the FR and ETP roll-ups by planning unit and
+// SDL unit, and the joint FR-MRIP chart with the share of EWRs achieved each year.
+let sdlNow = '', sdView = 0, sdMode = 0, sdKey = '';
+const sdlAt = (lon, lat) => { const r = Math.round((T.y0 - lat) / T.step), c = Math.round((lon - T.x0) / T.step); return r >= 0 && c >= 0 && r < NR && c < NC ? D.units[GO[r * NC + c]]?.sdl || '' : ''; };
+const gdSdl = g => g._sdl ??= sdlAt(g.lon, g.lat) || g.river.split('-')[0];
+function sdlGroup(id) {  // the gauges of one SDL unit and their EWRs, once per set of results
+  const cache = GAUGES._sdl ||= new Map();
+  if (!cache.has(id)) { const gs = GAUGES.gauges.filter(g => gdSdl(g) === id); cache.set(id, { gs, rows: gs.flatMap(g => g.ewrs.map(e => ({ g, e }))) }); }
+  return cache.get(id);
+}
+const avg = a => { const v = a.filter(x => x != null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
+function gdFit(g, text, w) { let t = text; while (t.length > 3 && g.measureText(t).width > w) t = t.slice(0, -2) + '…'; return t; }
+const THEME_ABBR = ['FC', 'NF', 'WB', 'NV', 'EF', 'OS', '?'];
+const SD_VIEWS = [
+  { name: 'Objectives × EWRs', opt: true,
+    rowsOf(grp) {  // planning units, or flow regimes (a regime's EWRs counted in each of their regimes): [name, the EWRs]
+      if (!sdMode) { const m = new Map(); for (const { e } of grp.rows) (m.get(e.pu) || m.set(e.pu, []).get(e.pu)).push(e); return [...m].sort((a, b) => a[0].localeCompare(b[0])); }
+      const m = new Map(); for (const { e } of grp.rows) for (const i of e.reg) (m.get(GAUGES.regs[i]) || m.set(GAUGES.regs[i], []).get(GAUGES.regs[i])).push(e);
+      const low = ([, es]) => Math.min(...es.map(x => x.thr ?? Infinity)); return [...m].sort((a, b) => low(a) - low(b));
+    },
+    height(grp) { return Math.min(320, 40 + 15 * Math.max(3, this.rowsOf(grp).length)); },
+    draw(grp, c) {
+      const themes = GAUGES.themes, rows = this.rowsOf(grp), g = c.g, LW = 150, cw = (c.W - LW - 4) / themes.length, rh = 15, top = 24;
+      const cells = rows.map(([, es]) => themes.map((_, t) => es.reduce((s, x) => s + x.th.filter(v => v === t).length, 0))), mx = Math.max(1, ...cells.flat());
+      g.fillStyle = '#656b72'; g.textAlign = 'center'; g.textBaseline = 'middle'; themes.forEach((t, i) => g.fillText(THEME_ABBR[i] || t[0], LW + (i + .5) * cw, 10));
+      rows.forEach(([name], r) => {
+        g.fillStyle = '#3e4248'; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(gdFit(g, name.replace(/^[^_]*_/, ''), LW - 8), LW - 4, top + r * rh + rh / 2);
+        themes.forEach((_, t) => { const n = cells[r][t]; g.fillStyle = n ? gdSeq(.12 + .88 * n / mx) : '#f1f3f5'; g.fillRect(LW + t * cw + 1, top + r * rh + 1, cw - 2, rh - 2);
+          if (n) { g.fillStyle = n / mx > .5 ? '#fff' : '#24272b'; g.textAlign = 'center'; g.fillText(n, LW + (t + .5) * cw, top + r * rh + rh / 2 + .5); } });
+      });
+      const used = themes.map((t, i) => cells.some(row => row[i]) ? gdSwatch('#9aa3b0', `${THEME_ABBR[i] || t[0]} ${t}`) : '').join('');
+      return [used, `How many EWR–objective links each ${sdMode ? 'flow regime' : 'planning unit'} has under each ecological theme, over the ${grp.rows.length} EWRs at the modelled gauges here (darker: more). An EWR serving several objectives or, by regime, several regimes counts in each.`];
+    } },
+  { name: 'FR & ETP roll-up',
+    entries(grp) {  // equal-weight means up the hierarchy: EWRs to a gauge, gauges to a planning unit, planning units to the SDL unit (FR capped at 1)
+      const pus = new Map(); for (const { g, e } of grp.rows) { const m = pus.get(e.pu) || pus.set(e.pu, new Map()).get(e.pu); (m.get(g.id) || m.set(g.id, []).get(g.id)).push(e); }
+      const mean = (m, f) => avg([...m.values()].map(es => avg(es.map(f)))), out = [...pus].map(([pu, m]) => ({ label: pu.replace(/^[^_]*_/, ''), fr: mean(m, x => x.fr), et: mean(m, x => x.etp), n: [...m.values()].reduce((s, es) => s + es.length, 0) })).sort((a, b) => a.label.localeCompare(b.label));
+      return [{ label: 'SDL unit', bold: true, fr: avg(out.map(o => o.fr)), et: avg(out.map(o => o.et)), n: grp.rows.length }, ...out];
+    },
+    height(grp) { return 28 + 24 * this.entries(grp).length; },
+    draw(grp, c) {
+      const rows = this.entries(grp), g = c.g, LW = 150, bw = (c.W - LW - 10) / 2 - 30, top = 22;
+      g.fillStyle = '#656b72'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText('mean FR', LW + 4, 9); g.fillText('% beyond MRIP', LW + bw + 40, 9);
+      rows.forEach((r, i) => {
+        const y = top + i * 24;
+        g.fillStyle = '#24272b'; g.font = `${r.bold ? '700 ' : ''}10px Arial, sans-serif`; g.textAlign = 'right'; g.fillText(gdFit(g, r.label, LW - 8), LW - 4, y + 7); g.font = '9px Arial, sans-serif'; g.fillStyle = '#7a7f86'; g.fillText(`${r.n} EWRs`, LW - 4, y + 18); g.font = '10px Arial, sans-serif';
+        for (const [v, x0, col, txt, max] of [[r.fr, LW + 4, GD_BLUE, r.fr == null ? '–' : r.fr.toFixed(2), 1], [r.et, LW + bw + 40, GD_RED, r.et == null ? '–' : `${(100 * r.et).toFixed(0)}%`, 1]]) {
+          g.fillStyle = '#eceff2'; g.fillRect(x0, y + 2, bw, 14); if (v != null) { g.fillStyle = col; g.fillRect(x0, y + 2, Math.max(1, bw * v / max), 14); }
+          g.fillStyle = '#24272b'; g.textAlign = 'left'; g.fillText(txt, x0 + bw + 4, y + 9);
+        }
+      });
+      return [gdSwatch(GD_BLUE, 'frequency ratio (capped at 1)') + gdSwatch(GD_RED, 'share of the record beyond the MRIP'), 'Means up the hierarchy, as the dashboard’s map: EWRs to a gauge, gauges to a planning unit, planning units to the SDL unit (each level an equal-weight mean). ETP is over the EWRs that have a maximum inter-event period. Only the modelled gauges are counted.'];
+    } },
+  { name: 'Joint FR–MRIP & annual',
+    height() { return 276; },
+    draw(grp, c) {
+      const ewrs = grp.rows.map(r => r.e), sets = gdRegColours(ewrs), pts = gdJointPts(ewrs, null, null), g = c.g, ys = GAUGES.years;
+      const counts = gdScatter(g, { x: 34, y: 8, w: c.W - 38, h: 138 }, pts, sets.col);
+      const top = 188, bot = 252, cw = (c.W - 38) / ys.length;  // the share of the unit's EWRs achieved in each complete water year
+      g.fillStyle = '#656b72'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText('Share of EWRs achieved each water year', 34, 174);
+      let lo = 1, hi = 0;
+      ys.forEach((_, i) => { let n = 0, a = 0; for (const e of ewrs) if (e.ach[i] !== '-') { n++; if (e.ach[i] === '1') a++; }
+        if (!n) return; const v = a / n; lo = Math.min(lo, v); hi = Math.max(hi, v); g.fillStyle = GD_BLUE; g.fillRect(34 + i * cw, bot - (bot - top) * v, Math.max(1, cw - .6), (bot - top) * v); });
+      g.strokeStyle = '#9aa3b0'; g.beginPath(); g.moveTo(34, bot + .5); g.lineTo(c.W - 4, bot + .5); g.stroke();
+      g.fillStyle = '#656b72'; g.textAlign = 'right'; g.fillText('0', 30, bot - 3); g.fillText('100%', 30, top + 4);
+      g.textAlign = 'center'; g.textBaseline = 'top'; [0, Math.floor(ys.length / 2), ys.length - 1].forEach(i => g.fillText(ys[i], Math.min(c.W - 14, Math.max(44, 34 + (i + .5) * cw)), bot + 3));
+      return [sets.names.map(n => gdSwatch(sets.col.get(n), n)).join(''), gdJointText(counts, pts.length, ewrs.filter(x => x.etp == null).length) + ` Bars: the share of the unit’s EWRs achieved in each water year (from ${Math.round(100 * lo)}% to ${Math.round(100 * hi)}%).`];
+    } },
+];
+function sdlDrive(lon, lat) {
+  const s = sdlAt(lon, lat); if (s) sdlNow = s;
+  if (sdlNow && GAUGES) sdlPanel();
+}
+function sdlPanel() {
+  const grp = sdlGroup(sdlNow), view = SD_VIEWS[sdView], key = `${GHOME}|${sdlNow}|${sdView}|${sdMode}`;
+  $('sdl-item').classList.add('ready');
+  if (key === sdKey) return;
+  sdKey = key;
+  $('sd-name').textContent = UNIT_NAME[sdlNow] || sdlNow;
+  $('sd-where').textContent = grp.gs.length ? `SDL unit ${sdlNow} · ${grp.gs.length} EWR gauge${grp.gs.length === 1 ? '' : 's'} on the modelled rivers · ${grp.rows.length} EWRs` : `SDL unit ${sdlNow}`;
+  $('sd-title').textContent = `${sdView + 1}/${SD_VIEWS.length} · ${view.name}`;
+  const opt = $('sd-opt'); opt.hidden = !view.opt; opt.textContent = sdMode ? 'by flow regime' : 'by planning unit';
+  const cv = $('sd-chart'), dpr = devicePixelRatio || 1, W = cv.clientWidth || 374;
+  if (!grp.rows.length) { cv.style.height = '0'; cv.width = 0; $('sd-key').innerHTML = ''; $('sd-sum').textContent = 'No EWR gauge on a modelled river in this SDL unit, so there is nothing to total.'; return; }
+  const H = view.height(grp), g = cv.getContext('2d');
+  cv.style.height = `${H}px`; cv.width = W * dpr; cv.height = H * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H); g.font = '10px Arial, sans-serif';
+  const [legend, sum] = view.draw(grp, { g, W, H });
+  $('sd-key').innerHTML = legend;  // swatches built above from fixed colours and theme or regime names
+  $('sd-sum').textContent = sum;
+}
+const sdRedraw = () => { sdKey = ''; if (sdlNow && GAUGES) sdlPanel(); };
+for (const [id, step] of [['sd-prev', -1], ['sd-next', 1]]) $(id).onclick = () => { sdView = (sdView + step + SD_VIEWS.length) % SD_VIEWS.length; sdRedraw(); };
+$('sd-opt').onclick = () => { sdMode ^= 1; sdRedraw(); };
+for (const id of ['sd-prev', 'sd-next', 'sd-opt']) $(id).onmousedown = ev => ev.preventDefault();
+for (const [item, tab, k] of [['sdl-item', 'sd-tab', 'sdl'], ['gauge-item', 'gd-tab', 'gauge']]) {  // each panel slides out to the left, leaving its tab at the screen's edge; remembered
+  let shut = false; try { shut = localStorage.getItem('dock-shut-' + k) === '1'; } catch (e) {}
+  const apply = () => { $(item).classList.toggle('shut', shut); $(tab).textContent = shut ? '›' : '‹'; try { localStorage.setItem('dock-shut-' + k, shut ? '1' : '0'); } catch (e) {} };
+  $(tab).onmousedown = ev => ev.preventDefault(); $(tab).onclick = () => { shut = !shut; apply(); }; apply();
+}
 $('gaugesIn').onchange = async e => {
   showGauges = e.target.checked;
   if (showGauges) await loadGauges();
@@ -3224,41 +3372,58 @@ import ewr_export
 
 EXCLUDED = {"425020", "425022"}  # lake EWRs that need a level series: py_ewr stops on them
 known = json.load(open("/home/pyodide/ewr_gauges.json"))
-raw = pd.read_csv("/home/pyodide/up.csv")
-raw.columns = [str(c).strip() for c in raw.columns]
-if "Date" not in raw.columns:
-    raise ValueError("The first column needs to be called Date.")
-raw["Date"] = pd.to_datetime(raw["Date"], dayfirst=True, format="mixed", errors="coerce")
-raw = raw.dropna(subset=["Date"]).drop_duplicates("Date").set_index("Date").sort_index()
-cols = [c for c in raw.columns if c.endswith("_flow")]
-if not cols:
-    raise ValueError("No <gauge>_flow columns found: name each column after its gauge, like 404216_flow.")
-use = [c for c in cols if c[:-5] in known and c[:-5] not in EXCLUDED]
-if not use:
-    raise ValueError("None of the gauges in this file is an EWR gauge on the map.")
-flows = raw[use].apply(pd.to_numeric, errors="coerce")
-first, last = flows.index.min(), flows.index.max()
-start = pd.Timestamp(first.year, 7, 1) if first <= pd.Timestamp(first.year, 7, 1) else pd.Timestamp(first.year + 1, 7, 1)
-end = pd.Timestamp(last.year, 6, 30) if last >= pd.Timestamp(last.year, 6, 30) else pd.Timestamp(last.year - 1, 6, 30)
-if end < start + pd.Timedelta(days=364):
-    raise ValueError("The file needs at least one whole water year (1 July to 30 June) of daily flow.")
-flows = flows.reindex(pd.date_range(start, end))
-flows.index.name = "Date"
-flows = flows.loc[:, flows.notna().any()]
-if flows.empty:
-    raise ValueError("The gauges in this file have no flow readings in a whole water year.")
-flows.to_csv("/home/pyodide/clean.csv", date_format="%Y-%m-%d")
+def whole_years(flows):
+    """Keep whole July-June water years of daily flow (ML/d) and gauges that have a reading."""
+    first, last = flows.index.min(), flows.index.max()
+    start = pd.Timestamp(first.year, 7, 1) if first <= pd.Timestamp(first.year, 7, 1) else pd.Timestamp(first.year + 1, 7, 1)
+    end = pd.Timestamp(last.year, 6, 30) if last >= pd.Timestamp(last.year, 6, 30) else pd.Timestamp(last.year - 1, 6, 30)
+    if end < start + pd.Timedelta(days=364):
+        raise ValueError("The file needs at least one whole water year (1 July to 30 June) of daily flow.")
+    flows = flows.reindex(pd.date_range(start, end))
+    flows.index.name = "Date"
+    flows = flows.loc[:, flows.notna().any()]
+    if flows.empty:
+        raise ValueError("The gauges in this file have no flow readings in a whole water year.")
+    return flows, start, end
+
+run = lambda h: (h.get_ewr_results(), h.get_yearly_ewr_results(), h.get_all_events(), h.get_all_successful_events(), h.get_all_successful_interEvents())
 try:
-    handler = ScenarioHandler("/home/pyodide/clean.csv", "Standard time-series")
-    results = handler.get_ewr_results(), handler.get_yearly_ewr_results(), handler.get_all_events(), handler.get_all_successful_events(), handler.get_all_successful_interEvents()
+    if FMT == "Standard time-series":
+        raw = pd.read_csv(UPLOAD)
+        raw.columns = [str(c).strip() for c in raw.columns]
+        if "Date" not in raw.columns:
+            raise ValueError("The first column needs to be called Date.")
+        raw["Date"] = pd.to_datetime(raw["Date"], dayfirst=True, format="mixed", errors="coerce")
+        raw = raw.dropna(subset=["Date"]).drop_duplicates("Date").set_index("Date").sort_index()
+        cols = [c for c in raw.columns if c.endswith("_flow")]
+        if not cols:
+            raise ValueError("No <gauge>_flow columns found: name each column after its gauge, like 404216_flow.")
+        use = [c for c in cols if c[:-5] in known and c[:-5] not in EXCLUDED]
+        if not use:
+            raise ValueError("None of the gauges in this file is an EWR gauge on the map.")
+        flows, start, end = whole_years(raw[use].apply(pd.to_numeric, errors="coerce"))
+        flows.to_csv("/home/pyodide/clean.csv", date_format="%Y-%m-%d")
+        results = run(ScenarioHandler("/home/pyodide/clean.csv", FMT))
+    else:
+        handler = ScenarioHandler(UPLOAD, FMT)
+        results = run(handler)
+        flows = handler.flow_data.copy()
+        flows.index = pd.to_datetime(flows.index)
+        flows.columns = [str(c) + "_flow" for c in flows.columns]
+        cols = list(flows.columns)
+        use = [c for c in cols if c[:-5] in known and c[:-5] not in EXCLUDED]
+        if not use:
+            raise ValueError("None of the gauges in this file is an EWR gauge on the map.")
+        flows, start, end = whole_years(flows[use].apply(pd.to_numeric, errors="coerce"))
 except KeyError:
     raise ValueError("The EWR tool found nothing to evaluate in this flow.")
 gauges = [c[:-5] for c in flows.columns]
 matched = pd.DataFrame({"name": [known[g]["name"] for g in gauges], "lon": [known[g]["lon"] for g in gauges], "lat": [known[g]["lat"] for g in gauges], "river_id": "", "km": 0.0}, index=gauges)
+results = [r[r["Gauge"].astype(str).isin(gauges)] if "Gauge" in r.columns else r for r in results]  # other formats report every gauge in the file
 out, flow = ewr_export.build("yours", flows, matched, *results)
 json.dumps({"out": out, "flow": flow, "ignored": sorted({c[:-5] for c in cols} - set(gauges)), "from": str(start.date()), "to": str(end.date())}, default=lambda o: o.item(), allow_nan=False)
 `;
-let yoursWorker;
+let yoursWorker, yoursName = 'Your data';
 // The map on observed or uploaded flow: no weather, the source's own calendar, and every river's flow interpolated from the gauges.
 // A river takes the log-flow of its nearest gauges (up to three with a reading that day, within 150 km), weighted by 1 / (distance + 10 km)²
 // and six times as much for a gauge on a river of the same name. Weather layers are hidden and the timeline runs over the record.
@@ -3323,7 +3488,7 @@ function svApply(id) {  // install flow source `id`'s view, or put the model's b
 }
 function useGauges(id) {
   GHOME = id; GAUGES = null; gaugesLoad = null; gdCalC = null; gdNear = null; gdKey = ''; gdView = 0; gdPick = ''; gdVs = '';
-  $('gauge-diag').classList.remove('ready');
+  $('gauge-diag').classList.remove('ready'); $('gauge-item').classList.remove('ready'); $('sdl-item').classList.remove('ready'); sdKey = '';
   loadGauges();
   if (SRC === 'model') svApply('model'); else gdLoad([id], true).then(() => id === GHOME && svApply(id)).catch(() => {});
   if (overlay) overlay.setProps({layers:layers()});
@@ -3333,13 +3498,14 @@ function setSource(s) {
   for (const b of $('source-stops').children) b.setAttribute('aria-pressed', b.dataset.s === s);
   $('model-section').hidden = s !== 'model'; $('yours-fields').hidden = s !== 'yours';
   $('source-note').textContent = { model: '', observed: 'Daily flow from Bureau of Meteorology gauge records, 2012 onwards, at the EWR gauges that have one. The map shows it with every river’s flow interpolated from the gauges; the EWR tool works out the gauge panel’s results. No rainfall, evaporation or ecology.',
-    yours: 'A CSV of daily flow in ML/d (the map’s rivers are interpolated from your gauges): a Date column and one column per gauge, named like 404216_flow (the EWR tool’s standard time-series format). Gauges not on the map are ignored.' }[s];
+    yours: 'A CSV of daily flow in ML/d (the map’s rivers are interpolated from your gauges): a Date column and one column per gauge, named like 404216_flow (the EWR tool’s standard time-series format). Gauges not on the map are ignored. Other formats (Bigmod, FIRM, res.csv, Source NSW, IQQM netCDF, ten-thousand-year) are read by the EWR tool as the dashboard does.' }[s];
   useGauges(s === 'model' ? MODEL_HOME : s);
 }
 $('source-stops').onclick = e => { const b = e.target.closest('button[data-s]'); if (b && b.dataset.s !== SRC) setSource(b.dataset.s); };
 $('yours-file').onchange = e => {
   const file = e.target.files[0], status = $('yours-status');
   if (!file) return;
+  const fmt = $('yours-format').value, name = $('yours-name').value.trim() || file.name.replace(/\.[^.]+$/, '');
   if (file.size > 60e6) { status.textContent = 'That file is over 60 MB.'; return; }
   yoursWorker ||= new Worker(URL.createObjectURL(new Blob([$('yours-worker').textContent], { type: 'text/javascript' })));
   yoursWorker.onmessage = ({ data }) => {
@@ -3347,13 +3513,13 @@ $('yours-file').onchange = e => {
     $('yours-file').disabled = false;
     if (data.error) { status.textContent = data.error; return; }
     const r = JSON.parse(data.result);
-    r.out.by = new Map(r.out.gauges.map(g => [g.id, g])); gdJ.yours = r.out; gdF.yours = r.flow;
+    yoursName = name; r.out.by = new Map(r.out.gauges.map(g => [g.id, g])); gdJ.yours = r.out; gdF.yours = r.flow;
     status.textContent = `${r.out.gauges.length} gauges, ${r.out.gauges.reduce((n, g) => n + g.ewrs.length, 0)} EWRs, ${r.from} to ${r.to}.` + (r.ignored.length ? ` Ignored: ${r.ignored.join(', ')}.` : '');
     useGauges('yours');
   };
   yoursWorker.onerror = ev => { $('yours-file').disabled = false; status.textContent = 'The EWR tool could not run: ' + (ev.message || 'it failed to load'); };
   status.textContent = 'Reading the file…'; $('yours-file').disabled = true;
-  file.text().then(csv => yoursWorker.postMessage({ csv, code: YOURS_CODE, base: new URL('./', location.href).href }));
+  file.arrayBuffer().then(bytes => yoursWorker.postMessage({ bytes, fmt, upload: fmt === 'IQQM - netcdf' ? 'up.nc' : 'up.csv', code: YOURS_CODE, base: new URL('./', location.href).href }, [bytes]));
 };
 $('sdlIn').onchange = e => { showSdl = e.target.checked; if (overlay) overlay.setProps({layers:layers()}); };
 $('riverReliefIn').oninput = e => { riverRelief = +e.target.value; cache = { day: -1 }; update(); };
