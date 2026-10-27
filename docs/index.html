@@ -1043,6 +1043,7 @@ function rtClick(info) {
     rtCommit(() => {
       RT.links = RT.links.filter(l => l.a.id !== selected.id || l.split);
       const link = { a:selected, b:hit, w:3 }; rtStraight(link); RT.links.push(link);
+      if (hit.id in (selected.model.splits || {})) { const splits = { ...selected.model.splits }; delete splits[hit.id]; rtSetSplits(selected, splits); }  // the rest of its flow now goes there anyway
     });
     return true;
   }
@@ -1376,8 +1377,20 @@ function rtDeleteProblem(node) {  // why a node cannot be deleted, else ''
   if (reason) return reason;
   return RT.links.some(l => l.a.id === node.id && l.b && !l.split) ? '' : 'Delete needs a downstream node to take this node’s flow.';
 }
-function rtRemove(id) {  // delete a node: its flow and runoff go to the node below it
+function rtRetargetSplits(id, downstream) {  // splits that sent flow to a deleted node send it to the node below instead; where that is the splitting node's own main channel they just end
+  for (const n of RT.nodes) {
+    const main = rtMain(n), mainTo = main?.b.id === id ? downstream.id : main?.b.id, splits = { ...n.model.splits };
+    if (n.id === id || !Object.keys(splits).length) continue;
+    const share = splits[id] || 0;
+    delete splits[id];
+    if (share && downstream.id !== n.id) splits[downstream.id] = (splits[downstream.id] || 0) + share;
+    delete splits[mainTo];  // a split to its own main channel's next node is the rest of its flow anyway
+    if (JSON.stringify(splits) !== JSON.stringify(n.model.splits)) rtSetSplits(n, splits);
+  }
+}
+function rtRemove(id) {  // delete a node: its flow and runoff go to the node below it; a split it made ends, and splits to it go to the node below
   const selected = RT.nodes.find(n => n.id === id), downstream = RT.links.find(l => l.a.id === id && l.b && !l.split).b;
+  rtRetargetSplits(id, downstream);
   rtAbsorb(selected, downstream);
   RT.links = RT.links.filter(l => l.a.id !== id).flatMap(l => {
     if (l.b?.id !== id) return [l];
@@ -1408,7 +1421,6 @@ function rtProtected(node) {
   if (node.model.storage) return 'Dam node: preserve its storage and release rules.';
   if (node.link) return 'System link: another river system’s water enters or leaves here.';
   if (node.ring) return 'Calibration node: its position in the network is protected.';
-  if (RT.links.some(l => l.split && (l.a.id === node.id || l.b?.id === node.id))) return 'Diversion node: change its flow split in the flow panel.';
   return '';
 }
 function rtLength(path) {

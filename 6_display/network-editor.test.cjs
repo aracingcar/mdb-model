@@ -203,6 +203,31 @@ const splitEdit = run("rtEditedEngine('test',{...source,nodes:rtPack(RT).nodes.m
 assert.ok(splitEdit.nodes.length>=6);
 console.log('Add flow split: placed on a channel, diverts to a channel point or a diverted reach.');
 
+// Flow-split nodes are ordinary nodes: they can be moved, reconnected and deleted; their splits follow.
+const chain = splits => run(`rtSystem='test'; rtHistory=[]; rtMode=null; rtSelected=null;
+RT = {nodes:['a','b','c','d','e'].map((id,i)=>({id,lon:145+i,lat:-35,model:{id,basin:'basin',share:.2,area:100,length:10,next:i<4?'abcde'[i+1]:'',outlet:i===4,river:true,splits:{}}})),links:[],redirects:{},exits:{}};
+RT.links = [0,1,2,3].map(i=>({a:RT.nodes[i],b:RT.nodes[i+1],path:[[145+i,-35],[146+i,-35]],w:3}));
+rtSetSplits(RT.nodes[1], ${splits}); rtBase = rtPack(RT);`);
+const sh = () => JSON.parse(run("JSON.stringify(RT.nodes.find(n=>n.id==='b').model.splits)"));
+chain('{d:.2}');
+assert.equal(run("rtProtected(RT.nodes[1])"),''); assert.equal(run("rtProtected(RT.nodes[3])"),''); // split source and split target
+assert.equal(run("rtDeleteProblem(RT.nodes[1])"),''); assert.equal(run("rtDeleteProblem(RT.nodes[3])"),'');
+run("rtSelected='d'"); elements.get('rt-delete').onclick(); // delete the target: the split goes to the node below it
+assert.deepEqual(sh(),{e:.2}); assert.equal(run("RT.links.filter(l=>l.split).map(l=>l.a.id+l.b.id).join()"),'be');
+assert.equal(run("RT.nodes.find(n=>n.id==='e').model.share"),.4); // d's runoff joins e
+run("rtSelected='c'"); elements.get('rt-delete').onclick(); // c goes: b's main channel now ends at e, the split to e is redundant
+assert.deepEqual(sh(),{}); assert.equal(run("RT.links.some(l=>l.split)"),false);
+chain('{d:.2}'); run("rtSelected='b'"); elements.get('rt-delete').onclick(); // delete the source: its split ends, a flows on to c
+assert.equal(run("RT.links.some(l=>l.split)"),false); assert.equal(run("RT.nodes.map(n=>n.id).join('')"),'acde');
+assert.equal(run("RT.links.find(l=>l.a.id==='a').b.id"),'c');
+chain('{d:.2}'); run("rtSelected='b'; rtMode='connect'"); // reconnect the source's main channel onto its split target
+run("rtClick({layer:{id:'rt-nodes'},object:RT.nodes[3]})"); assert.equal(run("rtMain(RT.nodes[1]).b.id"),'d'); assert.deepEqual(sh(),{});
+chain('{d:.2}'); run("rtSelected='b'; rtMode='move'"); run("rtClick({x:1,y:1,coordinate:[145.5,-34]})"); // move the source: its split follows
+assert.equal(run("RT.links.find(l=>l.split).path[0].join()"),'145.5,-34');
+chain('{d:.2}'); run("rtSelected='d'; rtMode='move'"); run("rtClick({x:1,y:1,coordinate:[148,-33]})"); // move the target: the split ends on it
+assert.equal(run("RT.links.find(l=>l.split).path.at(-1).join()"),'148,-33');
+console.log('Flow-split nodes: moved, reconnected and deleted like others; splits follow.');
+
 // Network exits: feed another river system, sit on its entry node, and replace the engines' exports and inflows.
 const sys = (id,lon,lat,extra={}) => ({nodes:[{id:id+'1',lon,lat,basin:id,river:true,outlet:false,share:.5,area:50,next:id+'2'},{id:id+'2',lon:lon+1,lat,basin:id,river:true,outlet:true,share:.5,area:50,next:''}],basins:[{id,area:100,next:''}],...extra});
 context.world = {up:sys('U',145,-35,{exports:['U']}), down:sys('D',150,-33,{inflows:[{node:'D1',from:'up',basin:'U'}]}), other:sys('O',140,-30,{})};
