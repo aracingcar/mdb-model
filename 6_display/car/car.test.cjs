@@ -161,9 +161,12 @@ assert(soft.scrub>.97,`a plain landing barely slows the car (kept ${(soft.scrub*
     getRelief:()=>1,setRelief(){},refresh:()=>redrawn++,pickTerrain:()=>picked,isWet:()=>0,getPlaces:()=>places,setTowns:on=>{townsOn=on;}});
   const start=elements.find(e=>e.id==='game-start');
   assert(start,'the Start button exists when the page supplies towns');
-  start.listeners.click();
-  assert.equal(townsOn,true,'Start switches the towns on'); assert.equal(g.game.mode,'waiting','waits for the car to be placed');
+  assert.equal(start.hidden,true,'Start stays hidden until the car is placed');
   g.place([6,6]);
+  assert.equal(start.hidden,false,'placing the car reveals Start');
+  assert.equal(g.game.mode,'off','placing the car does not start a game');
+  start.listeners.click();
+  assert.equal(townsOn,true,'Start switches the towns on');
   g.tick(.01);
   assert.equal(g.game.mode,'playing'); assert(g.game.target&&g.game.target.name!=='Outside','a town on the map is named');
   assert(g.game.left>8,`the clock allows time for the drive (${g.game.left.toFixed(1)} s)`);
@@ -176,9 +179,11 @@ assert(soft.scrub>.97,`a plain landing barely slows the car (kept ${(soft.scrub*
   assert.equal(g.game.mode,'over','running out of time ends the game'); assert.equal(g.game.best,1);
   assert.equal(start.hidden,false,'Play again shows from the driver\'s seat');
   g.state.selected=false; g.state.placed=true; g.reset();
-  assert.equal(g.game.mode,'off','the result goes when the car is taken off the map'); assert.equal(start.hidden,false,'Start is back for a fresh game');
+  assert.equal(g.game.mode,'off','the result goes when the car is taken off the map'); assert.equal(start.hidden,true,'Start hides when the car is taken off the map');
   const esc=()=>events.keydown({code:'Escape',repeat:false,target:{matches:()=>false},preventDefault(){}});
-  g.place([6,6]); start.listeners.click(); g.game.left=.01; g.tick(.05);
+  g.place([6,6]);
+  assert.equal(start.hidden,false,'replacing the car restores Start for a fresh game');
+  start.listeners.click(); g.game.left=.01; g.tick(.05);
   assert.equal(g.game.mode,'over');
   esc(); assert.equal(start.hidden,true,'Play again hides when you get out of the car');
   esc(); assert.equal(start.hidden,false,'and returns when you get back in');
