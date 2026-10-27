@@ -665,9 +665,12 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
   // supplies them through conditionsAt), in place of the page's side panel while driving.
   const hud=document.createElement('div'); hud.className='car-hud'; hud.hidden=true;
   hud.innerHTML='<canvas class="car-speedo" aria-hidden="true"></canvas><div class="car-nitro"><span>NITRO</span><div class="car-nitro-bar"><i></i></div></div>'+
-    '<div class="car-here" role="status" aria-live="off"></div>';
+    '<div class="car-here" role="status" aria-live="off"><span class="car-here-toggle" role="button" tabindex="0" aria-label="Collapse or expand conditions" aria-expanded="true" title="Collapse or expand">&#9662;</span><div class="car-here-body"></div></div>';
   document.body.append(hud);
-  const speedo=hud.querySelector('.car-speedo'), nitroBox=hud.querySelector('.car-nitro'), nitroFill=hud.querySelector('.car-nitro-bar i'), here=hud.querySelector('.car-here');
+  const speedo=hud.querySelector('.car-speedo'), nitroBox=hud.querySelector('.car-nitro'), nitroFill=hud.querySelector('.car-nitro-bar i'), here=hud.querySelector('.car-here'), hereBody=here.querySelector('.car-here-body'), hereToggle=here.querySelector('.car-here-toggle');
+  const toggleHere=()=>hereToggle.setAttribute('aria-expanded',String(!here.classList.toggle('collapsed')));
+  hereToggle.addEventListener('click',toggleHere);
+  hereToggle.addEventListener('keydown',e=>{ if(e.key!=='Enter'&&e.key!==' ') return; e.preventDefault(); e.stopPropagation(); toggleHere(); });
   let hereAt=0, speedoKey='';
   const esc=t=>String(t).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
   function drawHud() {
@@ -699,7 +702,7 @@ window.createCarMechanics = function ({ deck, map, terrain, getRelief, setRelief
     if(conditionsAt&&now-hereAt>300) { hereAt=now;
       const k=conditionsAt(c.pos[0],c.pos[1]);
       here.hidden=!k;
-      if(k) here.innerHTML=`<small>${esc(k.date)}</small><b>${esc(k.place)}</b><small>${esc(k.region)}</small><dl>${k.rows.map(([l,v])=>`<dt>${esc(l)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`;
+      if(k) hereBody.innerHTML=`<small>${esc(k.date)}</small><b>${esc(k.place)}</b><small>${esc(k.region)}</small><dl>${k.rows.map(([l,v])=>`<dt>${esc(l)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`;
     }
   }
 

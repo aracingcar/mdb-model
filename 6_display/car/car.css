@@ -68,6 +68,10 @@
   border-radius:6px; background:rgba(255,255,255,.94); box-shadow:0 2px 10px rgba(0,0,0,.12);
   color:#3e4248; font:12px/1.4 var(--sans,Arial,sans-serif); pointer-events:none;
 }
+.car-here-toggle { position:absolute; right:6px; top:6px; width:22px; height:22px; display:grid; place-items:center; border-radius:4px; color:#656b72; cursor:pointer; pointer-events:auto; user-select:none; transition:transform .15s; }
+.car-here-toggle:hover { background:#e8eff6; }
+.car-here.collapsed .car-here-toggle { transform:rotate(90deg); }
+.car-here.collapsed .car-here-body small, .car-here.collapsed .car-here-body dl { display:none; }
 .car-here b { display:block; font-size:15px; color:#24272b; }
 .car-here small { display:block; color:#7a7f86; font-size:11px; }
 .car-here dl { display:grid; grid-template-columns:auto auto; gap:3px 12px; margin:9px 0 0; }
