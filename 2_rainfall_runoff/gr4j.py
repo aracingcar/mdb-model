@@ -28,8 +28,13 @@ CALIBRATED = {
 PLAINS = (355.7715, -5.0484, 7.2274, 1.4473)  # from 410705 Molonglo River at Burbong (aridity index 0.68)
 LABEL = "GR4J"
 ALGORITHM = "gr4j"  # the browser engine (docs/engine.js) implements this algorithm and takes PARAMS from here
+# Systems kept off the plains set. The Lower Darling (aridity index 0.13-0.19, all plains) has no gauge of its own local runoff,
+# and the plains set's groundwater loss (x2 -5 mm/d) leaves it almost none (mean outlet flow -91%); it keeps the median set
+# until a gauge supports a change.
+NO_PLAINS_SET = ("lower_darling",)
 # per system and zone: the engine picks its own
-PARAMS = {s: {"highland": CALIBRATED.get(s, DEFAULT_PARAMS), "plains": PLAINS} for s in DISPLAY_SYSTEMS}
+PARAMS = {s: {"highland": CALIBRATED.get(s, DEFAULT_PARAMS), "plains": CALIBRATED.get(s, DEFAULT_PARAMS) if s in NO_PLAINS_SET else PLAINS}
+          for s in DISPLAY_SYSTEMS}
 
 
 def _unit_hydrographs(x4):
