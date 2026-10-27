@@ -118,7 +118,7 @@ def build_nodes(basins, system):
     plains = basins[basins["subcatchment"].str.startswith("LOWLAND")].to_crs("EPSG:4326")
     watersheds = pd.concat([pd.Series(fine_deg.geometry.values, index=[ids[i] for i in fine_deg.index]), pd.Series(plains.geometry.values, index=plains["subcatchment"].values)])
     result, watersheds = _fold_watersheds(_along_river(nodes, watersheds, system), watersheds)
-    result = apply_network(result, system)  # the page's engine data and exported drafts are of the folded network
+    result = check_network(apply_network(result, system), system)  # the page's engine data and exported drafts are of the folded network
     result.attrs["watersheds"] = watersheds
     return result
 
@@ -305,6 +305,27 @@ def apply_network(nodes, system):
         raise ValueError(f"{path}: the draft changes a basin's total runoff share")
     if lost := set(totals.index) - set(basin_outlets(nodes)):
         raise ValueError(f"{path}: basins with no node reporting their flow ({', '.join(sorted(lost)[:5])})")
+    return nodes
+
+
+def check_network(nodes, name="network"):
+    """Refuse a node network that cannot be routed: repeated node IDs, connections to nodes it does not have, or loops.
+    A node with no downstream node (next '') ends the river there; ``connected`` keeps those that reach the system outlet."""
+    ids = list(nodes["id"])
+    if len(set(ids)) < len(ids):
+        raise ValueError(f"{name}: repeated node IDs ({', '.join(sorted({i for i in ids if ids.count(i) > 1})[:5])})")
+    down = dict(zip(nodes["id"], nodes["next"]))
+    if bad := sorted({d for d in down.values() if d and d not in down}):
+        raise ValueError(f"{name}: connections to nodes that do not exist ({', '.join(bad[:5])})")
+    done = set()
+    for start in ids:
+        path, i = [], start
+        while i and i not in done:
+            if i in path:
+                raise ValueError(f"{name}: the river loops through {' -> '.join(path[path.index(i):] + [i])}")
+            path.append(i)
+            i = down[i]
+        done.update(path)
     return nodes
 
 

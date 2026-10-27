@@ -72,6 +72,22 @@ diagnostics, not persisted in results.db; each pipeline run prints system totals
 runs, `route_network(record_budget=True)` returns daily per-node budgets; the main pipeline uses
 `record_budget="totals"` to avoid large memory costs. The browser routing API can return daily budgets
 with its optional `recordBudget=true` argument. The worker omits these large diagnostics.
+`attrs['stranded_ML']` holds, per basin, the delivered runoff of watersheds whose streams end off the
+river system (on the plains or in terminal lakes; `nodes.connected` drops them): it leaves the water
+balance there and is printed per system: over the three climate cases, 11–13% of the Lachlan's delivered
+runoff, 37–41% of the Lower Darling's (from about 14% of its area) and 2–3% of the Murrumbidgee's.
+
+Each reach's travel time is K = channel length / wave speed. A daily Muskingum reach is stable only for
+K up to about 2.5 days at x = 0.2, so a reach with K over 2.4 days (over ~207 km at 1 m/s) is routed as
+ceil(K / 2.4) equal sub-reaches in series, which keeps its whole travel time (Muskingum's mean lag is K)
+and adds attenuation. Before, K was capped at 2.4 days, so the Lachlan below Hillston (273 km) and the
+Talyawalka reach arrived early.
+
+Network checks: `nodes.check_network` refuses a network with repeated node IDs, connections to missing
+nodes or loops when it is built. `3_routing/test_network.py` checks the built engine data: every system
+is a DAG ending at its outlet, `LINKS` leave from system outlets into basins that have a node, the linked
+systems form one DAG ending at the Murray at the South Australian border, and long reaches and a
+headwater-to-outlet network conserve water.
 
 Fast full-record routing parity (all systems and method pairs):
 `.venv/bin/python 3_routing/check_flux_parity.py` uses the exported network and P/PET.

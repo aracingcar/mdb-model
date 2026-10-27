@@ -46,9 +46,10 @@ const RAINFALL_RUNOFF = {
 const ROUTING = {
   // Muskingum down the node network (the finer watersheds inside each basin) with explicit channel fluxes, residual miscellaneous loss, optional flow
   // splits and storages, as in 3_routing/muskingum.py. A node takes its share of its basin's delivered runoff; its K is
-  // channel length / wave speed, and a reach shorter than MIN_K days is a fractional-day lag instead of a Muskingum reach.
+  // channel length / wave speed, and a reach shorter than MIN_K days is a fractional-day lag instead of a Muskingum reach; one longer than
+  // MAX_K days runs as ceil(K / MAX_K) equal Muskingum sub-reaches in series (routing.py, route_network).
   muskingum(runoffM3s, basins, p, nodes, climate, recordBudget = false, inflows = {}) {
-    const MIN_K = 0.7;
+    const MIN_K = 0.7, MAX_K = 2.4;
     const bidx = Object.fromEntries(basins.map((b, i) => [b.id, i])), idx = Object.fromEntries(nodes.map((n, i) => [n.id, i]));
     const nDays = runoffM3s[0].length;
     const delivery = n => p.delivery[n.startsWith('LOWLAND') ? 'LOWLAND' : n] ?? 1;
@@ -73,7 +74,8 @@ const ROUTING = {
     const feeds = nodes.map(() => []);
     nodes.forEach((n, i) => { if (n.next) feeds[idx[n.next]].push([i, 1 - Object.values(n.splits || {}).reduce((a, v) => a + v, 0)]); });
     nodes.forEach((n, i) => { for (const [to, share] of Object.entries(n.splits || {})) if (to) feeds[idx[to]].push([i, share]); });
-    const k = nodes.map((n, i) => Math.min(2.4, lengths[i] / p.velocity_km_day));
+    const k = nodes.map((n, i) => lengths[i] / p.velocity_km_day);
+    if (k.some(v => !Number.isFinite(v) || v < 0)) throw new Error('K must be finite and non-negative');
     // upstream before downstream
     const order = [], state = new Array(nodes.length).fill(0);
     const visit = root => {
@@ -92,15 +94,23 @@ const ROUTING = {
       for (const i of order) {
         const inflow = Float64Array.from(supply[i]);
         for (const [c, share] of feeds[i]) { const o = out[c]; for (let t = 0; t < nDays; t++) inflow[t] += o[t] * share; }
-        const x = p.x, kk = k[i], dt = 1;
-        const y = new Float64Array(nDays);
+        const x = p.x, dt = 1;
+        let kk = k[i], y = new Float64Array(nDays);
         if (kk >= MIN_K) {
+          const pieces = Math.ceil(kk / MAX_K);
+          kk /= pieces;
           if (!(2 * kk * x <= dt && dt <= 2 * kk * (1 - x))) throw new Error('Muskingum stability requires 2*K*X <= dt <= 2*K*(1-X)');
           const d = 2 * kk * (1 - x) + dt;
           const b0 = (dt - 2 * kk * x) / d, b1 = (dt + 2 * kk * x) / d, a1 = -(2 * kk * (1 - x) - dt) / d;
-          // direct form II transposed, started at steady state (scipy lfilter_zi)
-          let z = (b1 - a1 * b0) / (1 + a1) * inflow[0];
-          for (let t = 0; t < nDays; t++) { const v = b0 * inflow[t] + z; z = b1 * inflow[t] - a1 * v; y[t] = v; }
+          let q = inflow;
+          for (let piece = 0; piece < pieces; piece++) {
+            // direct form II transposed, started at steady state (scipy lfilter_zi)
+            const r = new Float64Array(nDays);
+            let z = (b1 - a1 * b0) / (1 + a1) * q[0];
+            for (let t = 0; t < nDays; t++) { const v = b0 * q[t] + z; z = b1 * q[t] - a1 * v; r[t] = v; }
+            q = r;
+          }
+          y = q;
         } else {
           for (let t = 0; t < nDays; t++) y[t] = (1 - kk) * inflow[t] + kk * inflow[Math.max(t - 1, 0)];
         }

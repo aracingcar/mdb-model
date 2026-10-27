@@ -38,11 +38,12 @@ def delivery(p, n):
 
 def _network(runoff, nodes, p):
     """Node inputs: each node takes its area share of its basin's delivered runoff (m3/s) at the point it joins the river.
-    K = channel length / wave speed (the length from HydroBASINS' distance-to-sink, else 1.5 x sqrt(area)), at most 2.4 days."""
+    K = channel length / wave speed (the length from HydroBASINS' distance-to-sink, else 1.5 x sqrt(area)); a reach longer than
+    routing.MAX_K_DAYS is routed as a cascade of shorter sub-reaches, so its whole travel time is kept."""
     downstream = dict(zip(nodes["id"], nodes["next"]))
     lossy = dict(zip(nodes["id"], nodes["loss_rank"].between(1, p["loss_regions"] or 0)))
     length = nodes["length_km"].fillna(1.5 * np.sqrt(nodes["area_km2"]))
-    k = {n: float(min(l / p["velocity_km_day"], 2.4)) for n, l in zip(nodes["id"], length)}
+    k = {n: float(l / p["velocity_km_day"]) for n, l in zip(nodes["id"], length)}
     lateral = {n.id: runoff[n.basin] * delivery(p, n.basin) * n.share for n in nodes.itertuples()}
     return downstream, lossy, k, lateral
 
@@ -70,6 +71,14 @@ def _inflows(nodes, index):
         node = outlet[link["into"]]
         inflow[node] = inflow.get(node, 0.0) + pd.Series(flow, index=index)
     return inflow
+
+
+def _stranded(runoff, nodes, p):
+    """{basin: ML} delivered runoff over the run that is not routed: the share of a basin whose nodes end off the river system
+    (``nodes.connected`` drops them). It leaves the water balance there, like a terminal wetland, and is reported rather than lost unseen."""
+    routed = nodes.groupby("basin")["share"].sum().reindex(runoff.columns).fillna(0.0)
+    left = (1 - routed).clip(lower=0.0)
+    return pd.Series({b: float(runoff[b].sum() * delivery(p, b) * left[b] * M3S_TO_ML_DAY) for b in runoff.columns})
 
 
 def _storage_caps(nodes):
@@ -128,6 +137,7 @@ def route(runoff, basins, subcatchments, p=PARAMS, *, basin_forcing=None):
     """
     p = {**p, **CALIBRATION}
     nodes = connected(build_nodes(basins, SYSTEM_ID), basins)
+    stranded = _stranded(runoff, nodes, p)
     outlet_node = basin_outlets(nodes)
     outlet = outlet_node[basins.loc[basins["next_id"] == "", "subcatchment"].iloc[0]]
     local, fluxes = channel_inputs(runoff, nodes, basins, basin_forcing, p, delivery)
@@ -142,8 +152,13 @@ def route(runoff, basins, subcatchments, p=PARAMS, *, basin_forcing=None):
     basin_flow.attrs['channel_budget_ML'] = pd.DataFrame(routed.attrs['channel_budget']).T.rename(
         columns=lambda c: c.replace('_m3s', '_ML')) * M3S_TO_ML_DAY
     basin_flow.attrs['misc_loss_per_km'] = loss
+    basin_flow.attrs['stranded_ML'] = stranded
     totals = basin_flow.attrs['channel_budget_ML'][['rain_ML', 'evap_ML', 'seepage_ML', 'misc_ML']].sum()
     print('3_routing: channel totals ML: ' + ', '.join(f'{k}={v:,.0f}' for k, v in totals.items()))
+    delivered = sum(runoff[b].sum() * delivery(p, b) for b in runoff.columns) * M3S_TO_ML_DAY
+    if stranded.sum() >= 1:
+        print(f"3_routing:   runoff ending off the river system (streams that stop on the plains, terminal lakes): {stranded.sum():,.0f} ML "
+              f"from {(stranded >= 1).sum()} basins, {stranded.sum() / delivered:.1%} of delivered runoff")
     names = dict(zip(nodes["id"], nodes["storage"]))
     basin_flow.attrs["storages"] = {names[n]: (df * M3S_TO_ML_DAY).rename(columns={"release_m3s": "release_ML_d", "stored_m3s_days": "stored_ML"})
                                     for n, df in routed.attrs["storages"].items()}

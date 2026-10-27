@@ -12,6 +12,7 @@ import pandas as pd
 
 
 MIN_K_DAYS = 0.7  # below this a daily Muskingum reach is unstable (and adds lag); shorter reaches are a fractional-day lag instead
+MAX_K_DAYS = 2.4  # above this (2*K*X > 1 at X = 0.2) a daily Muskingum reach is unstable; longer reaches run as a cascade of equal sub-reaches
 
 
 def store_and_release(inflow, max_release):
@@ -39,7 +40,8 @@ def route_network(lateral_inflows, downstream, reaches, splits=None, record_budg
     optional ``rain_m3s``, ``evap_m3s`` and ``seepage_m3s`` daily exchanges,
     a ``loss`` miscellaneous fraction removed after those exchanges, before storage and splits and an optional ``max_release`` (m3/s): the node then
     holds a storage at its outlet (see ``store_and_release``). A reach with K under MIN_K_DAYS is a fractional-day lag
-    (Muskingum cannot run it at a daily step); the rest are Muskingum. ``splits`` maps a node to ``{to: fraction}``: that
+    (Muskingum cannot run it at a daily step); the rest are Muskingum, a reach with K over MAX_K_DAYS as ceil(K / MAX_K_DAYS)
+    equal sub-reaches in series, so its whole travel time K is kept. ``splits`` maps a node to ``{to: fraction}``: that
     share of its routed outflow goes to node ``to`` (or leaves the network if ``to`` is ''), and the rest goes
     downstream. A node's inflow is its own lateral flow plus its share of the routed outflow of every node feeding
     it. Returns a DataFrame of each node's routed outflow (before any split); its ``attrs["storages"]`` maps each
@@ -86,12 +88,18 @@ def route_network(lateral_inflows, downstream, reaches, splits=None, record_budg
             inflow += out[up] * share
         _validate_flow(inflow)
         k, x, dt = reaches[node]["k_days"], reaches[node]["x"], 1.0
+        if not np.isfinite(k) or k < 0:
+            raise ValueError(f"{node}: K must be finite and non-negative")
         if k >= MIN_K_DAYS:
+            pieces = int(np.ceil(k / MAX_K_DAYS))
+            k /= pieces
             if not 2 * k * x <= dt <= 2 * k * (1 - x):
                 raise ValueError("Muskingum stability requires 2*K*X <= dt <= 2*K*(1-X)")
             d = 2 * k * (1 - x) + dt
             b, a = [(dt - 2 * k * x) / d, (dt + 2 * k * x) / d], [1.0, -(2 * k * (1 - x) - dt) / d]
-            routed = lfilter(b, a, inflow, zi=lfilter_zi(b, a) * inflow[0])[0]
+            routed = inflow
+            for _ in range(pieces):
+                routed = lfilter(b, a, routed, zi=lfilter_zi(b, a) * routed[0])[0]
         else:
             routed = (1 - k) * inflow + k * np.concatenate(([inflow[0]], inflow[:-1]))
         # Daily channel exchanges are applied to routed water before reservoir operation.

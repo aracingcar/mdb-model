@@ -668,7 +668,7 @@ $('focus').onchange = e => { setFocus(e.target.value); update(); if (!FULL) load
 function maxQ() { return (!FULL && D.maxQ) || Math.max(...Object.values(D.sdl).map(s => Math.max(...s.flow)), ...Object.values(D.reachFlow).map(a => Math.max(...a))); }
 
 // ---- Method choice: the defaults are precomputed; any other pair is recalculated here (engine.js in a worker) and saved in IndexedDB ----
-const ENGINE_VERSION = 7;  // bump when docs/engine.js changes what it computes, so saved results are not reused and browsers fetch the new engine
+const ENGINE_VERSION = 8;  // bump when docs/engine.js changes what it computes, so saved results are not reused and browsers fetch the new engine
 const DEFAULT_RR = D.runoff.selected, DEFAULT_RT = D.routing.selected;
 const DEFAULT_RESULTS = { reachFlow: D.reachFlow, sdl: D.sdl, riverFlow: { ...BF } };
 function applyResults(r) {
@@ -755,8 +755,8 @@ function rtBuildGraph(sys, eng, spec, all = rtAll) {
   const p = { ...spec.params, ...eng.calibration }, B = eng.nodes, byId = Object.fromEntries(B.map(b => [b.id, b]));
   const kids = Object.fromEntries(B.map(b => [b.id, []]));
   for (const b of B) if (b.next) kids[b.next].push(b.id);
-  // channel travel time K as the routing computes it (length / wave speed, at most 2.4 days; a reach under 0.7 days is a fractional-day lag)
-  const K = b => Math.min(2.4, (b.length != null ? b.length : 1.5 * Math.sqrt(b.area)) / p.velocity_km_day);
+  // channel travel time K as the routing computes it (length / wave speed; a reach under 0.7 days is a fractional-day lag, one over 2.4 days a cascade of sub-reaches)
+  const K = b => (b.length != null ? b.length : 1.5 * Math.sqrt(b.area)) / p.velocity_km_day;
   const lossy = b => b.lossRank >= 1 && b.lossRank <= (p.loss_regions || 0);
   const cum = {}, total = id => cum[id] ??= byId[id].area + kids[id].reduce((a, c) => a + total(c), 0);
   B.forEach(b => total(b.id));
