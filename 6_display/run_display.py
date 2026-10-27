@@ -454,16 +454,23 @@ def run_display(run=DEFAULT_RUN, methods=(RAINFALL_RUNOFF_MODEL, ROUTING_MODEL))
             continue
         files += other[0]
         cases[c["id"]] = other[1]
-    gauges, gauge_flows = {}, {}  # per built case: the EWR tool's results at the gauges on the modelled rivers (5_outputs/gauge_ewr.py export)
-    for c in CLIMATE_CASES:
+    gauges, gauge_flows = {}, {}  # per built case, and the observed flow: the EWR tool's results at the gauges on the modelled rivers (5_outputs/gauge_ewr.py export)
+    for c in [*CLIMATE_CASES, {"id": "observed", "run": ()}]:
         source = HERE.parent / "data" / "gauge_ewr" / f"{c['id']}.json"
-        if (tuple(c["run"]) == tuple(run) or c["id"] in cases) and source.exists():
+        if (tuple(c["run"]) == tuple(run) or c["id"] in cases or c["id"] == "observed") and source.exists():
             (DATA_DIR / f"gauges_{c['id']}.json").write_text(source.read_text())
             files.append(f"gauges_{c['id']}.json")
             gauges[c["id"]] = f"data/gauges_{c['id']}.json"
             (DATA_DIR / f"gauges_flow_{c['id']}.json").write_text((HERE.parent / "data" / "gauge_ewr" / f"{c['id']}_flow.json").read_text())
             files.append(f"gauges_flow_{c['id']}.json")
             gauge_flows[c["id"]] = f"data/gauges_flow_{c['id']}.json"
+    # "Your data": the page runs py_ewr on an uploaded file (Pyodide), exporting with the same code as above, so it needs that code and where the EWR gauges are
+    ewr_gauges = pd.read_csv(HERE.parent / "data" / "input" / "routing" / "ewr_gauges.csv", dtype={"gauge": str}).set_index("gauge")
+    (DATA_DIR / "ewr_gauges.json").write_text(json.dumps({g: {"name": r["name"], "lon": round(r["lon"], 4), "lat": round(r["lat"], 4)} for g, r in ewr_gauges.iterrows()}, separators=(",", ":")))
+    files.append("ewr_gauges.json")
+    (HERE.parent / "docs" / "ewr").mkdir(exist_ok=True)
+    for name in ("ewr_export.py", "flow_regime_mappings.py"):
+        (HERE.parent / "docs" / "ewr" / name).write_text((HERE.parent / "5_outputs" / name).read_text())
     roads = json.loads((HERE / "roads.json").read_text())  # fetched only when the Roads switch is turned on
     (DATA_DIR / "roads.json").write_text(compact_floats(json.dumps(roads, separators=(",", ":"), allow_nan=False)))
     files.append("roads.json")
